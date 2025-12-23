@@ -130,13 +130,6 @@ const httpClient = {
     // Native platform (Android/iOS)
     if (isNative && (platform === 'android' || platform === 'ios')) {
       try {
-        // First check if server is reachable (optional but helpful)
-        const isReachable = await networkUtils.checkServerReachable();
-        if (!isReachable) {
-          const serverInfo = getServerInfo();
-          throw new Error(`Server at ${serverInfo.host}:${serverInfo.port} is not reachable. Check connection.`);
-        }
-
         const options: any = {
           url,
           method,

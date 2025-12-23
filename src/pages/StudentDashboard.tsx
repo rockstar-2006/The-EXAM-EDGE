@@ -439,7 +439,7 @@ const StudentDashboard = () => {
               </div>
               <div className="hidden sm:block">
                 <p className="font-black uppercase tracking-[0.2em] text-[10px] text-primary/80">Student Portal</p>
-                <p className="text-lg font-black italic tracking-tighter uppercase text-slate-900 dark:text-white">SmartQuiz <span className="text-secondary">App</span></p>
+                <p className="text-lg font-black italic tracking-tighter uppercase text-slate-900 dark:text-white">Faculty <span className="text-secondary">Quest</span></p>
               </div>
             </div>
 
