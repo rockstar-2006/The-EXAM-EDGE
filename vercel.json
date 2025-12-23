@@ -1,32 +1,11 @@
 {
     "version": 2,
-    "builds": [
+    "cleanUrls": true,
+    "trailingSlash": false,
+    "rewrites": [
         {
-            "src": "package.json",
-            "use": "@vercel/static-build",
-            "config": {
-                "distDir": "dist"
-            }
-        }
-    ],
-    "routes": [
-        {
-            "src": "/assets/(.*)",
-            "headers": {
-                "Cache-Control": "public, max-age=31536000, immutable"
-            },
-            "dest": "/assets/$1"
-        },
-        {
-            "src": "/(.*\\.(js|css|png|jpg|jpeg|gif|svg|ico|webp|woff|woff2|ttf|eot))",
-            "headers": {
-                "Cache-Control": "public, max-age=31536000, immutable"
-            },
-            "dest": "/$1"
-        },
-        {
-            "src": "/(.*)",
-            "dest": "/index.html"
+            "source": "/(.*)",
+            "destination": "/index.html"
         }
     ],
     "headers": [
