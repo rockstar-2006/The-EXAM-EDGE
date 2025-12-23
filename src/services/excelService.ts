@@ -42,7 +42,7 @@ export async function parseExcelFile(file: File): Promise<ExcelValidationResult>
         const errors: string[] = [];
 
         // Normalize headers (trim, lowercase, remove special chars)
-        const normalizedHeaders = headers.map(header => 
+        const normalizedHeaders = headers.map(header =>
           header ? header.toString().trim().toLowerCase().replace(/[^a-z0-9\s]/gi, '') : ''
         );
 
@@ -51,10 +51,10 @@ export async function parseExcelFile(file: File): Promise<ExcelValidationResult>
         let missingRequiredFields: string[] = [];
 
         Object.entries(HEADER_MAPPINGS).forEach(([requiredField, possibleNames]) => {
-          const index = normalizedHeaders.findIndex(header => 
+          const index = normalizedHeaders.findIndex(header =>
             possibleNames.some(name => header.includes(name))
           );
-          
+
           if (index !== -1) {
             headerMap[requiredField] = index;
           } else {
@@ -88,13 +88,17 @@ export async function parseExcelFile(file: File): Promise<ExcelValidationResult>
             errors.push(`Row ${i + 1}: Invalid email format - ${student.email}`);
           }
 
-          // Check for missing required fields
+          // Loosen validation: Only Name and either USN or Email are strictly required
+          const isMissingCore = !student.name || (!student.usn && !student.email);
           const emptyFields = Object.entries(student)
             .filter(([key, value]) => key !== 'id' && !value)
             .map(([key]) => key);
 
-          if (emptyFields.length > 0) {
-            errors.push(`Row ${i + 1}: Missing fields - ${emptyFields.join(', ')}`);
+          if (isMissingCore) {
+            errors.push(`Row ${i + 1}: Missing critical fields - ${emptyFields.join(', ')}. Name and USN/Email are mandatory.`);
+          } else if (emptyFields.length > 0) {
+            // Just a warning for other fields, but still push the student
+            console.warn(`Row ${i + 1}: Some fields are missing (${emptyFields.join(', ')}), but record will be created.`);
           }
 
           // Validate USN format (if you have specific format requirements)
