@@ -9,7 +9,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Textarea } from '@/components/ui/textarea';
 import { Progress } from '@/components/ui/progress';
 import { toast } from 'sonner';
-import { Loader2, Clock, CheckCircle2, AlertCircle, Sparkles, Shield, ChevronRight, Activity, Target, Zap, Waves, BadgeCheck } from 'lucide-react';
+import { Loader2, Clock, CheckCircle2, AlertCircle, Sparkles, Shield, ChevronRight, Activity, Target, Zap, Waves, BadgeCheck, Code } from 'lucide-react';
 import axios from 'axios';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
@@ -31,6 +31,82 @@ interface Quiz {
   numQuestions?: number;
   questions?: Question[];
 }
+
+// 📝 CODE AWARE TEXT RENDERING
+const FormattedText = ({ text, isQuestion = false }: { text: string; isQuestion?: boolean }) => {
+  if (!text) return null;
+
+  const parts = text.split(/(```)/g);
+  let isCode = false;
+  let codeBuffer = "";
+  const result: React.ReactNode[] = [];
+
+  parts.forEach((part, i) => {
+    if (part === "```") {
+      if (isCode) {
+        const formattedCode = formatCodeSnippet(codeBuffer);
+        result.push(
+          <div key={i} className="my-4 relative group">
+            <pre
+              style={{ textTransform: 'none' }}
+              className="relative p-5 bg-muted border rounded-xl font-mono text-[11px] sm:text-xs leading-relaxed overflow-x-auto text-foreground shadow-sm scrollbar-thin"
+            >
+              <code>{formattedCode}</code>
+            </pre>
+            <div className="absolute top-2 right-2 flex items-center gap-1 opacity-20">
+              <Code className="w-3 h-3" />
+              <span className="text-[8px] font-black uppercase tracking-widest">CODE</span>
+            </div>
+          </div>
+        );
+        codeBuffer = "";
+        isCode = false;
+      } else {
+        isCode = true;
+      }
+    } else {
+      if (isCode) {
+        codeBuffer += part;
+      } else if (part.trim()) {
+        result.push(
+          <p key={i} className="whitespace-pre-wrap leading-relaxed inline-block w-full text-inherit normal-case" style={{ textTransform: 'none' }}>
+            {part}
+          </p>
+        );
+      }
+    }
+  });
+
+  if (isCode && codeBuffer) {
+    result.push(
+      <pre key="unclosed" style={{ textTransform: 'none' }} className="p-5 bg-muted border rounded-xl font-mono text-xs overflow-x-auto">
+        <code>{formatCodeSnippet(codeBuffer)}</code>
+      </pre>
+    );
+  }
+
+  return (
+    <div className={cn("space-y-3", isQuestion ? "text-foreground" : "text-muted-foreground")}>
+      {result}
+    </div>
+  );
+};
+
+const formatCodeSnippet = (code: string) => {
+  let clean = code.trim();
+  clean = clean.replace(/^[a-zA-Z]+\n/, '');
+  if (clean === clean.toUpperCase() && clean.length > 50) {
+    clean = clean.toLowerCase();
+  }
+  if (!clean.includes('\n') && (clean.includes('{') || clean.includes(';'))) {
+    clean = clean
+      .replace(/{\s*/g, ' {\n  ')
+      .replace(/;\s*/g, ';\n  ')
+      .replace(/}\s*/g, '\n}\n')
+      .replace(/\n\s*\n/g, '\n');
+  }
+  return clean;
+};
 
 export default function StudentQuizPage() {
   const { token } = useParams<{ token: string }>();
@@ -219,7 +295,7 @@ export default function StudentQuizPage() {
             </CardHeader>
             {results && (
               <CardContent className="p-10 pt-0">
-                <div className="bg-muted/30 rounded-2x border border-sidebar-border/50 p-6 space-y-4">
+                <div className="bg-muted/30 rounded-2xl border border-sidebar-border/50 p-6 space-y-4 mb-6">
                   <div className="flex justify-between items-end">
                     <div className="space-y-1">
                       <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">Efficiency Rating</p>
@@ -231,6 +307,39 @@ export default function StudentQuizPage() {
                     </div>
                   </div>
                   <Progress value={results.percentage} className="h-2" />
+                </div>
+
+                <div className="space-y-6">
+                  {results.detailedResults?.map((item: any, index: number) => (
+                    <div key={index} className="bg-muted/30 rounded-2xl border border-sidebar-border/50 p-6">
+                      <div className="flex items-center gap-2 mb-4">
+                        <Code className="w-4 h-4 text-primary" />
+                        <h4 className="text-sm font-black uppercase tracking-widest text-muted-foreground/80">Question {index + 1}</h4>
+                      </div>
+                      <div className="text-sm font-bold leading-relaxed">
+                        <FormattedText text={item.question} />
+                      </div>
+                      <div className="mt-4 p-4 rounded-xl bg-muted/30 border space-y-3">
+                        <div className="flex items-center gap-2 text-xs font-bold">
+                          <span className="opacity-40 uppercase tracking-widest text-[8px]">Selection:</span>
+                          <span className="normal-case">{item.studentAnswer || '[NOT ANSWERED]'}</span>
+                          {item.isCorrect ? <CheckCircle2 className="w-4 h-4 text-emerald-500 ml-auto" /> : <AlertCircle className="w-4 h-4 text-rose-500 ml-auto" />}
+                        </div>
+                        <div className="flex items-center gap-2 text-xs font-bold">
+                          <span className="opacity-40 uppercase tracking-widest text-[8px]">Validated Solution:</span>
+                          <span className="text-primary normal-case">{item.correctAnswer}</span>
+                        </div>
+                        {item.explanation && (
+                          <div className="mt-3 pt-3 border-t border-border flex gap-3">
+                            <Target className="w-3.5 h-3.5 text-primary shrink-0 mt-0.5" />
+                            <div className="text-xs leading-relaxed text-muted-foreground italic">
+                              <FormattedText text={item.explanation} />
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </CardContent>
             )}
@@ -421,9 +530,9 @@ export default function StudentQuizPage() {
                 <div className="flex gap-4">
                   <div className="text-4xl font-black text-primary/20 italic tracking-tighter">Q{currentQuestion + 1}</div>
                   <div className="space-y-4 pt-1 flex-1">
-                    <h2 className="text-2xl font-black tracking-tight leading-snug whitespace-pre-wrap">
-                      {question.question}
-                    </h2>
+                    <div className="text-2xl font-black tracking-tight leading-relaxed">
+                      <FormattedText text={question.question} isQuestion={true} />
+                    </div>
                     <div className="flex gap-2">
                       <BadgeCheck className="w-3 h-3 text-secondary" />
                       <span className="text-[8px] font-black uppercase tracking-[0.2em] text-muted-foreground/40">{question.type === 'mcq' ? 'MULTIPLE CHOICE INPUT' : 'DESCRIPTIVE ANALYSIS'}</span>
@@ -454,7 +563,7 @@ export default function StudentQuizPage() {
                         )}>
                           {String.fromCharCode(65 + index)}
                         </div>
-                        <Label htmlFor={`option-${index}`} className="text-sm font-bold cursor-pointer flex-1 group-hover/option:text-primary transition-colors">
+                        <Label htmlFor={`option-${index}`} className="text-sm font-bold cursor-pointer flex-1 group-hover/option:text-primary transition-colors whitespace-pre-wrap normal-case">
                           {option}
                         </Label>
                         {answers[currentQuestion] === String.fromCharCode(65 + index) && (

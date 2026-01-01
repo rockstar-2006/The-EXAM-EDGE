@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Edit2, Bookmark, BookmarkCheck, Trash2, Save, X, Check, Target, Layers, Activity } from 'lucide-react';
+import { Edit2, Bookmark, BookmarkCheck, Trash2, Save, X, Check, Target, Layers, Activity, Code } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -17,6 +17,82 @@ interface QuestionEditorProps {
   onToggleBookmark: (id: string) => void;
   onToggleSelect: (id: string) => void;
 }
+
+// 📝 CODE AWARE TEXT RENDERING
+const FormattedText = ({ text, isQuestion = false }: { text: string; isQuestion?: boolean }) => {
+  if (!text) return null;
+
+  const parts = text.split(/(```)/g);
+  let isCode = false;
+  let codeBuffer = "";
+  const result: React.ReactNode[] = [];
+
+  parts.forEach((part, i) => {
+    if (part === "```") {
+      if (isCode) {
+        const formattedCode = formatCodeSnippet(codeBuffer);
+        result.push(
+          <div key={i} className="my-4 relative group">
+            <pre
+              style={{ textTransform: 'none' }}
+              className="relative p-5 bg-muted border rounded-xl font-mono text-[11px] sm:text-xs leading-relaxed overflow-x-auto text-foreground shadow-sm scrollbar-thin"
+            >
+              <code>{formattedCode}</code>
+            </pre>
+            <div className="absolute top-2 right-2 flex items-center gap-1 opacity-20">
+              <Code className="w-3 h-3" />
+              <span className="text-[8px] font-black uppercase tracking-widest">CODE</span>
+            </div>
+          </div>
+        );
+        codeBuffer = "";
+        isCode = false;
+      } else {
+        isCode = true;
+      }
+    } else {
+      if (isCode) {
+        codeBuffer += part;
+      } else if (part.trim()) {
+        result.push(
+          <p key={i} className="whitespace-pre-wrap leading-relaxed inline-block w-full text-inherit normal-case" style={{ textTransform: 'none' }}>
+            {part}
+          </p>
+        );
+      }
+    }
+  });
+
+  if (isCode && codeBuffer) {
+    result.push(
+      <pre key="unclosed" style={{ textTransform: 'none' }} className="p-5 bg-muted border rounded-xl font-mono text-xs overflow-x-auto">
+        <code>{formatCodeSnippet(codeBuffer)}</code>
+      </pre>
+    );
+  }
+
+  return (
+    <div className={cn("space-y-3", isQuestion ? "text-foreground" : "text-muted-foreground")}>
+      {result}
+    </div>
+  );
+};
+
+const formatCodeSnippet = (code: string) => {
+  let clean = code.trim();
+  clean = clean.replace(/^[a-zA-Z]+\n/, '');
+  if (clean === clean.toUpperCase() && clean.length > 50) {
+    clean = clean.toLowerCase();
+  }
+  if (!clean.includes('\n') && (clean.includes('{') || clean.includes(';'))) {
+    clean = clean
+      .replace(/{\s*/g, ' {\n  ')
+      .replace(/;\s*/g, ';\n  ')
+      .replace(/}\s*/g, '\n}\n')
+      .replace(/\n\s*\n/g, '\n');
+  }
+  return clean;
+};
 
 export function QuestionEditor({
   question,
@@ -176,7 +252,9 @@ export function QuestionEditor({
               </motion.div>
             ) : (
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
-                <p className="text-xl font-black tracking-tight whitespace-pre-wrap italic group-hover:text-primary transition-colors">{question.question}</p>
+                <div className="text-xl font-black tracking-tight group-hover:text-primary transition-colors">
+                  <FormattedText text={question.question} isQuestion={true} />
+                </div>
 
                 {question.type === 'mcq' && question.options && (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -194,7 +272,7 @@ export function QuestionEditor({
                             "w-10 h-10 rounded-xl flex items-center justify-center font-black text-sm",
                             isCorrect ? "bg-emerald-500 text-white" : "bg-muted text-muted-foreground/40"
                           )}>{String.fromCharCode(65 + i)}</div>
-                          <span className={cn("text-xs font-bold uppercase tracking-tight", isCorrect ? "text-emerald-700" : "opacity-80")}>{option}</span>
+                          <span className={cn("text-xs font-bold whitespace-pre-wrap tracking-tight", isCorrect ? "text-emerald-700" : "opacity-80")}>{option}</span>
                           {isCorrect && <Check className="w-4 h-4 text-emerald-500 ml-auto" />}
                         </div>
                       );
@@ -217,7 +295,9 @@ export function QuestionEditor({
                     <div className="p-2 rounded-xl bg-primary/10 text-primary"><Activity className="w-5 h-5" /></div>
                     <div>
                       <p className="text-[10px] font-black uppercase tracking-widest text-primary/60">Insight Breakdown</p>
-                      <p className="text-sm font-medium whitespace-pre-wrap italic opacity-70 mt-1 leading-relaxed">{question.explanation}</p>
+                      <div className="text-sm font-medium opacity-70 mt-1 leading-relaxed">
+                        <FormattedText text={question.explanation} />
+                      </div>
                     </div>
                   </div>
                 )}

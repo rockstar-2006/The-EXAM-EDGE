@@ -55,8 +55,10 @@ PARAMETERS:
 ${difficultyInstruction}
 RICH CONTENT RULES:
 - If the source material contains code snippets, diagrams (described in text), or figures, YOU MUST INCLUDE THEM in the "question" field using Markdown code blocks or clear descriptions.
-- For programming topics (like C, Python), PRIORITIZE questions that include code snippets for analysis (e.g., "What is the output of this code?", "Find the bug in this function").
-- Format code snippets using markdown code blocks (\`\`\`c ... \`\`\`).
+- For programming topics (like C, Python, Java), PRIORITIZE questions that include code snippets for analysis.
+- Format code snippets using markdown code blocks (\`\`\`java ... \`\`\`).
+- CRITICAL: Code blocks MUST use multi-line formatting with proper indentation. 
+- CRITICAL: DO NOT output code in ALL CAPS. Use proper mixed case (e.g., "public class" not "PUBLIC CLASS").
 - Ensure the question text clearly references the code or figure.
 
 MCQ RULES:

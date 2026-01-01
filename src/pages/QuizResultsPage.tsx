@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { toast } from 'sonner';
-import { Download, ArrowLeft, Loader2, FileSpreadsheet, Users, Award, TrendingUp, RefreshCw, ChevronRight, Activity, Database, Sparkles, X, Search, ArrowUpDown, ChevronUp, ChevronDown } from 'lucide-react';
+import { Download, ArrowLeft, Loader2, FileSpreadsheet, Users, Award, TrendingUp, RefreshCw, ChevronRight, Activity, Database, Sparkles, X, Search, ArrowUpDown, ChevronUp, ChevronDown, Code } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { quizAPI } from '@/services/api';
 import axios from 'axios';
@@ -37,6 +37,38 @@ interface QuizAttempt {
   submittedAt: string;
   answers: any[];
 }
+
+// 📝 CODE AWARE TEXT RENDERING
+const FormattedText = ({ text, isQuestion = false }: { text: string; isQuestion?: boolean }) => {
+  if (!text) return null;
+  const parts = text.split(/(```[\s\S]*?```)/g);
+
+  return (
+    <div className={cn("space-y-3 normal-case", isQuestion ? "text-foreground" : "")}>
+      {parts.map((part, i) => {
+        if (part.startsWith('```')) {
+          const code = part.replace(/^```[a-zA-Z]*\n?|```$/g, '').trim();
+          return (
+            <div key={i} className="my-4 relative group">
+              <pre className="relative p-5 bg-muted border rounded-xl font-mono text-[11px] sm:text-xs leading-relaxed overflow-x-auto text-foreground shadow-sm scrollbar-thin">
+                <code className="block">{code}</code>
+              </pre>
+              <div className="absolute top-2 right-2 flex items-center gap-1 opacity-20">
+                <Code className="w-3 h-3" />
+                <span className="text-[8px] font-black uppercase tracking-widest">CODE</span>
+              </div>
+            </div>
+          );
+        }
+        return (
+          <p key={i} className="whitespace-pre-wrap leading-relaxed inline-block w-full">
+            {part}
+          </p>
+        );
+      })}
+    </div>
+  );
+};
 
 export default function QuizResultsPage() {
   const { quizId } = useParams<{ quizId: string }>();
@@ -383,7 +415,9 @@ export default function QuizResultsPage() {
                         <Badge variant="outline" className="text-[8px] font-black uppercase">Unit {idx + 1}</Badge>
                         <span className={cn("font-black text-xs", ans.isCorrect ? "text-emerald-600" : "text-rose-600")}>{ans.marks} PTS</span>
                       </div>
-                      <p className="text-lg font-black tracking-tight whitespace-pre-wrap mb-6">{ans.question}</p>
+                      <div className="text-lg font-black tracking-tight mb-6 normal-case">
+                        <FormattedText text={ans.question} isQuestion={true} />
+                      </div>
                       <div className="grid md:grid-cols-2 gap-6">
                         <div className="space-y-1">
                           <p className="text-[8px] font-black uppercase text-muted-foreground">Response</p>

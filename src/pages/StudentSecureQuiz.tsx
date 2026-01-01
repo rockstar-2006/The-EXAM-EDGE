@@ -23,7 +23,8 @@ import {
   Scan,
   ShieldAlert,
   ShieldCheck,
-  EyeOff
+  EyeOff,
+  Code
 } from 'lucide-react';
 import { studentAuthAPI, storage } from '@/services/api';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -70,6 +71,93 @@ interface Quiz {
   attemptStatus?: 'not_started' | 'started' | 'submitted';
   attemptId?: string;
 }
+
+// 📝 CODE AWARE TEXT RENDERING - Optimized for multi-line support
+const FormattedText = ({ text, isQuestion = false }: { text: string; isQuestion?: boolean }) => {
+  if (!text) return null;
+
+  // Split by triple backticks, keeping the backticks in the result
+  const parts = text.split(/(```)/g);
+  let isCode = false;
+  let codeBuffer = "";
+  const result: React.ReactNode[] = [];
+
+  parts.forEach((part, i) => {
+    if (part === "```") {
+      if (isCode) {
+        // Closing code block
+        const formattedCode = formatCodeSnippet(codeBuffer);
+        result.push(
+          <div key={i} className="my-6 relative group overflow-hidden">
+            <div className="absolute top-0 right-0 p-2 z-10 opacity-30 group-hover:opacity-100 transition-opacity">
+              <span className="text-[9px] font-black uppercase tracking-widest text-violet-400 bg-black/40 px-2 py-0.5 rounded-lg border border-violet-500/20">Source_Code</span>
+            </div>
+            <pre
+              style={{ textTransform: 'none' }}
+              className="relative p-6 bg-slate-950 border border-violet-500/20 rounded-2xl font-mono text-[13px] sm:text-sm leading-relaxed overflow-x-auto text-violet-100 shadow-2xl scrollbar-thin scrollbar-thumb-violet-500/20"
+            >
+              <code>{formattedCode}</code>
+            </pre>
+          </div>
+        );
+        codeBuffer = "";
+        isCode = false;
+      } else {
+        isCode = true;
+      }
+    } else {
+      if (isCode) {
+        codeBuffer += part;
+      } else if (part.trim()) {
+        result.push(
+          <p key={i} className="whitespace-pre-wrap leading-relaxed inline-block w-full text-inherit normal-case" style={{ textTransform: 'none' }}>
+            {part}
+          </p>
+        );
+      }
+    }
+  });
+
+  // Handle unclosed blocks
+  if (isCode && codeBuffer) {
+    result.push(
+      <pre key="unclosed" style={{ textTransform: 'none' }} className="p-6 bg-slate-950 border border-violet-500/20 rounded-2xl font-mono text-[13px] sm:text-sm overflow-x-auto text-violet-100">
+        <code>{formatCodeSnippet(codeBuffer)}</code>
+      </pre>
+    );
+  }
+
+  return (
+    <div className={cn("space-y-4", isQuestion ? "text-white" : "text-slate-300")}>
+      {result}
+    </div>
+  );
+};
+
+// Helper to fix flattened AI code
+const formatCodeSnippet = (code: string) => {
+  let clean = code.trim();
+
+  // Strip language tag if present (e.g., ```java)
+  clean = clean.replace(/^[a-zA-Z]+\n/, '');
+
+  // If the code is clearly all caps, convert it to a more readable state 
+  // (Note: This is a fallback if the AI ignores directives)
+  if (clean === clean.toUpperCase() && clean.length > 50) {
+    clean = clean.toLowerCase();
+  }
+
+  // If the code is missing newlines (detected by lack of them but presence of braces/semicolons)
+  if (!clean.includes('\n') && (clean.includes('{') || clean.includes(';'))) {
+    clean = clean
+      .replace(/{\s*/g, ' {\n  ')
+      .replace(/;\s*/g, ';\n  ')
+      .replace(/}\s*/g, '\n}\n')
+      .replace(/\n\s*\n/g, '\n');
+  }
+
+  return clean;
+};
 
 export default function StudentSecureQuiz() {
   const { quizId } = useParams<{ quizId: string }>();
@@ -591,20 +679,24 @@ export default function StudentSecureQuiz() {
                       <Badge variant="outline" className="text-[8px] font-black p-0 border-none opacity-40">Q. {idx + 1}</Badge>
                       {item.isCorrect ? <CheckCircle2 className="w-4 h-4 text-emerald-500" /> : <ShieldAlert className="w-4 h-4 text-rose-500" />}
                     </div>
-                    <p className="text-xs font-bold leading-relaxed whitespace-pre-wrap">{item.question}</p>
+                    <div className="text-xs font-bold leading-relaxed">
+                      <FormattedText text={item.question} />
+                    </div>
                     <div className="space-y-2">
                       <div className={cn("p-2 rounded-lg text-[10px] font-bold", item.isCorrect ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20" : "bg-rose-500/10 text-rose-400 border border-rose-500/20")}>
-                        <span className="opacity-60 uppercase mr-1">Your Answer:</span> {item.studentAnswer || '[EMPTY]'}
+                        <span className="opacity-60 uppercase mr-1">Your Answer:</span> <span className="normal-case">{item.studentAnswer || '[EMPTY]'}</span>
                       </div>
                       {!item.isCorrect && (
                         <div className="p-2 rounded-lg text-[10px] font-bold bg-white/5 text-white/80 border border-white/10">
-                          <span className="opacity-60 uppercase mr-1 text-primary">Correct:</span> {item.correctAnswer}
+                          <span className="opacity-60 uppercase mr-1 text-primary">Correct:</span> <span className="normal-case">{item.correctAnswer}</span>
                         </div>
                       )}
                       {item.explanation && (
                         <div className="mt-3 bg-primary/5 p-3 rounded-xl border border-primary/10 flex gap-2">
                           <Target className="w-3.5 h-3.5 text-primary shrink-0 mt-0.5" />
-                          <p className="text-[10px] leading-relaxed text-muted-foreground whitespace-pre-wrap">{item.explanation}</p>
+                          <div className="text-[10px] leading-relaxed text-muted-foreground">
+                            <FormattedText text={item.explanation} />
+                          </div>
                         </div>
                       )}
                     </div>
@@ -660,9 +752,9 @@ export default function StudentSecureQuiz() {
                   <Badge className="bg-emerald-500/20 text-emerald-500 border-none text-[8px] font-black uppercase">Logged</Badge>
                 )}
               </div>
-              <h2 className="text-2xl sm:text-3xl font-black tracking-tight leading-tight whitespace-pre-wrap">
-                {currentQ?.question}
-              </h2>
+              <div className="text-xl sm:text-2xl font-extrabold tracking-tight leading-relaxed">
+                <FormattedText text={currentQ?.question || ''} isQuestion={true} />
+              </div>
             </div>
 
             {/* Answer Region */}
@@ -693,7 +785,7 @@ export default function StudentSecureQuiz() {
                           )}>
                             {String.fromCharCode(65 + idx)}
                           </div>
-                          <span className={cn("font-bold text-sm tracking-wide", isSelected ? "text-white" : "text-slate-300")}>
+                          <span className={cn("font-bold text-sm tracking-wide whitespace-pre-wrap normal-case", isSelected ? "text-white" : "text-slate-300")}>
                             {option}
                           </span>
                         </div>
