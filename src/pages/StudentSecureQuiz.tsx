@@ -591,7 +591,7 @@ export default function StudentSecureQuiz() {
                       <Badge variant="outline" className="text-[8px] font-black p-0 border-none opacity-40">Q. {idx + 1}</Badge>
                       {item.isCorrect ? <CheckCircle2 className="w-4 h-4 text-emerald-500" /> : <ShieldAlert className="w-4 h-4 text-rose-500" />}
                     </div>
-                    <p className="text-xs font-bold leading-relaxed">{item.question}</p>
+                    <p className="text-xs font-bold leading-relaxed whitespace-pre-wrap">{item.question}</p>
                     <div className="space-y-2">
                       <div className={cn("p-2 rounded-lg text-[10px] font-bold", item.isCorrect ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20" : "bg-rose-500/10 text-rose-400 border border-rose-500/20")}>
                         <span className="opacity-60 uppercase mr-1">Your Answer:</span> {item.studentAnswer || '[EMPTY]'}
@@ -604,7 +604,7 @@ export default function StudentSecureQuiz() {
                       {item.explanation && (
                         <div className="mt-3 bg-primary/5 p-3 rounded-xl border border-primary/10 flex gap-2">
                           <Target className="w-3.5 h-3.5 text-primary shrink-0 mt-0.5" />
-                          <p className="text-[10px] leading-relaxed text-muted-foreground">{item.explanation}</p>
+                          <p className="text-[10px] leading-relaxed text-muted-foreground whitespace-pre-wrap">{item.explanation}</p>
                         </div>
                       )}
                     </div>
@@ -660,7 +660,7 @@ export default function StudentSecureQuiz() {
                   <Badge className="bg-emerald-500/20 text-emerald-500 border-none text-[8px] font-black uppercase">Logged</Badge>
                 )}
               </div>
-              <h2 className="text-2xl sm:text-3xl font-black tracking-tight leading-tight uppercase">
+              <h2 className="text-2xl sm:text-3xl font-black tracking-tight leading-tight whitespace-pre-wrap">
                 {currentQ?.question}
               </h2>
             </div>

@@ -176,7 +176,7 @@ export function QuestionEditor({
               </motion.div>
             ) : (
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
-                <p className="text-xl font-black tracking-tight uppercase italic group-hover:text-primary transition-colors">{question.question}</p>
+                <p className="text-xl font-black tracking-tight whitespace-pre-wrap italic group-hover:text-primary transition-colors">{question.question}</p>
 
                 {question.type === 'mcq' && question.options && (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -217,7 +217,7 @@ export function QuestionEditor({
                     <div className="p-2 rounded-xl bg-primary/10 text-primary"><Activity className="w-5 h-5" /></div>
                     <div>
                       <p className="text-[10px] font-black uppercase tracking-widest text-primary/60">Insight Breakdown</p>
-                      <p className="text-sm font-medium italic opacity-70 mt-1 leading-relaxed">{question.explanation}</p>
+                      <p className="text-sm font-medium whitespace-pre-wrap italic opacity-70 mt-1 leading-relaxed">{question.explanation}</p>
                     </div>
                   </div>
                 )}

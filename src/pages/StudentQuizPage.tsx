@@ -421,7 +421,7 @@ export default function StudentQuizPage() {
                 <div className="flex gap-4">
                   <div className="text-4xl font-black text-primary/20 italic tracking-tighter">Q{currentQuestion + 1}</div>
                   <div className="space-y-4 pt-1 flex-1">
-                    <h2 className="text-2xl font-black tracking-tight leading-snug">
+                    <h2 className="text-2xl font-black tracking-tight leading-snug whitespace-pre-wrap">
                       {question.question}
                     </h2>
                     <div className="flex gap-2">

@@ -383,7 +383,7 @@ export default function QuizResultsPage() {
                         <Badge variant="outline" className="text-[8px] font-black uppercase">Unit {idx + 1}</Badge>
                         <span className={cn("font-black text-xs", ans.isCorrect ? "text-emerald-600" : "text-rose-600")}>{ans.marks} PTS</span>
                       </div>
-                      <p className="text-lg font-black tracking-tight uppercase mb-6">{ans.question}</p>
+                      <p className="text-lg font-black tracking-tight whitespace-pre-wrap mb-6">{ans.question}</p>
                       <div className="grid md:grid-cols-2 gap-6">
                         <div className="space-y-1">
                           <p className="text-[8px] font-black uppercase text-muted-foreground">Response</p>
