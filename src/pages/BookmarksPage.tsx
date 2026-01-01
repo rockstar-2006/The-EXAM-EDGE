@@ -3,9 +3,11 @@ import {
   Folder, Share2, Trash2, ArrowLeft,
   Search, BookOpen, Target,
   FileText, Plus, FolderPlus, MoreVertical,
-  CalendarClock, Check, FolderEdit, Download, FileSpreadsheet
+  CalendarClock, Check, FolderEdit, Download, FileSpreadsheet, FileText as FileTextIcon, File as FileWord
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
+import { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType, BorderStyle } from 'docx';
+import { saveAs } from 'file-saver';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -141,7 +143,7 @@ export default function BookmarksPage() {
     }
   };
 
-  const handleDownloadFolder = (folderId: string, folderName: string) => {
+  const handleDownloadExcel = (folderId: string, folderName: string) => {
     const folderBookmarks = bookmarks.filter(b => {
       const bFolderId = b.folderId && typeof b.folderId === 'object' ? (b.folderId as any)._id : b.folderId;
       return bFolderId === folderId && b.question;
@@ -169,23 +171,124 @@ export default function BookmarksPage() {
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Questions");
 
-    // Auto-size columns
     const colWidths = [
-      { wch: 5 },  // S.No
-      { wch: 50 }, // Question
-      { wch: 10 }, // Type
-      { wch: 20 }, // Option A
-      { wch: 20 }, // Option B
-      { wch: 20 }, // Option C
-      { wch: 20 }, // Option D
-      { wch: 15 }, // Correct Answer
-      { wch: 40 }, // Explanation
-      { wch: 10 }  // Difficulty
+      { wch: 5 }, { wch: 50 }, { wch: 10 }, { wch: 20 }, { wch: 20 },
+      { wch: 20 }, { wch: 20 }, { wch: 15 }, { wch: 40 }, { wch: 10 }
     ];
     ws['!cols'] = colWidths;
 
     XLSX.writeFile(wb, `${folderName.replace(/\s+/g, '_')}_questions.xlsx`);
-    toast.success(`Exported ${folderBookmarks.length} questions to Excel`);
+    toast.success(`Excel export complete`);
+  };
+
+  const handleDownloadTXT = (folderId: string, folderName: string) => {
+    const folderBookmarks = bookmarks.filter(b => {
+      const bFolderId = b.folderId && typeof b.folderId === 'object' ? (b.folderId as any)._id : b.folderId;
+      return bFolderId === folderId && b.question;
+    });
+
+    if (folderBookmarks.length === 0) {
+      toast.error('No questions found');
+      return;
+    }
+
+    let content = `COLLECTION: ${folderName.toUpperCase()}\n`;
+    content += `Generated on: ${new Date().toLocaleString()}\n`;
+    content += `Total Questions: ${folderBookmarks.length}\n`;
+    content += `==========================================\n\n`;
+
+    folderBookmarks.forEach((b, idx) => {
+      const q = b.question;
+      content += `Q${idx + 1}: ${q.question}\n`;
+      if (q.options && q.options.length > 0) {
+        q.options.forEach((opt: string, i: number) => {
+          content += `   ${String.fromCharCode(65 + i)}) ${opt}\n`;
+        });
+      }
+      content += `\nCorrect Answer: ${q.answer}\n`;
+      if (q.explanation) content += `Explanation: ${q.explanation}\n`;
+      content += `------------------------------------------\n\n`;
+    });
+
+    const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+    saveAs(blob, `${folderName.replace(/\s+/g, '_')}_questions.txt`);
+    toast.success('Text export complete');
+  };
+
+  const handleDownloadWord = async (folderId: string, folderName: string) => {
+    const folderBookmarks = bookmarks.filter(b => {
+      const bFolderId = b.folderId && typeof b.folderId === 'object' ? (b.folderId as any)._id : b.folderId;
+      return bFolderId === folderId && b.question;
+    });
+
+    if (folderBookmarks.length === 0) {
+      toast.error('No questions found');
+      return;
+    }
+
+    const doc = new Document({
+      sections: [{
+        properties: {},
+        children: [
+          new Paragraph({
+            text: folderName,
+            heading: HeadingLevel.HEADING_1,
+            alignment: AlignmentType.CENTER,
+          }),
+          new Paragraph({
+            text: `Questions Bank Export - ${new Date().toLocaleDateString()}`,
+            alignment: AlignmentType.CENTER,
+          }),
+          new Paragraph({ text: "" }), // Spacer
+
+          ...folderBookmarks.flatMap((b, idx) => {
+            const q = b.question;
+            const elements = [
+              new Paragraph({
+                children: [
+                  new TextRun({ text: `${idx + 1}. `, bold: true }),
+                  new TextRun({ text: q.question }),
+                ],
+                spacing: { before: 400 },
+              }),
+            ];
+
+            if (q.options && q.options.length > 0) {
+              q.options.forEach((opt: string, i: number) => {
+                elements.push(new Paragraph({
+                  text: `${String.fromCharCode(65 + i)}) ${opt}`,
+                  indent: { left: 720 },
+                }));
+              });
+            }
+
+            elements.push(new Paragraph({
+              children: [
+                new TextRun({ text: "Correct Answer: ", bold: true, color: "2e7d32" }),
+                new TextRun({ text: q.answer }),
+              ],
+              spacing: { before: 120 },
+            }));
+
+            if (q.explanation) {
+              elements.push(new Paragraph({
+                children: [
+                  new TextRun({ text: "Explanation: ", italics: true, bold: true }),
+                  new TextRun({ text: q.explanation, italics: true }),
+                ],
+                spacing: { after: 200 },
+              }));
+            }
+
+            return elements;
+          })
+        ],
+      }],
+    });
+
+    const blob = await Packer.toBlob(doc);
+    saveAs(blob, `${folderName.replace(/\s+/g, '_')}_questions.docx`);
+    toast.success('Word export complete');
   };
 
   const handleUpdateQuestion = async (updatedQ: Question) => {
@@ -374,13 +477,27 @@ export default function BookmarksPage() {
             />
           </div>
           {activeFolderId && displayedBookmarks.length > 0 && (
-            <Button
-              variant="outline"
-              onClick={() => handleDownloadFolder(activeFolderId, activeFolder?.name || 'Collection')}
-              className="h-12 px-6 border-emerald-500/30 text-emerald-500 hover:bg-emerald-500/10 font-black uppercase tracking-widest rounded-xl transition-all"
-            >
-              <FileSpreadsheet className="w-5 h-5 mr-2" /> Download All
-            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  className="h-12 px-6 gradient-primary font-black uppercase tracking-widest shadow-glow rounded-xl hover:scale-105 transition-transform"
+                >
+                  <Download className="w-5 h-5 mr-2" /> Export All
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56 font-bold bg-card border-border">
+                <DropdownMenuLabel className="text-[10px] uppercase tracking-widest opacity-50">Choose Format</DropdownMenuLabel>
+                <DropdownMenuItem onClick={() => handleDownloadExcel(activeFolderId, activeFolder?.name || 'Collection')}>
+                  <FileSpreadsheet className="w-4 h-4 mr-2 text-emerald-500" /> Excel (.xlsx)
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleDownloadWord(activeFolderId, activeFolder?.name || 'Collection')}>
+                  <FileWord className="w-4 h-4 mr-2 text-blue-500" /> Word (.docx)
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleDownloadTXT(activeFolderId, activeFolder?.name || 'Collection')}>
+                  <FileTextIcon className="w-4 h-4 mr-2 text-orange-500" /> Text (.txt)
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           )}
           {!activeFolderId && (
             <Button onClick={() => setIsCreatingFolder(true)} className="h-12 px-6 gradient-primary font-black uppercase tracking-widest shadow-glow rounded-xl hover:scale-105 transition-transform">
@@ -442,8 +559,14 @@ export default function BookmarksPage() {
                         <DropdownMenuItem onClick={(e) => { e.stopPropagation(); initiateShare('folder', folder) }}>
                           <Share2 className="w-4 h-4 mr-2" /> Share Collection
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleDownloadFolder(folder._id, folder.name) }}>
-                          <FileSpreadsheet className="w-4 h-4 mr-2" /> Download (Excel)
+                        <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleDownloadExcel(folder._id, folder.name) }}>
+                          <FileSpreadsheet className="w-4 h-4 mr-2 text-emerald-500" /> Download Excel
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleDownloadWord(folder._id, folder.name) }}>
+                          <FileWord className="w-4 h-4 mr-2 text-blue-500" /> Download Word
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleDownloadTXT(folder._id, folder.name) }}>
+                          <FileTextIcon className="w-4 h-4 mr-2 text-orange-500" /> Download TXT
                         </DropdownMenuItem>
                         <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setEditingFolder({ id: folder._id, name: folder.name }) }}>
                           <FolderEdit className="w-4 h-4 mr-2" /> Rename
@@ -470,7 +593,7 @@ export default function BookmarksPage() {
           >
             {displayedBookmarks.length === 0 ? (
               <div className="h-96 flex flex-col items-center justify-center text-muted-foreground/40 border rounded-3xl bg-muted/5">
-                <FileText className="w-16 h-16 mb-4 opacity-20" />
+                <FileTextIcon className="w-16 h-16 mb-4 opacity-20" />
                 <h3 className="text-xl font-black uppercase text-foreground opacity-50">Empty Folder</h3>
                 <p className="text-sm font-bold uppercase tracking-widest mt-2 opacity-50">Save questions here from the Quiz Creator</p>
               </div>
