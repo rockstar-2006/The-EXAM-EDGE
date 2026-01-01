@@ -3,8 +3,9 @@ import {
   Folder, Share2, Trash2, ArrowLeft,
   Search, BookOpen, Target,
   FileText, Plus, FolderPlus, MoreVertical,
-  CalendarClock, Check, FolderEdit
+  CalendarClock, Check, FolderEdit, Download, FileSpreadsheet
 } from 'lucide-react';
+import * as XLSX from 'xlsx';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -138,6 +139,53 @@ export default function BookmarksPage() {
     } catch (error) {
       toast.error('Failed to remove item');
     }
+  };
+
+  const handleDownloadFolder = (folderId: string, folderName: string) => {
+    const folderBookmarks = bookmarks.filter(b => {
+      const bFolderId = b.folderId && typeof b.folderId === 'object' ? (b.folderId as any)._id : b.folderId;
+      return bFolderId === folderId && b.question;
+    });
+
+    if (folderBookmarks.length === 0) {
+      toast.error('No questions found in this collection');
+      return;
+    }
+
+    const exportData = folderBookmarks.map((b, idx) => ({
+      "S.No": idx + 1,
+      "Question": b.question.question,
+      "Type": b.question.type?.toUpperCase(),
+      "Option A": b.question.options?.[0] || '',
+      "Option B": b.question.options?.[1] || '',
+      "Option C": b.question.options?.[2] || '',
+      "Option D": b.question.options?.[3] || '',
+      "Correct Answer": b.question.answer,
+      "Explanation": b.question.explanation || '',
+      "Difficulty": b.question.difficulty || 'medium'
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(exportData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Questions");
+
+    // Auto-size columns
+    const colWidths = [
+      { wch: 5 },  // S.No
+      { wch: 50 }, // Question
+      { wch: 10 }, // Type
+      { wch: 20 }, // Option A
+      { wch: 20 }, // Option B
+      { wch: 20 }, // Option C
+      { wch: 20 }, // Option D
+      { wch: 15 }, // Correct Answer
+      { wch: 40 }, // Explanation
+      { wch: 10 }  // Difficulty
+    ];
+    ws['!cols'] = colWidths;
+
+    XLSX.writeFile(wb, `${folderName.replace(/\s+/g, '_')}_questions.xlsx`);
+    toast.success(`Exported ${folderBookmarks.length} questions to Excel`);
   };
 
   const handleUpdateQuestion = async (updatedQ: Question) => {
@@ -325,6 +373,15 @@ export default function BookmarksPage() {
               className="pl-9 h-12 bg-card/50 border-border/50 rounded-xl font-medium shadow-sm transition-all focus:ring-primary/20"
             />
           </div>
+          {activeFolderId && displayedBookmarks.length > 0 && (
+            <Button
+              variant="outline"
+              onClick={() => handleDownloadFolder(activeFolderId, activeFolder?.name || 'Collection')}
+              className="h-12 px-6 border-emerald-500/30 text-emerald-500 hover:bg-emerald-500/10 font-black uppercase tracking-widest rounded-xl transition-all"
+            >
+              <FileSpreadsheet className="w-5 h-5 mr-2" /> Download All
+            </Button>
+          )}
           {!activeFolderId && (
             <Button onClick={() => setIsCreatingFolder(true)} className="h-12 px-6 gradient-primary font-black uppercase tracking-widest shadow-glow rounded-xl hover:scale-105 transition-transform">
               <FolderPlus className="w-5 h-5 mr-2" /> New Collection
@@ -384,6 +441,9 @@ export default function BookmarksPage() {
                         <DropdownMenuLabel className="text-[10px] uppercase tracking-widest opacity-50">Options</DropdownMenuLabel>
                         <DropdownMenuItem onClick={(e) => { e.stopPropagation(); initiateShare('folder', folder) }}>
                           <Share2 className="w-4 h-4 mr-2" /> Share Collection
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleDownloadFolder(folder._id, folder.name) }}>
+                          <FileSpreadsheet className="w-4 h-4 mr-2" /> Download (Excel)
                         </DropdownMenuItem>
                         <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setEditingFolder({ id: folder._id, name: folder.name }) }}>
                           <FolderEdit className="w-4 h-4 mr-2" /> Rename
