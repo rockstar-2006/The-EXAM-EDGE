@@ -128,7 +128,7 @@ const FormattedText = ({ text, isQuestion = false }: { text: string; isQuestion?
   }
 
   return (
-    <div className={cn("space-y-4", isQuestion ? "text-white" : "text-slate-300")}>
+    <div className={cn("space-y-4", isQuestion ? "text-white" : "text-slate-400")}>
       {result}
     </div>
   );
@@ -544,7 +544,7 @@ export default function StudentSecureQuiz() {
       />
       <div className="text-center space-y-2">
         <h2 className="text-xl font-bold tracking-[0.4em] uppercase opacity-80">Authenticating</h2>
-        <p className="text-[10px] font-black tracking-widest text-violet-400 animate-pulse uppercase">Establishing Secure Connection</p>
+        <p className="text-[10px] font-black tracking-widest text-violet-400 animate-pulse uppercase">Creating Secure Session</p>
       </div>
     </div>
   );
@@ -559,18 +559,18 @@ export default function StudentSecureQuiz() {
           <div className="w-16 h-16 bg-slate-900 rounded-3xl flex items-center justify-center mx-auto border border-slate-800 shadow-xl mb-2">
             <Lock className="w-8 h-8 text-violet-500" />
           </div>
-          <h1 className="text-3xl font-black tracking-tight uppercase leading-tight">{quiz?.title}</h1>
-          <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Duration: {quiz?.duration} Minutes • Total Marks: {quiz?.totalMarks}</p>
+          <h1 className="text-2xl sm:text-3xl font-black tracking-tight uppercase leading-tight">{quiz?.title}</h1>
+          <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Time: {quiz?.duration} Mins • Total Marks: {quiz?.totalMarks}</p>
         </div>
 
         <Card className="bg-slate-900/60 border-slate-800 backdrop-blur-xl overflow-hidden shadow-2xl">
           <CardHeader className="border-b border-slate-800 bg-slate-900/40">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <Scan className="w-4 h-4 text-violet-400 animate-pulse" />
-                <CardTitle className="text-xs font-black uppercase tracking-widest text-white">Environment Integrity</CardTitle>
+                <Scan className="w-4 h-4 text-violet-400" />
+                <CardTitle className="text-xs font-black uppercase tracking-widest text-white">Security Checklist</CardTitle>
               </div>
-              <Badge variant="outline" className="text-[8px] border-violet-500/30 text-violet-400 bg-violet-500/5 uppercase font-black">Secure</Badge>
+              <Badge variant="outline" className="text-[8px] border-violet-500/30 text-violet-400 bg-violet-500/5 uppercase font-black">Ready</Badge>
             </div>
           </CardHeader>
           <CardContent className="pt-6 space-y-6">
@@ -602,8 +602,8 @@ export default function StudentSecureQuiz() {
             <div className="bg-rose-500/5 border border-rose-500/10 p-4 rounded-2xl flex gap-3 items-start">
               <ShieldAlert className="w-4 h-4 text-rose-500 shrink-0 mt-0.5" />
               <div className="space-y-1">
-                <p className="text-[10px] font-black uppercase text-rose-400 tracking-widest">Strict Protocol</p>
-                <p className="text-[10px] leading-relaxed text-slate-400 font-medium">Auto-submission will trigger if you exit fullscreen, switch apps, or take screenshots. Ensure all notifications are silenced.</p>
+                <p className="text-[10px] font-black uppercase text-rose-400 tracking-widest">Important Rules</p>
+                <p className="text-[10px] leading-relaxed text-slate-400 font-medium">Do not exit the app or switch tabs. Ensure notifications are turned off to avoid accidental disqualification.</p>
               </div>
             </div>
 
@@ -614,7 +614,7 @@ export default function StudentSecureQuiz() {
             >
               {isStarting ? <Loader2 className="w-5 h-5 animate-spin" /> : (
                 <span className="flex items-center gap-2">
-                  <Lock className="w-4 h-4" /> START ASSESSMENT
+                  <Lock className="w-4 h-4" /> START QUIZ NOW
                 </span>
               )}
             </Button>
@@ -721,7 +721,7 @@ export default function StudentSecureQuiz() {
   const currentQ = quiz?.questions[currentQuestion];
 
   return (
-    <div className="h-full w-full bg-[#020617] text-white flex flex-col items-center overflow-y-auto font-sans pt-safe pb-safe select-none">
+    <div className="h-screen w-full bg-[#020617] text-white flex flex-col items-center overflow-hidden font-sans select-none">
       {/* 📍 Exam Header */}
       <MemoizedQuizHeader
         title={quiz?.title}
@@ -732,7 +732,7 @@ export default function StudentSecureQuiz() {
         marks={currentQ?.marks}
       />
 
-      <main className="flex-1 w-full max-w-4xl mx-auto px-6 py-8 overflow-y-auto overflow-x-hidden pb-safe">
+      <main className="flex-1 w-full max-w-4xl mx-auto px-4 sm:px-6 py-6 sm:py-8 overflow-y-auto overflow-x-hidden scroll-smooth pb-24">
         <AnimatePresence mode="wait">
           <motion.div
             key={currentQuestion}
@@ -812,7 +812,7 @@ export default function StudentSecureQuiz() {
       </main>
 
       {/* 🧭 Quiz Navigation */}
-      <footer className="w-full bg-[#020617]/95 backdrop-blur-3xl border-t border-slate-800/50 p-4 pb-safe-area-bottom z-40 transform-gpu">
+      <footer className="w-full bg-[#020617]/95 backdrop-blur-3xl border-t border-slate-800/50 p-4 pb-safe z-40 shrink-0">
         <div className="max-w-4xl mx-auto flex items-center justify-between gap-3">
           <Button
             onClick={() => {
@@ -938,7 +938,7 @@ const MemoizedQuizHeader = memo(function QuizHeader({ title, timeLeft, progress,
   const secs = timeLeft % 60;
 
   return (
-    <header className="w-full pt-8 pb-4 px-6 bg-[#020617] border-b border-slate-800/60 sticky top-0 z-50 transform-gpu pt-safe">
+    <header className="w-full pt-4 pb-4 px-4 sm:px-6 bg-[#020617]/80 backdrop-blur-md border-b border-slate-800/60 sticky top-0 z-50 shrink-0 pt-safe">
       <div className="max-w-4xl mx-auto space-y-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -946,10 +946,10 @@ const MemoizedQuizHeader = memo(function QuizHeader({ title, timeLeft, progress,
               <ShieldCheck className="w-5 h-5 text-violet-500" />
             </div>
             <div>
-              <h1 className="text-[10px] font-black tracking-[0.2em] uppercase text-slate-500 leading-none mb-1">Live Assessment</h1>
+              <h1 className="text-[10px] font-black tracking-[0.2em] uppercase text-slate-500 leading-none mb-1">In Progress</h1>
               <div className="flex items-center gap-2">
-                <span className="text-xs font-bold text-white uppercase truncate max-w-[150px]">{title}</span>
-                <Badge className="bg-emerald-500/10 text-emerald-500 text-[7px] font-black uppercase px-1.5 border-none">Active</Badge>
+                <span className="text-xs font-bold text-white uppercase truncate max-w-[120px] sm:max-w-[200px]">{title}</span>
+                <Badge className="bg-emerald-500/10 text-emerald-500 text-[7px] font-black uppercase px-1.5 border-none">Live</Badge>
               </div>
             </div>
           </div>

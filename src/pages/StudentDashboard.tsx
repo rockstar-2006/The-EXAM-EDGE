@@ -69,7 +69,7 @@ const EmptyState = memo(({ icon: Icon, message, onRetry }: any) => (
       <Icon className="w-8 h-8 text-primary" />
     </div>
     <div className="space-y-2">
-      <p className="font-black uppercase text-[10px] tracking-[0.3em] text-primary/40 italic">System Notification</p>
+      <p className="font-black uppercase text-[10px] tracking-[0.3em] text-primary/40 italic">Student Portal Notice</p>
       <p className="font-bold text-slate-800 dark:text-white px-6 max-w-xs mx-auto text-sm leading-relaxed">{message}</p>
     </div>
     {onRetry && (
@@ -96,7 +96,7 @@ const QuizResultsModal = memo(({ isOpen, onClose, result, loading }: any) => {
               "font-black uppercase text-[8px] tracking-[0.2em] px-3 py-1 rounded-full",
               result?.status === 'blocked' ? "bg-rose-500" : "bg-emerald-500"
             )}>
-              {result?.status === 'blocked' ? 'SECURITY BREACH' : 'ANALYSIS COMPLETE'}
+              {result?.status === 'blocked' ? 'RESTRICTED' : 'QUIZ RESULT'}
             </Badge>
             <span className="text-[10px] font-black uppercase tracking-widest text-slate-500/60">ID: {result?.id?.slice(-8)}</span>
           </div>
@@ -109,7 +109,7 @@ const QuizResultsModal = memo(({ isOpen, onClose, result, loading }: any) => {
           {loading ? (
             <div className="py-20 flex flex-col items-center justify-center gap-4">
               <RefreshCw className="h-8 w-8 text-primary animate-spin" />
-              <p className="text-[10px] font-black uppercase tracking-widest text-primary/40">Decrypting performance data...</p>
+              <p className="text-[10px] font-black uppercase tracking-widest text-primary/40">Loading your performance data...</p>
             </div>
           ) : (
             <div className="space-y-6">
@@ -130,7 +130,7 @@ const QuizResultsModal = memo(({ isOpen, onClose, result, loading }: any) => {
                 <div className="bg-rose-500/10 border border-rose-500/20 p-4 rounded-2xl">
                   <div className="flex items-center gap-2 mb-2">
                     <AlertTriangle className="h-4 w-4 text-rose-500" />
-                    <p className="text-[10px] font-black uppercase tracking-widest text-rose-500">Violation Details</p>
+                    <p className="text-[10px] font-black uppercase tracking-widest text-rose-500">Notice</p>
                   </div>
                   <p className="text-sm font-bold text-rose-600 dark:text-rose-400 italic">"{(result?.reason || result?.blockReason || 'Proctoring system detected an academic integrity violation.').toUpperCase()}"</p>
                 </div>
@@ -222,7 +222,7 @@ const QuizCard = memo(({ quiz, onStart, onDelete, onViewResults, delay }: { quiz
                 schedule.status === 'expired' ? "text-primary/40" :
                   isInProgress ? "text-secondary animate-pulse" : "text-primary"
         )}>
-          {isCompleted ? 'SECURED' : isDisqualified ? 'BREACHED' : schedule.status === 'upcoming' ? 'LOCKED' : schedule.status === 'expired' ? 'CLOSED' : isInProgress ? 'ACTIVE' : 'READY'}
+          {isCompleted ? 'SUBMITTED' : isDisqualified ? 'BLOCKED' : schedule.status === 'upcoming' ? 'LOCKED' : schedule.status === 'expired' ? 'CLOSED' : isInProgress ? 'RESUME' : 'OPEN'}
         </div>
 
         <CardHeader className="p-8 pb-4 relative z-10">
@@ -230,7 +230,7 @@ const QuizCard = memo(({ quiz, onStart, onDelete, onViewResults, delay }: { quiz
             {quiz.title}
           </CardTitle>
           <CardDescription className="line-clamp-2 text-[10px] font-bold leading-relaxed opacity-60 mt-3 tracking-wide">
-            {quiz.description || 'Professional assessment module optimized for secure examination protocol and biometric verification.'}
+            {quiz.description || 'Access your course assessment and complete the quiz within the allotted time.'}
           </CardDescription>
         </CardHeader>
 
@@ -257,7 +257,7 @@ const QuizCard = memo(({ quiz, onStart, onDelete, onViewResults, delay }: { quiz
                     isInProgress ? "bg-amber-500 text-white" : "gradient-primary text-white"
                 )}
               >
-                {schedule.status === 'upcoming' ? 'LOCKED' : isInProgress ? 'RESUME' : 'ENGAGE'}
+                {schedule.status === 'upcoming' ? 'COMING SOON' : isInProgress ? 'CONTINUE' : 'START QUIZ'}
               </Button>
             ) : isCompleted ? (
               <div className="flex flex-col gap-3 w-full">
@@ -266,7 +266,7 @@ const QuizCard = memo(({ quiz, onStart, onDelete, onViewResults, delay }: { quiz
                     <span className="text-lg font-black italic text-emerald-500 tracking-tighter">{quiz.score}</span>
                     <span className="text-[8px] font-black text-emerald-500/40 uppercase">/ {quiz.totalMarks}</span>
                   </div>
-                  <Badge className="bg-emerald-500 text-white border-none rounded-lg h-6 px-3 font-black uppercase text-[8px] tracking-widest">VERIFIED</Badge>
+                  <Badge className="bg-emerald-500 text-white border-none rounded-lg h-6 px-3 font-black uppercase text-[8px] tracking-widest">SUBMITTED</Badge>
                 </div>
                 <Button
                   onClick={() => onViewResults(quiz)}
@@ -342,7 +342,7 @@ const StudentDashboard = () => {
       const response = await studentAuthAPI.getAvailableQuizzes();
       setQuizzes(response.data);
     } catch (error) {
-      toast.error('Tactical failure: Synchronisation interrupted');
+      toast.error('Connection failed: Could not sync quizzes');
     } finally {
       setLoading(false);
     }
@@ -391,7 +391,7 @@ const StudentDashboard = () => {
   const handleLogout = () => {
     storage.removeItem('studentToken');
     storage.removeItem('studentData');
-    toast.info('Session terminated: Returning to HQ');
+    toast.info('Signed out successfully');
     navigate('/student/login');
   };
 
@@ -438,14 +438,14 @@ const StudentDashboard = () => {
                 <GraduationCap className="h-7 w-7 text-white" />
               </div>
               <div className="hidden sm:block">
-                <p className="font-black uppercase tracking-[0.2em] text-[10px] text-primary/80">Student Portal</p>
-                <p className="text-lg font-black italic tracking-tighter uppercase text-slate-900 dark:text-white">Faculty <span className="text-secondary">Quest</span></p>
+                <p className="font-black uppercase tracking-[0.2em] text-[10px] text-primary/80">Student Hub</p>
+                <p className="text-lg font-black italic tracking-tighter uppercase text-slate-900 dark:text-white">Student <span className="text-secondary">Portal</span></p>
               </div>
             </div>
 
             <div className="flex items-center gap-2 sm:gap-4">
               <div className="hidden lg:flex flex-col items-end mr-4">
-                <p className="text-[10px] font-black uppercase tracking-widest text-primary/40 leading-none mb-1">Current Sync</p>
+                <p className="text-[10px] font-black uppercase tracking-widest text-primary/40 leading-none mb-1">Last Updated</p>
                 <p className="text-sm font-black italic tracking-tighter text-slate-900 dark:text-white uppercase leading-none">
                   {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                 </p>
@@ -476,11 +476,11 @@ const StudentDashboard = () => {
               className="flex gap-12 items-center"
             >
               {[
-                "SECURE PROTOCOL ACTIVE: ALL SESSIONS MONITORED",
-                "SYNC COMPLETE: NEW ASSESSMENTS DEPLOYED",
-                "ACADEMIC INTEGRITY IS PRIORITY ALPHA",
-                "STAY FOCUSED, CADET. SUCCESS IS CALIBRATED",
-                "ENCRYPTION LEVEL 4: BIOMETRIC AUTH READY"
+                "PROTOCOL ACTIVE: QUIZ SESSIONS ARE MONITORED",
+                "REFRESH COMPLETE: NEW QUIZZES AVAILABLE",
+                "PLEASE MAINTAIN ACADEMIC INTEGRITY",
+                "STAY FOCUSED. BEST OF LUCK WITH YOUR QUIZ!",
+                "SECURE LOGIN ACTIVE: READY FOR ASSESSMENT"
               ].map((msg, i) => (
                 <div key={i} className="flex items-center gap-3">
                   <Activity className="h-3 w-3 text-secondary" />
@@ -509,12 +509,12 @@ const StudentDashboard = () => {
                 <div className="space-y-1 flex-1">
                   <div className="flex items-center justify-between">
                     <h2 className="text-xl font-black tracking-tighter uppercase italic text-slate-900 dark:text-white leading-none">
-                      {studentData?.name || 'Academic Cadet'}
+                      {studentData?.name || 'Student'}
                     </h2>
                   </div>
                   <div className="flex items-center gap-2 opacity-60 mb-2">
                     <BadgeCheck className="h-3.5 w-3.5 text-primary" />
-                    <span className="text-[10px] font-black uppercase tracking-widest truncate max-w-[120px]">{studentData?.usn || 'SEC-PROTOCOL-ACTIVE'}</span>
+                    <span className="text-[10px] font-black uppercase tracking-widest truncate max-w-[120px]">{studentData?.usn || 'STUDENT-PORTAL'}</span>
                   </div>
                   <div className="w-full h-1.5 bg-primary/10 rounded-full overflow-hidden">
                     <motion.div
@@ -552,13 +552,13 @@ const StudentDashboard = () => {
               <div className="overflow-x-auto pb-4 -mx-2 px-2 scrollbar-hide">
                 <TabsList className="bg-white/40 dark:bg-white/5 p-1.5 h-16 rounded-[2rem] border border-primary/10 flex w-max min-w-full sm:min-w-0 shadow-lg backdrop-blur-2xl">
                   <TabsTrigger value="available" className="rounded-[1.25rem] h-12 px-6 font-black uppercase text-[10px] tracking-[0.1em] data-[state=active]:gradient-primary data-[state=active]:text-white data-[state=active]:shadow-lg text-primary/60 dark:text-white/40 transition-all gap-3 active:scale-95">
-                    <Sparkles className="h-4 w-4" /> Assessments ({availableQuizzes.length})
+                    <Sparkles className="h-4 w-4" /> Available Quizzes ({availableQuizzes.length})
                   </TabsTrigger>
                   <TabsTrigger value="active" className="rounded-[1.25rem] h-12 px-6 font-black uppercase text-[10px] tracking-[0.1em] data-[state=active]:gradient-primary data-[state=active]:text-white data-[state=active]:shadow-lg text-primary/60 dark:text-white/40 transition-all gap-3 active:scale-95">
                     <Activity className="h-4 w-4" /> Activity ({inProgressQuizzes.length})
                   </TabsTrigger>
                   <TabsTrigger value="completed" className="rounded-[1.25rem] h-12 px-6 font-black uppercase text-[10px] tracking-[0.1em] data-[state=active]:gradient-primary data-[state=active]:text-white data-[state=active]:shadow-lg text-primary/60 dark:text-white/40 transition-all gap-3 active:scale-95">
-                    <CheckCircle className="h-4 w-4" /> Archives ({completedQuizzes.length})
+                    <CheckCircle className="h-4 w-4" /> Completed ({completedQuizzes.length})
                   </TabsTrigger>
                   <TabsTrigger value="disqualified" className="rounded-[1.25rem] h-12 px-6 font-black uppercase text-[10px] tracking-[0.1em] data-[state=active]:bg-rose-500 data-[state=active]:text-white data-[state=active]:shadow-rose-300 text-primary/60 dark:text-white/40 transition-all gap-3 active:scale-95">
                     <AlertTriangle className="h-4 w-4" /> Restricted ({disqualifiedQuizzes.length})
@@ -586,7 +586,7 @@ const StudentDashboard = () => {
                     <TabsContent value="available" className="mt-0 outline-none">
                       <div className="mobile-grid">
                         {availableQuizzes.length === 0 ? (
-                          <EmptyState icon={Search} message="No evaluations pending in your protocol." onRetry={fetchQuizzes} />
+                          <EmptyState icon={Search} message="No quizzes available at the moment." onRetry={fetchQuizzes} />
                         ) : (
                           availableQuizzes.map((quiz, idx) => (
                             <QuizCard key={quiz.id || quiz._id} quiz={quiz} onStart={handleStartQuiz} onDelete={handleDeleteQuiz} onViewResults={handleViewResults} delay={idx * 0.05} />
@@ -598,7 +598,7 @@ const StudentDashboard = () => {
                     <TabsContent value="active" className="mt-4 outline-none">
                       <div className="mobile-grid">
                         {inProgressQuizzes.length === 0 ? (
-                          <EmptyState icon={Activity} message="No active missions at this time." />
+                          <EmptyState icon={Activity} message="No quizzes are currently in progress." />
                         ) : (
                           inProgressQuizzes.map((quiz, idx) => (
                             <QuizCard key={quiz.id || quiz._id} quiz={quiz} onStart={handleStartQuiz} onDelete={handleDeleteQuiz} onViewResults={handleViewResults} delay={idx * 0.05} />
@@ -610,7 +610,7 @@ const StudentDashboard = () => {
                     <TabsContent value="completed" className="mt-4 outline-none">
                       <div className="mobile-grid">
                         {completedQuizzes.length === 0 ? (
-                          <EmptyState icon={Trophy} message="Your archive is currently empty." />
+                          <EmptyState icon={Trophy} message="You haven't completed any quizzes yet." />
                         ) : (
                           completedQuizzes.map((quiz, idx) => (
                             <QuizCard key={quiz.id || quiz._id} quiz={quiz} onStart={handleStartQuiz} onDelete={handleDeleteQuiz} onViewResults={handleViewResults} delay={idx * 0.05} />
@@ -667,12 +667,12 @@ const StudentDashboard = () => {
                       </p>
                     </div>
                     <div className="bg-white dark:bg-white/5 p-4 rounded-2xl border border-primary/5">
-                      <p className="text-[8px] font-black uppercase tracking-widest text-slate-500 mb-1">Security Status</p>
-                      <p className="text-xl font-black italic text-emerald-500">OPTIMAL</p>
+                      <p className="text-[8px] font-black uppercase tracking-widest text-slate-500 mb-1">Integrity Status</p>
+                      <p className="text-xl font-black italic text-emerald-500">EXCELLENT</p>
                     </div>
                     <div className="bg-white dark:bg-white/5 p-4 rounded-2xl border border-primary/5">
-                      <p className="text-[8px] font-black uppercase tracking-widest text-slate-500 mb-1">Rank</p>
-                      <p className="text-xl font-black italic text-amber-500">ALPHA</p>
+                      <p className="text-[8px] font-black uppercase tracking-widest text-slate-500 mb-1">Academic Status</p>
+                      <p className="text-xl font-black italic text-amber-500">ACTIVE</p>
                     </div>
                   </div>
                 </CardContent>

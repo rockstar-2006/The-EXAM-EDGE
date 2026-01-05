@@ -128,11 +128,11 @@ const StudentAppLogin = () => {
 
           <div className="space-y-1">
             <h1 className="text-3xl font-black tracking-tighter uppercase italic">
-              FACULTY <span className="text-primary not-italic">QUEST</span>
+              STUDENT <span className="text-primary not-italic">PORTAL</span>
             </h1>
             <div className="flex items-center justify-center gap-2 text-muted-foreground font-black uppercase tracking-[0.3em] text-[8px]">
               <Activity className="w-2.5 h-2.5 text-primary" />
-              Secure Terminal Alpha-One
+              Secure Assessment System
               <Activity className="w-2.5 h-2.5 text-primary" />
             </div>
           </div>
@@ -142,9 +142,9 @@ const StudentAppLogin = () => {
           <div className="absolute top-0 left-0 w-full h-[3px] bg-gradient-to-r from-primary via-secondary to-primary opacity-80" />
 
           <CardHeader className="p-8 pb-4 text-center">
-            <CardTitle className="text-xl font-black tracking-tight uppercase italic">Access Gateway</CardTitle>
+            <CardTitle className="text-xl font-black tracking-tight uppercase italic">Welcome Cadet</CardTitle>
             <CardDescription className="font-bold uppercase text-[9px] tracking-widest opacity-40">
-              Identity Verification Required
+              Please sign in to access your quizzes
             </CardDescription>
           </CardHeader>
 
@@ -162,7 +162,7 @@ const StudentAppLogin = () => {
                   className="rounded-xl font-black uppercase text-[9px] tracking-widest data-[state=active]:gradient-primary data-[state=active]:text-white transition-all"
                   onClick={() => setRegStep(1)}
                 >
-                  Join Nexus
+                  Register
                 </TabsTrigger>
               </TabsList>
 
@@ -182,7 +182,7 @@ const StudentAppLogin = () => {
                           <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-primary/40" />
                           <Input
                             type="email"
-                            placeholder="user@nexus.protocol"
+                            placeholder="your.email@college.edu"
                             className="pl-12 h-14 bg-muted/10 border-sidebar-border/30 rounded-xl focus:ring-primary/20 font-bold text-sm"
                             value={loginData.email}
                             onChange={(e) => setLoginData({ ...loginData, email: e.target.value })}
@@ -264,7 +264,7 @@ const StudentAppLogin = () => {
                               <div className="relative">
                                 <User className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-primary/40" />
                                 <Input
-                                  placeholder="CADET FULL NAME"
+                                  placeholder="ENTER YOUR FULL NAME"
                                   className="pl-12 h-14 bg-muted/10 border-sidebar-border/30 rounded-xl font-bold uppercase text-xs"
                                   value={registerData.name}
                                   onChange={(e) => setRegisterData({ ...registerData, name: e.target.value })}
@@ -278,7 +278,7 @@ const StudentAppLogin = () => {
                                 <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-primary/40" />
                                 <Input
                                   type="email"
-                                  placeholder="cadet@nexus.edu"
+                                  placeholder="your.email@college.edu"
                                   className="pl-12 h-14 bg-muted/10 border-sidebar-border/30 rounded-xl font-bold uppercase text-xs"
                                   value={registerData.email}
                                   onChange={(e) => setRegisterData({ ...registerData, email: e.target.value })}
@@ -319,9 +319,9 @@ const StudentAppLogin = () => {
                             </div>
                             <div className="grid grid-cols-2 gap-4">
                               <div className="space-y-2">
-                                <Label className="text-[9px] font-black uppercase text-muted-foreground pl-1">CADET YEAR</Label>
+                                <Label className="text-[9px] font-black uppercase text-muted-foreground pl-1">CURRENT YEAR</Label>
                                 <Input
-                                  placeholder="YEAR"
+                                  placeholder="e.g. 2nd Year"
                                   className="h-14 bg-muted/10 border-sidebar-border/30 rounded-xl font-bold text-xs"
                                   value={registerData.year}
                                   onChange={(e) => setRegisterData({ ...registerData, year: e.target.value })}
@@ -397,7 +397,7 @@ const StudentAppLogin = () => {
                           <Activity className="w-5 h-5 animate-spin" />
                         ) : (
                           <span className="flex items-center gap-2">
-                            {regStep === 3 ? 'Deploy Account' : 'Proceed System'}
+                            {regStep === 3 ? 'Complete Registration' : 'Next Step'}
                             <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                           </span>
                         )}
@@ -418,8 +418,8 @@ const StudentAppLogin = () => {
             <Lock className="w-2.5 h-2.5" />
           </div>
           <p className="text-[9px] font-bold text-muted-foreground/30 uppercase tracking-[0.15em] leading-relaxed px-6">
-            Nexus Protocol v4.2.0 • System monitored for academic integrity.
-            Unauthorized access attempts are logged and reported.
+            Student Portal v1.0.0 • System monitored for academic integrity.
+            Please ensure you provide the correct email registered with your faculty.
           </p>
         </motion.div>
       </motion.div>
