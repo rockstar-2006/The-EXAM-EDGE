@@ -340,7 +340,8 @@ const StudentDashboard = () => {
     setLoading(true);
     try {
       const response = await studentAuthAPI.getAvailableQuizzes();
-      setQuizzes(response.data);
+      // Server returns { success: true, quizzes: [...] }
+      setQuizzes(Array.isArray(response.data.quizzes) ? response.data.quizzes : []);
     } catch (error) {
       toast.error('Connection failed: Could not sync quizzes');
     } finally {
@@ -349,13 +350,29 @@ const StudentDashboard = () => {
   }, []);
 
   useEffect(() => {
-    const data = storage.getItem('studentData');
-    if (!data) {
-      navigate('/student/login');
-      return;
-    }
-    setStudentData(JSON.parse(data));
-    fetchQuizzes();
+    const initDashboard = async () => {
+      try {
+        const data = storage.getItem('studentData');
+        if (!data) {
+          navigate('/student/login');
+          return;
+        }
+
+        const parsed = JSON.parse(data);
+        if (parsed) {
+          setStudentData(parsed);
+          await fetchQuizzes();
+        } else {
+          navigate('/student/login');
+        }
+      } catch (err) {
+        console.error('Core dashboard initialization failed:', err);
+        storage.removeItem('studentData');
+        navigate('/student/login');
+      }
+    };
+
+    initDashboard();
   }, [navigate, fetchQuizzes]);
 
   const handleStartQuiz = (quizId: string) => {
@@ -395,10 +412,12 @@ const StudentDashboard = () => {
     navigate('/student/login');
   };
 
-  const availableQuizzes = quizzes.filter(q => q.attemptStatus === 'not_started' || !q.attemptStatus);
-  const inProgressQuizzes = quizzes.filter(q => q.attemptStatus === 'started');
-  const completedQuizzes = quizzes.filter(q => q.attemptStatus === 'submitted' && !(q.reason?.includes('Strike') || q.reason?.includes('Violation')));
-  const disqualifiedQuizzes = quizzes.filter(q => !!(q.reason?.includes('Strike') || q.reason?.includes('Violation')));
+  // Defensive filtering to prevent crashes if data is malformed
+  const normalizedQuizzes = Array.isArray(quizzes) ? quizzes : [];
+  const availableQuizzes = normalizedQuizzes.filter(q => q && (q.attemptStatus === 'not_started' || !q.attemptStatus));
+  const inProgressQuizzes = normalizedQuizzes.filter(q => q && q.attemptStatus === 'started');
+  const completedQuizzes = normalizedQuizzes.filter(q => q && q.attemptStatus === 'submitted' && !(q.reason?.includes('Strike') || q.reason?.includes('Violation')));
+  const disqualifiedQuizzes = normalizedQuizzes.filter(q => q && !!(q.reason?.includes('Strike') || q.reason?.includes('Violation')));
 
   const containerVariants = {
     hidden: { opacity: 0 },
