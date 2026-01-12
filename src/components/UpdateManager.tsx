@@ -2,43 +2,48 @@ import { useEffect, useState } from 'react';
 import { CapacitorUpdater } from '@capgo/capacitor-updater';
 import { App } from '@capacitor/app';
 import { toast } from 'sonner';
-import { Download, RefreshCw, Sparkles, Activity } from 'lucide-react';
+import { Download, RefreshCw, Sparkles, Activity, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 
 export function UpdateManager() {
     const [updateInfo, setUpdateInfo] = useState<{ version: string; url: string } | null>(null);
     const [isUpdating, setIsUpdating] = useState(false);
-    const [progress, setProgress] = useState(0);
+    const [isDismissed, setIsDismissed] = useState(false);
 
     useEffect(() => {
-        // Notify updater that the app has started successfully
-        // This prevents a rollback if the update was just applied
         CapacitorUpdater.notifyAppReady().catch(console.error);
 
         const checkForUpdates = async () => {
             try {
-                // You can point this to your own update server or a simple JSON file
-                // For demonstration, let's assume we check a backend endpoint
-                // const response = await fetch('YOUR_UPDATE_SERVER_URL/check');
-                // const data = await response.json();
+                const platform = (window as any).Capacitor?.getPlatform();
+                if (platform !== 'android' && platform !== 'ios') return;
 
-                // This is where you would logic out if a new version is available
-                // if (data.version !== currentVersion) {
-                //   setUpdateInfo(data);
-                // }
+                const CURRENT_VERSION = '2.0.1';
+                const API_URL = import.meta.env.VITE_API_URL || 'https://the-exam-edge-backend.onrender.com/api';
+
+                const response = await fetch(`${API_URL}/system/check`);
+                const data = await response.json();
+
+                if (data.version && data.version !== CURRENT_VERSION) {
+                    const dismissedVersion = localStorage.getItem('dismissedUpdateVersion');
+                    if (dismissedVersion !== data.version) {
+                        setUpdateInfo({
+                            version: data.version,
+                            url: data.url
+                        });
+                    }
+                }
             } catch (error) {
                 console.error('Update check failed:', error);
             }
         };
 
-        // Only run on native platforms
         const platform = (window as any).Capacitor?.getPlatform();
         if (platform === 'android' || platform === 'ios') {
             checkForUpdates();
         }
 
-        // Listen for app state changes to check for updates when app comes to foreground
         const handleAppStateChange = App.addListener('appStateChange', ({ isActive }) => {
             if (isActive) {
                 checkForUpdates();
@@ -52,27 +57,22 @@ export function UpdateManager() {
 
     const handleUpdate = async () => {
         if (!updateInfo) return;
-
         setIsUpdating(true);
         try {
             toast.info('Downloading update...', {
                 icon: <Download className="w-4 h-4" />,
             });
-
             const result = await CapacitorUpdater.download({
                 url: updateInfo.url,
                 version: updateInfo.version,
             });
-
             toast.success('Update ready! Refreshing terminal...', {
                 icon: <Sparkles className="w-4 h-4" />,
             });
-
-            // Give the user a moment to see the success message
             setTimeout(async () => {
                 await CapacitorUpdater.set({ id: result.id });
+                setIsUpdating(false);
             }, 2000);
-
         } catch (error) {
             console.error('Update failed:', error);
             toast.error('Update failed. Please try again later.');
@@ -80,36 +80,52 @@ export function UpdateManager() {
         }
     };
 
-    if (!updateInfo) return null;
+    const handleDismiss = () => {
+        if (updateInfo) {
+            localStorage.setItem('dismissedUpdateVersion', updateInfo.version);
+        }
+        setIsDismissed(true);
+    };
+
+    if (!updateInfo || isDismissed) return null;
 
     return (
         <AnimatePresence>
             <motion.div
-                initial={{ opacity: 0, y: 50 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: 50 }}
-                className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] w-[90%] max-w-md"
+                initial={{ opacity: 0, y: 50, scale: 0.9 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 50, scale: 0.9 }}
+                className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] w-[92%] max-w-sm"
             >
-                <div className="bg-card border-2 border-primary/30 shadow-glow p-4 rounded-2xl backdrop-blur-xl relative overflow-hidden">
-                    <div className="absolute top-0 left-0 w-full h-1 gradient-primary opacity-50" />
+                <div className="bg-card/95 border border-primary/20 shadow-glow p-4 rounded-3xl backdrop-blur-2xl relative overflow-hidden">
+                    <div className="absolute top-0 left-0 w-full h-[2px] gradient-primary opacity-60" />
+
+                    <button
+                        onClick={handleDismiss}
+                        className="absolute top-3 right-3 p-1 rounded-full bg-muted/50 text-muted-foreground hover:bg-muted transition-colors"
+                    >
+                        <X className="w-3 h-3" />
+                    </button>
+
                     <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-xl gradient-primary flex items-center justify-center animate-pulse">
-                            <RefreshCw className="w-6 h-6 text-white" />
+                        <div className="w-12 h-12 rounded-2xl gradient-primary flex items-center justify-center shrink-0 shadow-lg">
+                            <RefreshCw className="w-6 h-6 text-white animate-spin-slow" />
                         </div>
-                        <div className="flex-1">
-                            <h3 className="text-sm font-black uppercase tracking-wider text-white italic">
-                                Update <span className="text-primary">Detected</span>
+                        <div className="flex-1 min-w-0 pr-6">
+                            <h3 className="text-xs font-black uppercase tracking-wider text-foreground italic truncate">
+                                Terminal <span className="text-primary italic">Update</span>
                             </h3>
-                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">
-                                Version {updateInfo.version} is ready for deployment
+                            <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest mt-0.5">
+                                Deploy v{updateInfo.version}
                             </p>
                         </div>
                         <Button
                             onClick={handleUpdate}
                             disabled={isUpdating}
-                            className="gradient-primary shadow-glow text-[10px] font-black uppercase h-9 px-4 rounded-lg"
+                            size="sm"
+                            className="gradient-primary shadow-glow text-[10px] font-black uppercase h-9 px-4 rounded-xl shrink-0"
                         >
-                            {isUpdating ? <Activity className="w-4 h-4 animate-spin" /> : 'Update Now'}
+                            {isUpdating ? <Activity className="w-4 h-4 animate-spin" /> : 'Deploy'}
                         </Button>
                     </div>
                 </div>
@@ -117,3 +133,4 @@ export function UpdateManager() {
         </AnimatePresence>
     );
 }
+export default UpdateManager;

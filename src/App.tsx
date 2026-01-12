@@ -13,7 +13,7 @@ import DashboardPage from "./pages/DashboardPage";
 import StudentsPage from "./pages/StudentsPage";
 import CreateQuizPage from "./pages/CreateQuizPage";
 import BookmarksPage from "./pages/BookmarksPage";
-import StudentQuizPage from "./pages/StudentQuizPage"; // For share token links
+import StudentQuizPage from "./pages/StudentQuizPage";
 import QuizResultsPage from "./pages/QuizResultsPage";
 import ResultsPage from "./pages/ResultsPage";
 import SettingsPage from "./pages/SettingsPage";
@@ -22,10 +22,10 @@ import NotFound from "./pages/NotFound";
 
 import StudentAppLogin from "./pages/StudentAppLogin";
 import StudentDashboard from "./pages/StudentDashboard";
-import StudentSecureQuiz from "./pages/StudentSecureQuiz"; // For authenticated students
+import StudentSecureQuiz from "./pages/StudentSecureQuiz";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { DashboardLayout } from "./components/DashboardLayout";
-import { UpdateManager } from "./components/UpdateManager";
+import UpdateManager from "./components/UpdateManager";
 
 const queryClient = new QueryClient();
 
@@ -33,110 +33,83 @@ const isNativeApp =
   Capacitor.getPlatform() === 'android' ||
   Capacitor.getPlatform() === 'ios';
 
-const App = () => {
+const AppContent = () => {
   const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
 
   useEffect(() => {
-    const t = setTimeout(() => setLoading(false), 1500);
-    return () => clearTimeout(t);
-  }, []);
+    const init = async () => {
+      // Small delay for branding
+      await new Promise(resolve => setTimeout(resolve, 1000));
 
-  /* =========================
-     📱 MOBILE (STUDENT)
-  ========================= */
-  if (isNativeApp) {
-    // Auto-login check
-    const AutoLoginCheck = () => {
-      const [checking, setChecking] = useState(true);
-      const navigate = useNavigate();
+      // Auto-login check
+      const studentToken = storage.getItem('studentToken');
+      const teacherToken = storage.getItem('teacherToken') || storage.getItem('token');
 
-      useEffect(() => {
-        const checkAuth = () => {
-          const token = storage.getItem('studentToken');
-          const studentData = storage.getItem('studentData');
+      const currentPath = window.location.hash || window.location.pathname;
 
-          if (token && studentData) {
-            // User is logged in, redirect to dashboard
-            navigate('/student/dashboard', { replace: true });
-          }
-          setChecking(false);
-        };
-
-        checkAuth();
-      }, [navigate]);
-
-      if (checking) {
-        return <LoadingScreen />;
+      if (studentToken && !currentPath.includes('/student/dashboard')) {
+        navigate('/student/dashboard', { replace: true });
+      } else if (teacherToken && !currentPath.includes('/dashboard')) {
+        navigate('/dashboard', { replace: true });
       }
 
-      return <StudentAppLogin />;
+      setLoading(false);
     };
+    init();
+  }, []);
 
-    return (
-      <QueryClientProvider client={queryClient}>
-        <TooltipProvider>
-          {loading && <LoadingScreen />}
-          <UpdateManager />
-          <Toaster />
-          <Sonner />
+  if (loading) return <LoadingScreen />;
 
-          <HashRouter>
-            <Routes>
-              <Route path="/" element={<Navigate to="/student/login" replace />} />
-              <Route path="/student/login" element={<AutoLoginCheck />} />
-              <Route path="/student/dashboard" element={<StudentDashboard />} />
-              <Route path="/student/settings" element={<SettingsPage type="student" />} />
-              <Route path="/student/quiz/:quizId" element={<StudentSecureQuiz />} />
-              <Route path="/student/reset-password/:token" element={<ResetPasswordPage type="student" />} />
-              <Route path="*" element={<Navigate to="/student/login" replace />} />
-            </Routes>
-          </HashRouter>
-        </TooltipProvider>
-      </QueryClientProvider>
-    );
-  }
+  return (
+    <Routes>
+      {/* Root Directs */}
+      <Route path="/" element={
+        isNativeApp
+          ? <Navigate to="/student/login" replace />
+          : <Navigate to="/login" replace />
+      } />
 
-  /* =========================
-     🌐 WEB (TEACHER + STUDENT VIA LINKS)
-  ========================= */
+      {/* Teacher Routes */}
+      <Route path="/login" element={<LoginPage />} />
+      <Route element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>}>
+        <Route path="/dashboard" element={<DashboardPage />} />
+        <Route path="/students" element={<StudentsPage />} />
+        <Route path="/create-quiz" element={<CreateQuizPage />} />
+        <Route path="/results" element={<ResultsPage />} />
+        <Route path="/bookmarks" element={<BookmarksPage />} />
+        <Route path="/settings" element={<SettingsPage type="teacher" />} />
+        <Route path="/quiz/:quizId/results" element={<QuizResultsPage />} />
+      </Route>
+
+      {/* Student Portal Routes */}
+      <Route path="/student/login" element={<StudentAppLogin />} />
+      <Route path="/student/dashboard" element={<StudentDashboard />} />
+      <Route path="/student/settings" element={<SettingsPage type="student" />} />
+      <Route path="/student/quiz/:quizId" element={<StudentSecureQuiz />} />
+      <Route path="/student/reset-password/:token" element={<ResetPasswordPage type="student" />} />
+
+      {/* Shared/Public Routes */}
+      <Route path="/reset-password/:token" element={<ResetPasswordPage type="teacher" />} />
+      <Route path="/quiz/attempt/:token" element={<StudentQuizPage />} />
+
+      <Route path="*" element={<NotFound />} />
+    </Routes>
+  );
+};
+
+const App = () => {
+  const Router = isNativeApp ? HashRouter : BrowserRouter;
+
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
-        {loading && <LoadingScreen />}
         <UpdateManager />
         <Toaster />
         <Sonner />
-
-        <BrowserRouter>
-          <Routes>
-            {/* Public routes */}
-            <Route path="/" element={<Navigate to="/login" replace />} />
-            <Route path="/login" element={<LoginPage />} />
-            <Route path="/quiz/attempt/:token" element={<StudentQuizPage />} /> {/* Share token links */}
-
-            {/* Student authenticated routes (for student portal) */}
-            <Route path="/student/login" element={<StudentAppLogin />} />
-            <Route path="/student/dashboard" element={<StudentDashboard />} />
-            <Route path="/student/settings" element={<SettingsPage type="student" />} />
-            <Route path="/student/quiz/:quizId" element={<StudentSecureQuiz />} />
-            <Route path="/student/reset-password/:token" element={<ResetPasswordPage type="student" />} />
-
-            <Route path="/reset-password/:token" element={<ResetPasswordPage type="teacher" />} />
-
-            {/* Teacher protected routes */}
-            <Route element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>}>
-              <Route path="/dashboard" element={<DashboardPage />} />
-              <Route path="/students" element={<StudentsPage />} />
-              <Route path="/create-quiz" element={<CreateQuizPage />} />
-              <Route path="/results" element={<ResultsPage />} />
-              <Route path="/bookmarks" element={<BookmarksPage />} />
-              <Route path="/settings" element={<SettingsPage type="teacher" />} />
-              <Route path="/quiz/:quizId/results" element={<QuizResultsPage />} />
-            </Route>
-
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </BrowserRouter>
+        <Router>
+          <AppContent />
+        </Router>
       </TooltipProvider>
     </QueryClientProvider>
   );
