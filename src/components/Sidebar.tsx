@@ -1,5 +1,5 @@
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
-import { GraduationCap, LayoutDashboard, Users, FileText, Bookmark, LogOut, Menu, Sparkles } from 'lucide-react';
+import { GraduationCap, LayoutDashboard, Users, FileText, Bookmark, LogOut, Menu, Sparkles, Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
 import { cn } from '@/lib/utils';
@@ -12,6 +12,7 @@ const navItems = [
   { icon: FileText, label: 'Create Quiz', path: '/create-quiz' },
   { icon: FileText, label: 'Results', path: '/results' },
   { icon: Bookmark, label: 'Bookmarks', path: '/bookmarks' },
+  { icon: Settings, label: 'Settings', path: '/settings' },
 ];
 
 export function Sidebar() {

@@ -15,6 +15,8 @@ const StudentAppLogin = () => {
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [showForgot, setShowForgot] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState('');
   const [regStep, setRegStep] = useState(1);
 
   const [loginData, setLoginData] = useState({
@@ -44,6 +46,24 @@ const StudentAppLogin = () => {
       navigate('/student/dashboard');
     } catch (error: any) {
       toast.error(error.response?.data?.message || 'Login failed');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!forgotEmail) {
+      toast.error('Please enter your email');
+      return;
+    }
+    setIsLoading(true);
+    try {
+      await studentAuthAPI.forgotPassword(forgotEmail);
+      toast.success('Reset link sent to your email');
+      setShowForgot(false);
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'Failed to send reset link');
     } finally {
       setIsLoading(false);
     }
@@ -101,22 +121,20 @@ const StudentAppLogin = () => {
   };
 
   return (
-    <div className="min-h-screen w-full bg-background relative flex flex-col items-center p-4 pt-safe pb-safe overflow-y-auto">
-      {/* Dynamic Background */}
-      <div className="fixed inset-0 z-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-1/4 left-1/4 w-[500px] h-[500px] bg-primary/5 rounded-full blur-[120px] animate-pulse-slow" />
-        <div className="absolute bottom-1/4 right-1/4 w-[500px] h-[500px] bg-secondary/5 rounded-full blur-[120px] animate-pulse-slow delay-1000" />
+    <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4 sm:p-6 overflow-hidden relative">
+      <div className="absolute top-0 left-0 w-full h-[100vh] overflow-hidden pointer-events-none opacity-20">
+        <div className="absolute -top-[10%] -left-[10%] w-[40%] h-[40%] bg-primary rounded-full blur-[120px] animate-pulse" />
+        <div className="absolute -bottom-[10%] -right-[10%] w-[40%] h-[40%] bg-secondary rounded-full blur-[120px] animate-pulse delay-700" />
       </div>
 
-      <motion.div
-        variants={containerVariants}
-        initial="hidden"
-        animate="show"
-        className="w-full max-w-md relative z-10 py-10"
-      >
-        {/* Terminal Header */}
-        <motion.div variants={itemVariants} className="text-center mb-8 space-y-4">
-          <div className="inline-flex relative group">
+      <div className="relative z-10 w-full max-w-[420px] space-y-8">
+        <motion.div
+          variants={containerVariants}
+          initial="hidden"
+          animate="show"
+          className="text-center space-y-4"
+        >
+          <div className="relative inline-block group">
             <div className="absolute inset-0 bg-primary/20 blur-xl rounded-full scale-150 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
             <div className="relative w-16 h-16 rounded-2xl bg-card border border-sidebar-border/50 shadow-elevated flex items-center justify-center">
               <GraduationCap className="w-8 h-8 text-primary" />
@@ -127,7 +145,7 @@ const StudentAppLogin = () => {
           </div>
 
           <div className="space-y-1">
-            <h1 className="text-3xl font-black tracking-tighter uppercase italic">
+            <h1 className="text-3xl font-black tracking-tighter uppercase italic text-foreground">
               STUDENT <span className="text-primary not-italic">PORTAL</span>
             </h1>
             <div className="flex items-center justify-center gap-2 text-muted-foreground font-black uppercase tracking-[0.3em] text-[8px]">
@@ -142,147 +160,184 @@ const StudentAppLogin = () => {
           <div className="absolute top-0 left-0 w-full h-[3px] bg-gradient-to-r from-primary via-secondary to-primary opacity-80" />
 
           <CardHeader className="p-8 pb-4 text-center">
-            <CardTitle className="text-xl font-black tracking-tight uppercase italic">Welcome Student</CardTitle>
+            <CardTitle className="text-xl font-black tracking-tight uppercase italic text-foreground">
+              {showForgot ? 'Recover Key' : 'Welcome Student'}
+            </CardTitle>
             <CardDescription className="font-bold uppercase text-[9px] tracking-widest opacity-40">
-              Please sign in to access your quizzes
+              {showForgot ? 'Reset your portal access' : 'Please sign in to access your quizzes'}
             </CardDescription>
           </CardHeader>
 
           <CardContent className="p-8 pt-0">
-            <Tabs defaultValue="login" className="w-full">
-              <TabsList className="grid w-full grid-cols-2 mb-8 bg-muted/20 p-1.5 rounded-2xl border border-sidebar-border/30 h-14">
-                <TabsTrigger
-                  value="login"
-                  className="rounded-xl font-black uppercase text-[9px] tracking-widest data-[state=active]:gradient-primary data-[state=active]:text-white transition-all"
+            {showForgot ? (
+              <motion.form
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                onSubmit={handleForgotPassword}
+                className="space-y-6"
+              >
+                <div className="space-y-2">
+                  <Label className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/60 pl-1">Identity (Email)</Label>
+                  <div className="relative group">
+                    <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-primary" />
+                    <Input
+                      type="email"
+                      placeholder="yourname@college.edu"
+                      value={forgotEmail}
+                      onChange={(e) => setForgotEmail(e.target.value)}
+                      className="h-14 pl-12 bg-muted/20 border-sidebar-border focus:ring-primary/20 backdrop-blur-xl"
+                      disabled={isLoading}
+                    />
+                  </div>
+                </div>
+                <Button type="submit" disabled={isLoading} className="w-full h-14 gradient-primary shadow-glow rounded-2xl font-black uppercase tracking-widest group">
+                  {isLoading ? <Activity className="w-5 h-5 animate-pulse" /> : (
+                    <>
+                      Transmit Link
+                      <ChevronRight className="w-4 h-4 ml-1 group-hover:translate-x-1 transition-transform" />
+                    </>
+                  )}
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => setShowForgot(false)}
+                  className="w-full text-[9px] font-black uppercase tracking-widest text-muted-foreground"
                 >
-                  Sign In
-                </TabsTrigger>
-                <TabsTrigger
-                  value="register"
-                  className="rounded-xl font-black uppercase text-[9px] tracking-widest data-[state=active]:gradient-primary data-[state=active]:text-white transition-all"
-                  onClick={() => setRegStep(1)}
-                >
-                  Register
-                </TabsTrigger>
-              </TabsList>
-
-              <AnimatePresence mode="wait">
-                <TabsContent value="login" key="login">
-                  <motion.form
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: 20 }}
-                    onSubmit={handleLogin}
-                    className="space-y-6"
+                  Return to login
+                </Button>
+              </motion.form>
+            ) : (
+              <Tabs defaultValue="login" className="w-full">
+                <TabsList className="grid w-full grid-cols-2 mb-8 bg-muted/20 p-1.5 rounded-2xl border border-sidebar-border/30 h-14">
+                  <TabsTrigger
+                    value="login"
+                    className="rounded-xl font-black uppercase text-[9px] tracking-widest data-[state=active]:gradient-primary data-[state=active]:text-white transition-all"
                   >
-                    <div className="space-y-4">
-                      <div className="space-y-2">
-                        <Label className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/60 pl-1">Email Address</Label>
-                        <div className="relative">
-                          <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-primary/40" />
+                    Sign In
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="register"
+                    className="rounded-xl font-black uppercase text-[9px] tracking-widest data-[state=active]:gradient-primary data-[state=active]:text-white transition-all"
+                  >
+                    Register
+                  </TabsTrigger>
+                </TabsList>
+
+                <AnimatePresence mode="wait">
+                  <TabsContent value="login" key="login">
+                    <motion.form
+                      variants={containerVariants}
+                      initial="hidden"
+                      animate="show"
+                      onSubmit={handleLogin}
+                      className="space-y-6"
+                    >
+                      <motion.div variants={itemVariants} className="space-y-2">
+                        <Label htmlFor="login-email" className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/60 pl-1">Identity (Email)</Label>
+                        <div className="relative group">
+                          <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-primary group-focus-within:scale-110 transition-transform" />
                           <Input
+                            id="login-email"
                             type="email"
-                            placeholder="your.email@college.edu"
-                            className="pl-12 h-14 bg-muted/10 border-sidebar-border/30 rounded-xl focus:ring-primary/20 font-bold text-sm"
+                            placeholder="Your College Email"
+                            className="h-14 pl-12 bg-muted/20 border-sidebar-border focus:ring-primary/20 backdrop-blur-xl"
                             value={loginData.email}
                             onChange={(e) => setLoginData({ ...loginData, email: e.target.value })}
-                            required
+                            disabled={isLoading}
                           />
                         </div>
-                      </div>
+                      </motion.div>
 
-                      <div className="space-y-2">
-                        <Label className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/60 pl-1">Password</Label>
-                        <div className="relative">
-                          <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-primary/40" />
-                          <Input
-                            type={showPassword ? 'text' : 'password'}
-                            placeholder="••••••••••••"
-                            className="pl-12 pr-12 h-14 bg-muted/10 border-sidebar-border/30 rounded-xl focus:ring-primary/20 font-bold text-sm tracking-widest"
-                            value={loginData.password}
-                            onChange={(e) => setLoginData({ ...loginData, password: e.target.value })}
-                            required
-                          />
-                          <button
-                            type="button"
-                            className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-primary transition-colors"
-                            onClick={() => setShowPassword(!showPassword)}
-                          >
-                            {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-
-                    <Button type="submit" disabled={isLoading} className="w-full h-14 gradient-primary shadow-glow font-black uppercase tracking-[0.2em] text-xs group rounded-xl">
-                      {isLoading ? (
-                        <Activity className="w-5 h-5 animate-spin" />
-                      ) : (
-                        <span className="flex items-center gap-2">
-                          Sign In <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                        </span>
-                      )}
-                    </Button>
-                  </motion.form>
-                </TabsContent>
-
-                <TabsContent value="register" key="register">
-                  <motion.form
-                    initial={{ opacity: 0, x: 20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -20 }}
-                    onSubmit={handleRegister}
-                    className="space-y-6"
-                  >
-                    {/* Progress Indicator */}
-                    <div className="flex justify-between items-center px-2 mb-6">
-                      {[1, 2, 3].map((step) => (
-                        <div key={step} className="flex items-center gap-2">
-                          <div className={cn(
-                            "w-6 h-6 rounded-lg flex items-center justify-center text-[10px] font-black border transition-all duration-300",
-                            regStep >= step ? "bg-primary border-primary text-white shadow-glow" : "bg-muted/20 border-sidebar-border/30 text-muted-foreground"
-                          )}>
-                            {step < regStep ? <BadgeCheck className="w-3.5 h-3.5" /> : step}
+                      <motion.div variants={itemVariants} className="space-y-2">
+                        <Label htmlFor="login-password" className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/60 pl-1">Security Key</Label>
+                        <div className="space-y-3">
+                          <div className="relative group">
+                            <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-primary group-focus-within:scale-110 transition-transform" />
+                            <Input
+                              id="login-password"
+                              type={showPassword ? 'text' : 'password'}
+                              placeholder="••••••••"
+                              className="h-14 pl-12 pr-12 bg-muted/20 border-sidebar-border focus:ring-primary/20 backdrop-blur-xl"
+                              value={loginData.password}
+                              onChange={(e) => setLoginData({ ...loginData, password: e.target.value })}
+                              disabled={isLoading}
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setShowPassword(!showPassword)}
+                              className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-primary transition-colors"
+                            >
+                              {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                            </button>
                           </div>
-                          {step < 3 && <div className={cn("w-8 h-[2px] rounded-full", regStep > step ? "bg-primary" : "bg-muted/20")} />}
+                          <div className="text-right px-1">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setShowForgot(true);
+                                setForgotEmail(loginData.email);
+                              }}
+                              className="text-[9px] font-black uppercase tracking-widest text-primary hover:text-primary/80 transition-colors"
+                            >
+                              Lost security key?
+                            </button>
+                          </div>
                         </div>
-                      ))}
-                    </div>
+                      </motion.div>
 
-                    <div className="min-h-[220px]">
+                      <motion.div variants={itemVariants}>
+                        <Button
+                          type="submit"
+                          disabled={isLoading}
+                          className="w-full h-14 gradient-primary shadow-glow rounded-2xl font-black uppercase tracking-widest group"
+                        >
+                          {isLoading ? (
+                            <Activity className="w-5 h-5 animate-pulse" />
+                          ) : (
+                            <>
+                              Access Portal
+                              <ChevronRight className="w-4 h-4 ml-1 group-hover:translate-x-1 transition-transform" />
+                            </>
+                          )}
+                        </Button>
+                      </motion.div>
+                    </motion.form>
+                  </TabsContent>
+
+                  <TabsContent value="register" key="register">
+                    <form onSubmit={handleRegister} className="space-y-6">
                       <AnimatePresence mode="wait">
                         {regStep === 1 && (
                           <motion.div
                             key="step1"
-                            initial={{ opacity: 0, scale: 0.98 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            exit={{ opacity: 0, scale: 0.98 }}
-                            className="space-y-4"
+                            initial={{ opacity: 0, x: 20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            exit={{ opacity: 0, x: -20 }}
+                            className="space-y-6"
                           >
                             <div className="space-y-2">
-                              <Label className="text-[9px] font-black uppercase text-muted-foreground pl-1">Verification Name</Label>
-                              <div className="relative">
-                                <User className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-primary/40" />
+                              <Label className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/60 pl-1">Full Name</Label>
+                              <div className="relative group">
+                                <User className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-primary" />
                                 <Input
-                                  placeholder="ENTER YOUR FULL NAME"
-                                  className="pl-12 h-14 bg-muted/10 border-sidebar-border/30 rounded-xl font-bold uppercase text-xs"
+                                  placeholder="As per records"
+                                  className="h-14 pl-12 bg-muted/20 border-sidebar-border"
                                   value={registerData.name}
                                   onChange={(e) => setRegisterData({ ...registerData, name: e.target.value })}
-                                  required
                                 />
                               </div>
                             </div>
                             <div className="space-y-2">
-                              <Label className="text-[9px] font-black uppercase text-muted-foreground pl-1">Registry Email</Label>
-                              <div className="relative">
-                                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-primary/40" />
+                              <Label className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/60 pl-1">Identity (Email)</Label>
+                              <div className="relative group">
+                                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-primary" />
                                 <Input
                                   type="email"
-                                  placeholder="your.email@college.edu"
-                                  className="pl-12 h-14 bg-muted/10 border-sidebar-border/30 rounded-xl font-bold uppercase text-xs"
+                                  placeholder="faculty-shared@college.edu"
+                                  className="h-14 pl-12 bg-muted/20 border-sidebar-border"
                                   value={registerData.email}
                                   onChange={(e) => setRegisterData({ ...registerData, email: e.target.value })}
-                                  required
                                 />
                               </div>
                             </div>
@@ -292,49 +347,29 @@ const StudentAppLogin = () => {
                         {regStep === 2 && (
                           <motion.div
                             key="step2"
-                            initial={{ opacity: 0, scale: 0.98 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            exit={{ opacity: 0, scale: 0.98 }}
+                            initial={{ opacity: 0, x: 20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            exit={{ opacity: 0, x: -20 }}
                             className="space-y-4"
                           >
                             <div className="grid grid-cols-2 gap-4">
                               <div className="space-y-2">
-                                <Label className="text-[9px] font-black uppercase text-muted-foreground pl-1">USN / ID</Label>
-                                <Input
-                                  placeholder="4MW..."
-                                  className="h-14 bg-muted/10 border-sidebar-border/30 rounded-xl font-bold uppercase text-xs"
-                                  value={registerData.usn}
-                                  onChange={(e) => setRegisterData({ ...registerData, usn: e.target.value })}
-                                />
+                                <Label className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/60 pl-1">USN</Label>
+                                <Input placeholder="4NM..." className="h-12 bg-muted/20 border-sidebar-border" value={registerData.usn} onChange={(e) => setRegisterData({ ...registerData, usn: e.target.value })} />
                               </div>
                               <div className="space-y-2">
-                                <Label className="text-[9px] font-black uppercase text-muted-foreground pl-1">BRANCH</Label>
-                                <Input
-                                  placeholder="CSE / ECE"
-                                  className="h-14 bg-muted/10 border-sidebar-border/30 rounded-xl font-bold uppercase text-xs"
-                                  value={registerData.branch}
-                                  onChange={(e) => setRegisterData({ ...registerData, branch: e.target.value })}
-                                />
+                                <Label className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/60 pl-1">Branch</Label>
+                                <Input placeholder="e.g. ISE" className="h-12 bg-muted/20 border-sidebar-border" value={registerData.branch} onChange={(e) => setRegisterData({ ...registerData, branch: e.target.value })} />
                               </div>
                             </div>
                             <div className="grid grid-cols-2 gap-4">
                               <div className="space-y-2">
-                                <Label className="text-[9px] font-black uppercase text-muted-foreground pl-1">CURRENT YEAR</Label>
-                                <Input
-                                  placeholder="e.g. 2nd Year"
-                                  className="h-14 bg-muted/10 border-sidebar-border/30 rounded-xl font-bold text-xs"
-                                  value={registerData.year}
-                                  onChange={(e) => setRegisterData({ ...registerData, year: e.target.value })}
-                                />
+                                <Label className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/60 pl-1">Year</Label>
+                                <Input placeholder="e.g. 3rd" className="h-12 bg-muted/20 border-sidebar-border" value={registerData.year} onChange={(e) => setRegisterData({ ...registerData, year: e.target.value })} />
                               </div>
                               <div className="space-y-2">
-                                <Label className="text-[9px] font-black uppercase text-muted-foreground pl-1">SEMESTER</Label>
-                                <Input
-                                  placeholder="SEM"
-                                  className="h-14 bg-muted/10 border-sidebar-border/30 rounded-xl font-bold text-xs"
-                                  value={registerData.semester}
-                                  onChange={(e) => setRegisterData({ ...registerData, semester: e.target.value })}
-                                />
+                                <Label className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/60 pl-1">Semester</Label>
+                                <Input placeholder="e.g. 5th" className="h-12 bg-muted/20 border-sidebar-border" value={registerData.semester} onChange={(e) => setRegisterData({ ...registerData, semester: e.target.value })} />
                               </div>
                             </div>
                           </motion.div>
@@ -343,86 +378,102 @@ const StudentAppLogin = () => {
                         {regStep === 3 && (
                           <motion.div
                             key="step3"
-                            initial={{ opacity: 0, scale: 0.98 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            exit={{ opacity: 0, scale: 0.98 }}
-                            className="space-y-4"
+                            initial={{ opacity: 0, x: 20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            exit={{ opacity: 0, x: -20 }}
+                            className="space-y-6"
                           >
                             <div className="space-y-2">
-                              <Label className="text-[9px] font-black uppercase text-muted-foreground pl-1">Password</Label>
+                              <Label className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/60 pl-1">Security Key</Label>
                               <div className="relative">
-                                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-primary/40" />
+                                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-primary" />
                                 <Input
                                   type="password"
-                                  placeholder="MINIMUM 8 CHARS"
-                                  className="pl-12 h-14 bg-muted/10 border-sidebar-border/30 rounded-xl font-bold text-sm tracking-widest"
+                                  placeholder="Create strong key"
+                                  className="h-14 pl-12 bg-muted/20 border-sidebar-border"
                                   value={registerData.password}
                                   onChange={(e) => setRegisterData({ ...registerData, password: e.target.value })}
-                                  required
                                 />
                               </div>
                             </div>
                             <div className="space-y-2">
-                              <Label className="text-[9px] font-black uppercase text-muted-foreground pl-1">Confirm Password</Label>
+                              <Label className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/60 pl-1">Verify Key</Label>
                               <div className="relative">
-                                <Shield className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-primary/40" />
+                                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-primary" />
                                 <Input
                                   type="password"
-                                  placeholder="RE-ENTER KEY"
-                                  className="pl-12 h-14 bg-muted/10 border-sidebar-border/30 rounded-xl font-bold text-sm tracking-widest"
+                                  placeholder="Confirm key"
+                                  className="h-14 pl-12 bg-muted/20 border-sidebar-border"
                                   value={registerData.confirmPassword}
                                   onChange={(e) => setRegisterData({ ...registerData, confirmPassword: e.target.value })}
-                                  required
                                 />
                               </div>
                             </div>
                           </motion.div>
                         )}
                       </AnimatePresence>
-                    </div>
 
-                    <div className="flex gap-4">
-                      {regStep > 1 && (
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          onClick={() => setRegStep(regStep - 1)}
-                          className="flex-1 h-14 font-black uppercase text-[10px] tracking-widest border border-sidebar-border/30 rounded-xl"
-                        >
-                          Previous
-                        </Button>
-                      )}
-                      <Button type="submit" disabled={isLoading} className="flex-[2] h-14 gradient-secondary shadow-glow font-black uppercase tracking-[0.2em] text-xs rounded-xl group">
-                        {isLoading ? (
-                          <Activity className="w-5 h-5 animate-spin" />
-                        ) : (
-                          <span className="flex items-center gap-2">
-                            {regStep === 3 ? 'Complete Registration' : 'Next Step'}
-                            <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                          </span>
+                      <div className="flex gap-3">
+                        {regStep > 1 && (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => setRegStep(regStep - 1)}
+                            className="h-14 px-6 border-sidebar-border rounded-2xl font-black uppercase text-[9px] tracking-widest"
+                          >
+                            Back
+                          </Button>
                         )}
-                      </Button>
-                    </div>
-                  </motion.form>
-                </TabsContent>
-              </AnimatePresence>
-            </Tabs>
+                        <Button
+                          type="submit"
+                          disabled={isLoading}
+                          className="flex-1 h-14 gradient-primary shadow-glow rounded-2xl font-black uppercase tracking-widest group"
+                        >
+                          {isLoading ? (
+                            <Activity className="w-5 h-5 animate-pulse" />
+                          ) : (
+                            <>
+                              {regStep === 3 ? 'Finalize' : 'Continue'}
+                              <ChevronRight className="w-4 h-4 ml-1 group-hover:translate-x-1 transition-transform" />
+                            </>
+                          )}
+                        </Button>
+                      </div>
+
+                      <div className="flex justify-center gap-2">
+                        {[1, 2, 3].map((s) => (
+                          <div
+                            key={s}
+                            className={cn(
+                              "w-10 h-1 rounded-full transition-all duration-300",
+                              regStep === s ? "bg-primary w-16" : "bg-sidebar-border/30"
+                            )}
+                          />
+                        ))}
+                      </div>
+                    </form>
+                  </TabsContent>
+                </AnimatePresence>
+              </Tabs>
+            )}
           </CardContent>
         </Card>
 
-        {/* Security Footer */}
-        <motion.div variants={itemVariants} className="mt-8 space-y-4 text-center">
-          <div className="flex items-center justify-center gap-2 text-muted-foreground/40 font-black uppercase tracking-[0.2em] text-[7px]">
-            <Lock className="w-2.5 h-2.5" />
-            End-to-End Encryption Enabled
-            <Lock className="w-2.5 h-2.5" />
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 1 }}
+          className="flex flex-col items-center gap-4 py-4"
+        >
+          <div className="w-px h-8 bg-gradient-to-b from-primary/50 to-transparent" />
+          <div className="flex items-center gap-4 bg-card/40 backdrop-blur-md px-6 py-2.5 rounded-full border border-sidebar-border/30 shadow-sm">
+            <BadgeCheck className="w-3 h-3 text-primary animate-pulse" />
+            <span className="text-[7px] font-black uppercase tracking-[0.4em] text-muted-foreground/80">
+              Terminal v2.0.1 • Secured Connection
+            </span>
           </div>
-          <p className="text-[9px] font-bold text-muted-foreground/30 uppercase tracking-[0.15em] leading-relaxed px-6">
-            Student Portal v1.0.0 • System monitored for academic integrity.
-            Please ensure you provide the correct email registered with your faculty.
-          </p>
         </motion.div>
-      </motion.div>
+      </div>
     </div>
   );
 };

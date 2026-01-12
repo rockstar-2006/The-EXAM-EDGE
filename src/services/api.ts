@@ -55,6 +55,15 @@ export const teacherAuthAPI = {
       throw error;
     }
   },
+  forgotPassword: async (email: string) => {
+    return await httpClient.post('/auth/forgot-password', { email });
+  },
+  resetPassword: async (token: string, data: any) => {
+    return await httpClient.put(`/auth/reset-password/${token}`, data);
+  },
+  updatePassword: async (data: any) => {
+    return await httpClient.put('/auth/update-password', data);
+  },
 };
 
 export const studentAuthAPI = {
@@ -138,7 +147,16 @@ export const studentAuthAPI = {
       console.error('Student registration error:', error);
       throw error;
     }
-  }
+  },
+  forgotPassword: async (email: string) => {
+    return await httpClient.post('/student/forgot-password', { email });
+  },
+  resetPassword: async (token: string, data: any) => {
+    return await httpClient.put(`/student/reset-password/${token}`, data);
+  },
+  updatePassword: async (data: any) => {
+    return await httpClient.put('/student/update-password', data);
+  },
 };
 
 /* =========================

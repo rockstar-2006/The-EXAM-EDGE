@@ -16,6 +16,8 @@ import BookmarksPage from "./pages/BookmarksPage";
 import StudentQuizPage from "./pages/StudentQuizPage"; // For share token links
 import QuizResultsPage from "./pages/QuizResultsPage";
 import ResultsPage from "./pages/ResultsPage";
+import SettingsPage from "./pages/SettingsPage";
+import ResetPasswordPage from "@/pages/ResetPasswordPage";
 import NotFound from "./pages/NotFound";
 
 import StudentAppLogin from "./pages/StudentAppLogin";
@@ -23,6 +25,7 @@ import StudentDashboard from "./pages/StudentDashboard";
 import StudentSecureQuiz from "./pages/StudentSecureQuiz"; // For authenticated students
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { DashboardLayout } from "./components/DashboardLayout";
+import { UpdateManager } from "./components/UpdateManager";
 
 const queryClient = new QueryClient();
 
@@ -73,6 +76,7 @@ const App = () => {
       <QueryClientProvider client={queryClient}>
         <TooltipProvider>
           {loading && <LoadingScreen />}
+          <UpdateManager />
           <Toaster />
           <Sonner />
 
@@ -81,7 +85,9 @@ const App = () => {
               <Route path="/" element={<Navigate to="/student/login" replace />} />
               <Route path="/student/login" element={<AutoLoginCheck />} />
               <Route path="/student/dashboard" element={<StudentDashboard />} />
+              <Route path="/student/settings" element={<SettingsPage type="student" />} />
               <Route path="/student/quiz/:quizId" element={<StudentSecureQuiz />} />
+              <Route path="/student/reset-password/:token" element={<ResetPasswordPage type="student" />} />
               <Route path="*" element={<Navigate to="/student/login" replace />} />
             </Routes>
           </HashRouter>
@@ -97,6 +103,7 @@ const App = () => {
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         {loading && <LoadingScreen />}
+        <UpdateManager />
         <Toaster />
         <Sonner />
 
@@ -110,7 +117,11 @@ const App = () => {
             {/* Student authenticated routes (for student portal) */}
             <Route path="/student/login" element={<StudentAppLogin />} />
             <Route path="/student/dashboard" element={<StudentDashboard />} />
-            <Route path="/student/quiz/:quizId" element={<StudentSecureQuiz />} /> {/* Authenticated student quiz */}
+            <Route path="/student/settings" element={<SettingsPage type="student" />} />
+            <Route path="/student/quiz/:quizId" element={<StudentSecureQuiz />} />
+            <Route path="/student/reset-password/:token" element={<ResetPasswordPage type="student" />} />
+
+            <Route path="/reset-password/:token" element={<ResetPasswordPage type="teacher" />} />
 
             {/* Teacher protected routes */}
             <Route element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>}>
@@ -119,6 +130,7 @@ const App = () => {
               <Route path="/create-quiz" element={<CreateQuizPage />} />
               <Route path="/results" element={<ResultsPage />} />
               <Route path="/bookmarks" element={<BookmarksPage />} />
+              <Route path="/settings" element={<SettingsPage type="teacher" />} />
               <Route path="/quiz/:quizId/results" element={<QuizResultsPage />} />
             </Route>
 
