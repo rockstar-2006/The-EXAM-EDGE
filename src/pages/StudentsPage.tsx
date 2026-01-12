@@ -53,7 +53,7 @@ export default function StudentsPage() {
       setStudents(Array.isArray(studentsData) ? studentsData : []);
     } catch (error) {
       console.error('Error fetching students:', error);
-      toast.error('Sync failed: Backend unreachable');
+      toast.error('Sync failed: Database unreachable');
     } finally {
       setLoading(false);
     }
@@ -77,7 +77,7 @@ export default function StudentsPage() {
 
       if (!result.isValid) {
         setErrors(result.errors);
-        toast.error('Data Integrity Violation');
+        toast.error('Data Validation Failed');
         clearInterval(progressInterval);
         return;
       }
@@ -87,8 +87,8 @@ export default function StudentsPage() {
       await fetchStudents();
       setSuccess(true);
 
-      toast.success('Matrix synchronization complete', {
-        description: `${result.students.length} records ingested.`,
+      toast.success('Student records sync complete', {
+        description: `${result.students.length} records imported.`,
         icon: <Database className="h-5 w-5 text-primary" />,
       });
 
@@ -102,13 +102,13 @@ export default function StudentsPage() {
   };
 
   const handleDeleteStudent = async (id: string) => {
-    if (!window.confirm('Erase intelligence record from nexus?')) return;
+    if (!window.confirm('Erase this student record?')) return;
     try {
       await studentsAPI.delete(id);
-      toast.success('Record purged from repository');
+      toast.success('Record removed from database');
       fetchStudents();
     } catch (error) {
-      toast.error('Deactivation failure');
+      toast.error('Deletion failure');
     }
   };
 
@@ -124,6 +124,21 @@ export default function StudentsPage() {
       toast.error('Failed to complete deletion process');
     } finally {
       setDeleting(false);
+    }
+  };
+
+  const handleDeleteAll = async () => {
+    if (!window.confirm('CRITICAL: Are you sure you want to delete ALL students? This action cannot be undone.')) return;
+    try {
+      setLoading(true);
+      await studentsAPI.deleteAll();
+      toast.success('All student records purged successfully');
+      setStudents([]);
+      setSelectedStudents([]);
+    } catch (error) {
+      toast.error('Failed to delete all student records');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -156,7 +171,7 @@ export default function StudentsPage() {
           className="flex flex-col items-center gap-4"
         >
           <div className="w-12 h-12 border-4 border-primary/20 border-t-primary rounded-full animate-spin" />
-          <p className="text-[10px] font-black uppercase tracking-[0.3em] text-muted-foreground animate-pulse">Initializing Database...</p>
+          <p className="text-[10px] font-black uppercase tracking-[0.3em] text-muted-foreground animate-pulse">Loading Database...</p>
         </motion.div>
       </div>
     );
@@ -184,15 +199,30 @@ export default function StudentsPage() {
           </p>
         </div>
 
-        <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-          <Button
-            onClick={() => setShowAddForm(true)}
-            className="gradient-primary h-14 px-8 font-black uppercase tracking-widest shadow-glow rounded-xl"
-          >
-            <UserPlus className="w-5 h-5 mr-3" />
-            Add Entry
-          </Button>
-        </motion.div>
+        <div className="flex flex-wrap gap-4">
+          <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+            <Button
+              onClick={() => setShowAddForm(true)}
+              className="gradient-primary h-14 px-8 font-black uppercase tracking-widest shadow-glow rounded-xl"
+            >
+              <UserPlus className="w-5 h-5 mr-3" />
+              Add Student
+            </Button>
+          </motion.div>
+
+          {students.length > 0 && (
+            <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+              <Button
+                variant="outline"
+                onClick={handleDeleteAll}
+                className="h-14 px-8 font-black uppercase tracking-widest border-destructive/20 text-destructive hover:bg-destructive/10 rounded-xl"
+              >
+                <Trash2 className="w-5 h-5 mr-3" />
+                Delete All Students
+              </Button>
+            </motion.div>
+          )}
+        </div>
       </motion.div>
 
       {/* Stats Dashboard */}
@@ -236,13 +266,13 @@ export default function StudentsPage() {
               value="manage"
               className="rounded-xl h-11 px-8 font-bold uppercase text-[10px] tracking-widest data-[state=active]:gradient-primary data-[state=active]:text-white data-[state=active]:shadow-lg transition-all"
             >
-              Registry Explorer
+              Student Registry
             </TabsTrigger>
             <TabsTrigger
               value="upload"
               className="rounded-xl h-11 px-8 font-bold uppercase text-[10px] tracking-widest data-[state=active]:gradient-primary data-[state=active]:text-white data-[state=active]:shadow-lg transition-all"
             >
-              Bulk Ingestion
+              Bulk Upload
             </TabsTrigger>
           </TabsList>
 
@@ -277,7 +307,7 @@ export default function StudentsPage() {
                                     {cohortLabel}
                                   </h3>
                                   <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest opacity-60">
-                                    {cohortStudents.length} Students Registry • Click to explore
+                                    {cohortStudents.length} Students • Click to expand
                                   </span>
                                 </div>
                               </div>
@@ -325,9 +355,9 @@ export default function StudentsPage() {
                       <Users className="w-8 h-8" />
                     </div>
                     <div className="space-y-1">
-                      <h3 className="text-lg font-black uppercase italic tracking-tighter">No Active Protocols</h3>
+                      <h3 className="text-lg font-black uppercase italic tracking-tighter">No Students Found</h3>
                       <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest leading-relaxed">
-                        Student registry is currently empty. Initialize distribution pipeline via manual entry or bulk upload.
+                        The student registry is currently empty. Add students manually or use the bulk upload feature.
                       </p>
                     </div>
                     <Button onClick={() => setShowAddForm(true)} variant="outline" className="font-black uppercase text-[10px] tracking-widest px-8">
@@ -347,15 +377,15 @@ export default function StudentsPage() {
                     <FileSpreadsheet className="w-7 h-7 text-white" />
                   </div>
                   <div className="space-y-1">
-                    <CardTitle className="text-2xl font-black uppercase italic tracking-tighter">Bulk Distribution Pipeline</CardTitle>
-                    <CardDescription className="text-sm font-bold opacity-60 uppercase tracking-widest">Import mass datasets via high-speed Excel/CSV processing.</CardDescription>
+                    <CardTitle className="text-2xl font-black uppercase italic tracking-tighter">Student Import Pipeline</CardTitle>
+                    <CardDescription className="text-sm font-bold opacity-60 uppercase tracking-widest">Import many student records at once via Excel/CSV files.</CardDescription>
                   </div>
                 </div>
               </CardHeader>
               <CardContent className="p-10 space-y-10">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
                   <div className="space-y-6">
-                    <h3 className="text-xs font-black uppercase tracking-[0.2em] text-primary">Ingestion Zone</h3>
+                    <h3 className="text-xs font-black uppercase tracking-[0.2em] text-primary">Upload Zone</h3>
                     <div
                       className={cn(
                         "relative group cursor-pointer border-2 border-dashed rounded-3xl p-10 transition-all text-center",
@@ -391,7 +421,7 @@ export default function StudentsPage() {
                               <Upload className="w-8 h-8 text-muted-foreground group-hover:text-primary transition-colors" />
                             </div>
                             <div>
-                              <p className="text-lg font-bold">Deploy File</p>
+                              <p className="text-lg font-bold">Select File</p>
                               <p className="text-xs font-semibold text-muted-foreground/60 mt-1 uppercase tracking-widest">XLSX, XLS, or CSV supported</p>
                             </div>
                           </motion.div>
@@ -402,8 +432,8 @@ export default function StudentsPage() {
 
                   <div className="space-y-6">
                     <div className="flex items-center justify-between">
-                      <h3 className="text-xs font-black uppercase tracking-[0.2em] text-secondary">Validation Matrix</h3>
-                      <Button variant="link" onClick={generateSampleExcel} className="h-auto p-0 text-[10px] font-black uppercase tracking-widest text-primary italic">Download Blueprint</Button>
+                      <h3 className="text-xs font-black uppercase tracking-[0.2em] text-secondary">Data Requirements</h3>
+                      <Button variant="link" onClick={generateSampleExcel} className="h-auto p-0 text-[10px] font-black uppercase tracking-widest text-primary italic">Download Sample</Button>
                     </div>
                     <div className="grid grid-cols-2 gap-3">
                       {['Name', 'USN', 'Email', 'Branch', 'Year', 'Semester'].map((col, idx) => (

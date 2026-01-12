@@ -189,7 +189,7 @@ export default function StudentQuizPage() {
 
   const handleStartQuiz = async () => {
     if (!studentName.trim() || !studentUSN.trim() || !studentBranch || !studentYear || !studentSemester) {
-      toast.error('Protocol Error: All identity parameters required');
+      toast.error('Identity Error: All identity parameters required');
       return;
     }
 
@@ -211,7 +211,7 @@ export default function StudentQuizPage() {
       setQuizStarted(true);
       setShowInfoForm(false);
 
-      toast.success('Environment Locked: Assessment Initialized');
+      toast.success('Assessment Initialized');
     } catch (error: any) {
       console.error('Error starting quiz:', error);
       toast.error(error.response?.data?.message || 'Initialization Failed: Environment unstable');
@@ -232,10 +232,10 @@ export default function StudentQuizPage() {
 
       setResults(response.data.results);
       setQuizSubmitted(true);
-      toast.success('Encryption Complete: Session secured in database');
+      toast.success('Assessment submitted successfully');
     } catch (error: any) {
       console.error('Error submitting quiz:', error);
-      toast.error('Transmission Failure: Attempting local cache fallback');
+      toast.error('Submission Failure: Check your connection');
       setSubmitting(false);
     }
   };
@@ -358,7 +358,7 @@ export default function StudentQuizPage() {
             <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-primary to-secondary opacity-50" />
             <CardHeader className="p-10 pb-6">
               <div className="flex items-center gap-2 text-primary font-bold uppercase tracking-[0.2em] text-[10px] mb-4">
-                <Shield className="w-4 h-4" /> Identification Protocol
+                <Shield className="w-4 h-4" /> Identification Verification
               </div>
               <CardTitle className="text-4xl font-black tracking-tighter uppercase italic">{quiz.title}</CardTitle>
               <CardDescription className="font-bold text-xs uppercase tracking-widest opacity-60 mt-2">
@@ -465,7 +465,7 @@ export default function StudentQuizPage() {
 
     return (
       <div className="min-h-screen bg-background relative overflow-hidden flex flex-col select-none">
-        {/* Header Telemetry */}
+        {/* Assessment Header */}
         <header className="bg-card/40 backdrop-blur-2xl border-b border-sidebar-border/50 sticky top-0 z-50">
           <div className="max-w-5xl mx-auto px-6 py-6">
             <div className="flex flex-col md:flex-row items-center justify-between gap-6 mb-8">
@@ -477,7 +477,7 @@ export default function StudentQuizPage() {
                   <h1 className="text-2xl font-black italic tracking-tighter uppercase leading-none">{quiz.title}</h1>
                   <div className="flex items-center gap-3 mt-1.5 font-bold uppercase text-[8px] tracking-[0.2em] text-muted-foreground/60 italic">
                     <Activity className="w-3 h-3 text-primary animate-pulse" />
-                    ENCRYPTED SESSION_ID: {attemptId.slice(-8)}
+                    SESSION_ID: {attemptId.slice(-8)}
                   </div>
                 </div>
               </div>
@@ -486,7 +486,7 @@ export default function StudentQuizPage() {
                 <div className="flex items-center gap-3">
                   <Clock className={cn("h-5 w-5", timeLeft < 300 ? "text-destructive animate-pulse" : "text-primary")} />
                   <div className="flex flex-col">
-                    <span className="text-[8px] font-black uppercase tracking-widest text-muted-foreground/60">TTL Remaining</span>
+                    <span className="text-[8px] font-black uppercase tracking-widest text-muted-foreground/60">Time Remaining</span>
                     <span className={cn("text-xl font-black tabular-nums tracking-tight", timeLeft < 300 ? "text-destructive" : "text-foreground")}>
                       {formatTime(timeLeft)}
                     </span>
@@ -496,7 +496,7 @@ export default function StudentQuizPage() {
                 <div className="flex items-center gap-3">
                   <Target className="h-5 w-5 text-secondary" />
                   <div className="flex flex-col">
-                    <span className="text-[8px] font-black uppercase tracking-widest text-muted-foreground/60">Progress Matrix</span>
+                    <span className="text-[8px] font-black uppercase tracking-widest text-muted-foreground/60">Progress</span>
                     <span className="text-xl font-black tabular-nums tracking-tight">{currentQuestion + 1} / {quiz.questions.length}</span>
                   </div>
                 </div>
@@ -505,7 +505,7 @@ export default function StudentQuizPage() {
 
             <div className="space-y-2">
               <div className="flex justify-between items-end">
-                <span className="text-[10px] font-black uppercase tracking-widest text-primary italic">Deployment Status</span>
+                <span className="text-[10px] font-black uppercase tracking-widest text-primary italic">Status</span>
                 <span className="text-[10px] font-black tabular-nums uppercase tracking-widest">{Math.round(progress)}% Complete</span>
               </div>
               <Progress value={progress} className="h-1.5 bg-muted/30" />
@@ -645,7 +645,7 @@ export default function StudentQuizPage() {
                 <Activity className="w-5 h-5 animate-spin" />
               ) : (
                 <span className="flex items-center gap-2">
-                  TERMINATE & SYNC <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                  SUBMIT ASSESSMENT <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                 </span>
               )}
             </Button>

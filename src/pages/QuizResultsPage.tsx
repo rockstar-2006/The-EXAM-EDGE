@@ -5,7 +5,10 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { toast } from 'sonner';
-import { Download, ArrowLeft, Loader2, FileSpreadsheet, Users, Award, TrendingUp, RefreshCw, ChevronRight, Activity, Database, Sparkles, X, Search, ArrowUpDown, ChevronUp, ChevronDown, Code } from 'lucide-react';
+import {
+  Download, ArrowLeft, Loader2, FileSpreadsheet, Search, Users, ChevronUp, ChevronDown, ChevronRight, Activity, Calendar, Clock,
+  Trophy, Target, FileText, Trash2, Award, TrendingUp, RefreshCw, Database, Sparkles, X, Code
+} from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { quizAPI } from '@/services/api';
 import axios from 'axios';
@@ -138,12 +141,23 @@ export default function QuizResultsPage() {
     }
   };
 
-  const handleSort = (key: keyof QuizAttempt) => {
+  const handleSort = (key: string) => {
     let direction: 'asc' | 'desc' = 'asc';
     if (sortConfig && sortConfig.key === key && sortConfig.direction === 'asc') {
       direction = 'desc';
     }
-    setSortConfig({ key, direction });
+    setSortConfig({ key: key as keyof QuizAttempt, direction });
+  };
+
+  const handleDeleteAttempt = async (attemptId: string) => {
+    if (!window.confirm('Permanently erase this assessment attempt?')) return;
+    try {
+      await quizAPI.deleteAttempt(attemptId);
+      toast.success('Attempt record purged');
+      fetchResults();
+    } catch (error) {
+      toast.error('Failed to remove record');
+    }
   };
 
   const filteredAndSortedAttempts = useMemo(() => {
@@ -205,7 +219,7 @@ export default function QuizResultsPage() {
       <div className="h-screen flex items-center justify-center bg-background">
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col items-center gap-4">
           <div className="w-12 h-12 border-4 border-primary/20 border-t-primary rounded-full animate-spin" />
-          <p className="text-[10px] font-black uppercase tracking-[0.3em] text-muted-foreground animate-pulse">Polling Data Matrix...</p>
+          <p className="text-[10px] font-black uppercase tracking-[0.3em] text-muted-foreground animate-pulse">Loading Records...</p>
         </motion.div>
       </div>
     );
@@ -221,18 +235,18 @@ export default function QuizResultsPage() {
       <motion.div variants={itemVariants} className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
         <div className="space-y-3">
           <Button variant="ghost" size="sm" onClick={() => navigate('/results')} className="h-8 px-0 text-muted-foreground hover:text-primary transition-colors font-black uppercase text-[10px] tracking-widest gap-2">
-            <ArrowLeft className="w-3 h-3" /> Back to Dashboard
+            <ArrowLeft className="w-3 h-3" /> Back to Reports
           </Button>
           <div className="flex items-center gap-2 text-primary font-bold uppercase tracking-[0.2em] text-xs">
             <Activity className="w-4 h-4" />
-            Quiz Performance Analysis
+            Student Performance Analysis
           </div>
           <h1 className="text-3xl md:text-5xl font-black tracking-tighter uppercase italic truncate max-w-2xl">
             {quizTitle || 'Assessment Module'}
           </h1>
           {autoRefresh && (
             <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-primary/60">
-              <RefreshCw className="w-3 h-3 animate-spin" /> Live Syncing Active
+              <RefreshCw className="w-3 h-3 animate-spin" /> Live Updates Active
             </div>
           )}
         </div>
@@ -262,10 +276,10 @@ export default function QuizResultsPage() {
       {stats && (
         <motion.div variants={itemVariants} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
           {[
-            { label: 'Total Enrolled', value: attempts.length, icon: Users, color: 'primary' },
-            { label: 'Mean Performance', value: `${stats.avgPercentage}%`, icon: TrendingUp, color: 'secondary' },
-            { label: 'Efficiency Rate', value: `${stats.passRate}%`, icon: Sparkles, color: 'accent' },
-            { label: 'Score Variation', value: `${stats.lowestScore} — ${stats.highestScore}`, icon: Award, color: 'primary' }
+            { label: 'Total Students', value: attempts.length, icon: Users, color: 'primary' },
+            { label: 'Average Score', value: `${stats.avgPercentage}%`, icon: TrendingUp, color: 'secondary' },
+            { label: 'Pass Rate', value: `${stats.passRate}%`, icon: Sparkles, color: 'accent' },
+            { label: 'Score Range', value: `${stats.lowestScore} — ${stats.highestScore}`, icon: Award, color: 'primary' }
           ].map((stat, i) => (
             <Card key={i} className="shadow-elevated border-sidebar-border/50 bg-card/50 backdrop-blur-sm relative overflow-hidden group">
               <div className={`absolute top-0 left-0 w-full h-1 bg-${stat.color}`} />
@@ -292,14 +306,14 @@ export default function QuizResultsPage() {
               <div>
                 <CardTitle className="text-xl font-black uppercase italic tracking-tighter flex items-center gap-2 text-foreground">
                   <Database className="w-5 h-5 text-primary" />
-                  Student Matrix Ledger
+                  Student Performance Records
                 </CardTitle>
-                <CardDescription className="text-xs font-bold uppercase tracking-wider text-foreground/60">Historical records for current unit.</CardDescription>
+                <CardDescription className="text-xs font-bold uppercase tracking-wider text-foreground/60">Comprehensive list of student results for this assessment.</CardDescription>
               </div>
               <div className="relative w-full md:w-96 group">
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
                 <Input
-                  placeholder="Search ledger (Name, USN, Email)..."
+                  placeholder="Search students (Name, USN, Email)..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="pl-11 h-12 bg-white border-sidebar-border/50 text-foreground font-bold rounded-xl focus:ring-primary/20 shadow-sm"
@@ -364,9 +378,14 @@ export default function QuizResultsPage() {
                           </Badge>
                         </TableCell>
                         <TableCell className="pr-8 text-right">
-                          <Button variant="ghost" size="icon" onClick={() => setSelectedAttempt(attempt)} className="h-8 w-8 hover:bg-primary/10">
-                            <ChevronRight className="w-4 h-4" />
-                          </Button>
+                          <div className="flex justify-end gap-2">
+                            <Button variant="ghost" size="icon" onClick={() => setSelectedAttempt(attempt)} className="h-8 w-8 hover:bg-primary/10">
+                              <ChevronRight className="w-4 h-4" />
+                            </Button>
+                            <Button variant="ghost" size="icon" onClick={() => handleDeleteAttempt(attempt._id)} className="h-8 w-8 hover:bg-destructive/10 text-destructive/40 hover:text-destructive">
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))}

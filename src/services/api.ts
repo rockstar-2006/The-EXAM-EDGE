@@ -1,510 +1,211 @@
-import { Capacitor, CapacitorHttp } from '@capacitor/core';
-
-/* =========================
-   CONFIGURATION - USE YOUR CORRECT IP: 192.168.1.100
-========================= */
-const isNative = Capacitor.isNativePlatform();
-const platform = Capacitor.getPlatform();
-
-let API_BASE_URL = '';
-
-// Get API URL from environment variable or construct from parts
-const getApiUrl = () => {
-  // If VITE_API_URL is set, use it (works for both web and mobile in production)
-  if (import.meta.env.VITE_API_URL) {
-    return import.meta.env.VITE_API_URL;
-  }
-
-  // Development fallback: use local IP for native apps, localhost for web
-  const API_PORT = '3001';
-  if (isNative) {
-    // Priority: Use production Render URL
-    return 'https://backend-android-ios-faculty-web-app.onrender.com/api';
-  }
-
-
-  return `http://localhost:${API_PORT}/api`;
-};
-
-API_BASE_URL = getApiUrl();
-
-// Storage helper for production: Native stays logged in (localStorage), 
-// Web stays logged in (localStorage) per user requirement.
+import axios from 'axios';
 export const storage = {
   getItem: (key: string) => localStorage.getItem(key),
   setItem: (key: string, value: string) => localStorage.setItem(key, value),
   removeItem: (key: string) => localStorage.removeItem(key),
 };
 
-if (import.meta.env.DEV) {
-  console.log('[API] Platform:', isNative ? 'Native' : 'Web');
-  console.log('[API] Base URL:', API_BASE_URL);
-}
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
-/* =========================
-   NETWORK UTILITY FUNCTIONS
-========================= */
-// Extract server info from API_BASE_URL
-const getServerInfo = () => {
-  const url = API_BASE_URL.replace('/api', '');
-  const match = url.match(/^https?:\/\/([^:/]+)(?::(\d+))?/);
-  const isHttps = url.startsWith('https');
-
-  return {
-    host: match?.[1] || 'localhost',
-    port: match?.[2] || (isHttps ? '443' : '80'),
-    fullUrl: url
-  };
-};
-
-const networkUtils = {
-  // Check if server is reachable before making requests
-  checkServerReachable: async (): Promise<boolean> => {
-    if (!isNative) return true; // Skip for web
-
-    const testUrl = `${API_BASE_URL.replace('/api', '')}/api/health`;
-
-    try {
-      if (isNative && (platform === 'android' || platform === 'ios')) {
-        // Use CapacitorHttp which is more robust for native HTTPS
-        const response = await CapacitorHttp.request({
-          url: testUrl,
-          method: 'GET',
-          connectTimeout: 20000, // Increase to 20s for Vercel Cold Start
-          readTimeout: 20000
-        });
-        return response.status >= 200 && response.status < 300;
-      }
-
-      // Fallback for non-native or dev environments
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 20000); // 20s timeout
-
-      const response = await fetch(testUrl, {
-        method: 'GET',
-        signal: controller.signal,
-        headers: { 'Content-Type': 'application/json' }
-      });
-
-      clearTimeout(timeoutId);
-      return response.ok;
-    } catch (error) {
-      console.warn('⚠️ Server connectivity check failed:', error);
-      return false;
-    }
+const httpClient = axios.create({
+  baseURL: API_URL,
+  headers: {
+    'Content-Type': 'application/json',
   },
+});
 
-  // Get helpful network error message
-  getNetworkErrorMessage: (error: any): string => {
-    const serverInfo = getServerInfo();
-    if (error.message?.includes('unreachable') || error.message?.includes('ERR_ADDRESS_UNREACHABLE') || error.message?.includes('timeout')) {
-      return `Cannot connect to server. 
-Please check:
-1. You have a stable internet connection.
-2. The server might be waking up (Vercel cold start).
-3. Try refreshing in 10 seconds.
-4. Try opening ${serverInfo.fullUrl}/api/health in your browser to verify connectivity.`;
-    }
-    return error.message || 'Network error occurred';
+// Add a request interceptor to include the auth token
+httpClient.interceptors.request.use((config) => {
+  const token = storage.getItem('teacherToken') || storage.getItem('studentToken');
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
   }
-};
+  return config;
+}, (error) => {
+  return Promise.reject(error);
+});
 
 /* =========================
-   HTTP CLIENT (WITH IMPROVED NETWORK HANDLING)
-========================= */
-const httpClient = {
-  request: async (method: string, endpoint: string, data: any = null, headers: any = {}) => {
-    const url = `${API_BASE_URL}${endpoint}`;
-    console.log(`🌐 ${method} to: ${url}`);
-
-    // Get authentication header
-    const studentToken = storage.getItem('studentToken');
-    const teacherToken = storage.getItem('token');
-
-    let authHeader = {};
-    if (studentToken) {
-      authHeader = { Authorization: `Bearer ${studentToken}` };
-    } else if (teacherToken) {
-      authHeader = { Authorization: `Bearer ${teacherToken}` };
-    }
-
-    const mergedHeaders = {
-      'Content-Type': 'application/json',
-      ...authHeader,
-      ...headers
-    };
-
-    // Native platform (Android/iOS)
-    if (isNative && (platform === 'android' || platform === 'ios')) {
-      try {
-        const options: any = {
-          url,
-          method,
-          headers: mergedHeaders,
-          connectTimeout: 20000,
-          readTimeout: 20000
-        };
-
-        if (data) {
-          options.data = JSON.stringify(data);
-        }
-
-        console.log(`📱 Native ${method} to:`, url);
-        const response = await CapacitorHttp.request(options);
-
-        console.log(`📱 Native response [${response.status}]:`, response.data);
-
-        if (response.status >= 400) {
-          throw {
-            response: {
-              data: response.data,
-              status: response.status,
-              statusText: `HTTP ${response.status}`
-            }
-          };
-        }
-
-        return { data: response.data, status: response.status };
-      } catch (error: any) {
-        console.error(`❌ Native ${method} failed:`, error);
-
-        // Format error for consistent handling
-        const errorMessage = networkUtils.getNetworkErrorMessage(error);
-
-        // Preserve the error structure for consistent error handling
-        if (error.response) {
-          throw error;
-        } else {
-          const serverInfo = getServerInfo();
-          throw {
-            response: {
-              data: {
-                message: errorMessage,
-                debug: {
-                  attemptedUrl: url,
-                  serverIP: serverInfo.host,
-                  serverPort: serverInfo.port,
-                  suggestion: `Test connection: ${serverInfo.fullUrl}/api/health`
-                }
-              },
-              status: 0,
-              statusText: 'Network Error'
-            }
-          };
-        }
-      }
-    }
-
-    // Web Platform (Fetch)
-    try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 20000);
-
-      const response = await fetch(url, {
-        method,
-        headers: mergedHeaders,
-        body: data ? JSON.stringify(data) : null,
-        mode: 'cors',
-        credentials: 'include',
-        signal: controller.signal
-      });
-      clearTimeout(timeoutId);
-
-      const result = await response.json().catch(() => ({}));
-      console.log(`🖥️ Web response [${response.status}]:`, result);
-
-      if (!response.ok) {
-        throw {
-          response: {
-            data: result,
-            status: response.status,
-            statusText: response.statusText
-          }
-        };
-      }
-
-      return { data: result, status: response.status };
-    } catch (error: any) {
-      console.error(`❌ Web ${method} failed:`, error);
-
-      // Ensure consistent error structure
-      if (error.response) {
-        throw error;
-      } else {
-        const errorMessage = networkUtils.getNetworkErrorMessage(error);
-        const serverInfo = getServerInfo();
-        throw {
-          response: {
-            data: {
-              message: errorMessage,
-              debug: {
-                attemptedUrl: url,
-                serverIP: serverInfo.host,
-                error: error.message
-              }
-            },
-            status: 0,
-            statusText: 'Network Error'
-          }
-        };
-      }
-    }
-  },
-
-  get: (endpoint: string, headers = {}) => httpClient.request('GET', endpoint, null, headers),
-  post: (endpoint: string, data: any, headers = {}) => httpClient.request('POST', endpoint, data, headers),
-  put: (endpoint: string, data: any, headers = {}) => httpClient.request('PUT', endpoint, data, headers),
-  delete: (endpoint: string, headers = {}) => httpClient.request('DELETE', endpoint, null, headers),
-
-  // Test server connection
-  testConnection: async () => {
-    const serverInfo = getServerInfo();
-    try {
-      const result = await httpClient.get('/health');
-      return {
-        success: true,
-        message: 'Server is reachable',
-        data: result.data,
-        serverIP: serverInfo.host,
-        serverPort: serverInfo.port
-      };
-    } catch (error: any) {
-      return {
-        success: false,
-        message: 'Server is not reachable',
-        error: error.response?.data?.message || error.message,
-        serverIP: serverInfo.host,
-        serverPort: serverInfo.port,
-        help: `Test in browser: ${serverInfo.fullUrl}/api/health`
-      };
-    }
-  }
-};
-
-/* =========================
-   AUTH HEADER HELPER
-========================= */
-const getAuthHeader = () => {
-  const token = localStorage.getItem('studentToken');
-  return token ? { Authorization: `Bearer ${token}` } : {};
-};
-
-/* =========================
-   TEACHER / ADMIN APIs (COOKIE-BASED)
+   AUTH APIs
 ========================= */
 export const teacherAuthAPI = {
-  login: async (email: string, password: string) => {
+  login: async (credentials: any) => {
     try {
-      const result = await httpClient.post('/auth/login', { email, password });
-      return result;
+      const response = await httpClient.post('/auth/teacher/login', credentials);
+      if (response.data.token) {
+        storage.setItem('teacherToken', response.data.token);
+        storage.setItem('userData', JSON.stringify(response.data.user));
+      }
+      return response;
     } catch (error: any) {
-      console.error('Teacher login API error:', error);
+      console.error('Teacher login error:', error);
       throw error;
     }
   },
-
-  register: async (payload: any) => {
+  register: async (data: any) => {
     try {
-      const result = await httpClient.post('/auth/register', payload);
-      return result;
+      const response = await httpClient.post('/auth/teacher/register', data);
+      return response;
     } catch (error: any) {
-      console.error('Teacher register API error:', error);
-      throw error;
-    }
-  },
-
-  verify: async () => {
-    try {
-      const result = await httpClient.get('/auth/me');
-      return result;
-    } catch (error: any) {
-      console.error('Teacher verify API error:', error);
-      throw error;
-    }
-  },
-
-  logout: async () => {
-    try {
-      const result = await httpClient.post('/auth/logout', {});
-      return result;
-    } catch (error: any) {
-      console.error('Teacher logout API error:', error);
+      console.error('Teacher registration error:', error);
       throw error;
     }
   },
 };
 
-/* =========================
-   STUDENT AUTH APIs (TOKEN-BASED)
-========================= */
 export const studentAuthAPI = {
-  // Auth endpoints (use /student/)
-  login: async (email: string, password: string) => {
+  login: async (credentials: any) => {
     try {
-      const result = await httpClient.post('/student/login', { email, password });
-      if (result.data?.token) {
-        localStorage.setItem('studentToken', result.data.token);
-        if (result.data?.student) {
-          localStorage.setItem('studentData', JSON.stringify(result.data.student));
-        }
+      const response = await httpClient.post('/auth/student/login', credentials);
+      if (response.data.token) {
+        storage.setItem('studentToken', response.data.token);
+        storage.setItem('studentData', JSON.stringify(response.data.student));
       }
-      return result;
+      return response;
     } catch (error: any) {
-      console.error('Login API error:', error);
+      console.error('Student login error:', error);
       throw error;
     }
   },
-
-  register: async (payload: any) => {
-    try {
-      const result = await httpClient.post('/student/register', payload);
-      if (result.data?.token) {
-        localStorage.setItem('studentToken', result.data.token);
-        if (result.data?.student) {
-          localStorage.setItem('studentData', JSON.stringify(result.data.student));
-        }
-      }
-      return result;
-    } catch (error: any) {
-      console.error('Register API error:', error);
-      throw error;
-    }
-  },
-
-  verify: async () => {
-    const token = localStorage.getItem('studentToken');
-    if (!token) {
-      return { data: { valid: false }, status: 401 };
-    }
-    try {
-      const result = await httpClient.get('/student/me', getAuthHeader());
-      if (result.data?.student) {
-        localStorage.setItem('studentData', JSON.stringify(result.data.student));
-      }
-      return result;
-    } catch (error: any) {
-      localStorage.removeItem('studentToken');
-      localStorage.removeItem('studentData');
-      return { data: { valid: false }, status: 401 };
-    }
-  },
-
-  // Quiz listing (use /student/)
   getAvailableQuizzes: async () => {
     try {
-      const response = await httpClient.get('/student/quizzes', getAuthHeader());
-      // The backend returns { success: true, count: X, quizzes: [...] }
-      // The dashboard expects response.data to be the array of quizzes
-      return {
-        ...response,
-        data: response.data.quizzes || []
-      };
+      const studentData = JSON.parse(storage.getItem('studentData') || '{}');
+      if (!studentData.email) throw new Error('Student email not found');
+      return await httpClient.get(`/quizzes/student/shared?email=${encodeURIComponent(studentData.email)}`);
     } catch (error: any) {
-      console.error('Get available quizzes API error:', error);
+      console.error('Error fetching student quizzes:', error);
+      throw error;
+    }
+  },
+  getQuizResults: async (quizId: string) => {
+    try {
+      const studentData = JSON.parse(storage.getItem('studentData') || '{}');
+      if (!studentData.id && !studentData._id) throw new Error('Student identifier not found');
+      const sId = studentData.id || studentData._id;
+      return await httpClient.get(`/student/quiz/${quizId}/results/${sId}`);
+    } catch (error: any) {
+      console.error('Error fetching student quiz results:', error);
+      throw error;
+    }
+  },
+  submitQuiz: async (quizId: string, payload: any) => {
+    try {
+      const studentData = JSON.parse(storage.getItem('studentData') || '{}');
+      const sId = studentData.id || studentData._id;
+      return await httpClient.post('/student/quiz/submit', {
+        ...payload,
+        quizId,
+        studentId: sId
+      });
+    } catch (error: any) {
+      console.error('Error submitting quiz:', error);
       throw error;
     }
   },
 
-  // Quiz operations (use /student/)
   getQuizDetails: async (quizId: string) => {
     try {
-      return await httpClient.get(`/student/quiz/${quizId}`, getAuthHeader());
+      return await httpClient.get(`/student/quiz/${quizId}`);
     } catch (error: any) {
-      console.error('Get quiz details API error:', error);
+      console.error('Error fetching quiz details:', error);
       throw error;
     }
   },
 
   startQuizAttempt: async (quizId: string) => {
     try {
-      return await httpClient.post('/student/quiz/start', { quizId }, getAuthHeader());
+      return await httpClient.post(`/student/quiz/start`, { quizId });
     } catch (error: any) {
-      console.error('Start quiz attempt API error:', error);
+      console.error('Error starting quiz attempt:', error);
       throw error;
     }
   },
 
-  submitQuizAttempt: async (attemptId: string, answers: any[], isAutoSubmit = false, reason = '') => {
+  submitQuizAttempt: async (attemptId: string, answers: any[], auto = false, reason = '') => {
     try {
-      return await httpClient.post('/student/quiz/submit', { attemptId, answers, isAutoSubmit, reason }, getAuthHeader());
+      return await httpClient.post(`/student/quiz/submit-attempt`, {
+        attemptId,
+        answers,
+        auto,
+        reason
+      });
     } catch (error: any) {
-      console.error('Submit quiz attempt API error:', error);
+      console.error('Error submitting quiz attempt:', error);
       throw error;
     }
   },
 
-  saveProgress: async (attemptId: string, answers: any[]) => {
+  register: async (data: any) => {
     try {
-      return await httpClient.post('/student/quiz/save-progress', { attemptId, answers }, getAuthHeader());
+      return await httpClient.post('/auth/student/register', data);
     } catch (error: any) {
-      console.error('Save progress API error:', error);
+      console.error('Student registration error:', error);
       throw error;
     }
-  },
-
-  getQuizResults: async (quizId: string) => {
-    try {
-      return await httpClient.get(`/student/quiz/${quizId}/results`, getAuthHeader());
-    } catch (error: any) {
-      console.error('Get quiz results API error:', error);
-      throw error;
-    }
-  },
-
-  logout: () => {
-    localStorage.removeItem('studentToken');
-    localStorage.removeItem('studentData');
-  },
-
-  // ... other helper methods
+  }
 };
 
 /* =========================
-   QUIZ APIs
+   QUIZ MANAGEMENT APIs
 ========================= */
 export const quizAPI = {
-  save: async (quiz: any) => {
+  save: async (quizData: any) => {
     try {
-      const result = await httpClient.post('/quiz/save', quiz);
-      console.log('Quiz save response:', result);
-      return result;
+      return await httpClient.post('/quizzes/save', quizData);
     } catch (error: any) {
       console.error('Error saving quiz:', error);
       throw error;
     }
   },
 
-  share: async (data: any) => {
-    try {
-      const result = await httpClient.post('/quiz/share', data);
-      return result;
-    } catch (error: any) {
-      console.error('Error sharing quiz:', error);
-      throw error;
-    }
-  },
-
   getAll: async () => {
     try {
-      return await httpClient.get('/quiz/all');
+      return await httpClient.get('/quizzes/all');
     } catch (error: any) {
       console.error('Error fetching quizzes:', error);
       throw error;
     }
   },
 
+  getById: async (id: string) => {
+    try {
+      return await httpClient.get(`/quizzes/${id}`);
+    } catch (error: any) {
+      console.error('Error fetching quiz details:', error);
+      throw error;
+    }
+  },
+
+  update: async (id: string, data: any) => {
+    try {
+      return await httpClient.put(`/quizzes/${id}`, data);
+    } catch (error: any) {
+      console.error('Error updating quiz:', error);
+      throw error;
+    }
+  },
+
   delete: async (id: string) => {
     try {
-      return await httpClient.delete(`/quiz/${id}`);
+      return await httpClient.delete(`/quizzes/${id}`);
     } catch (error: any) {
       console.error('Error deleting quiz:', error);
       throw error;
     }
   },
 
+  deleteAttempt: async (attemptId: string) => {
+    try {
+      return await httpClient.delete(`/quizzes/attempts/${attemptId}`);
+    } catch (error: any) {
+      console.error('Error deleting attempt:', error);
+      throw error;
+    }
+  },
+
   getAllWithStats: async () => {
     try {
-      return await httpClient.get('/quiz/results/all');
+      return await httpClient.get('/quizzes/results/all');
     } catch (error: any) {
       console.error('Error fetching quiz stats:', error);
       throw error;
@@ -513,37 +214,24 @@ export const quizAPI = {
 
   getResults: async (id: string) => {
     try {
-      return await httpClient.get(`/quiz/${id}/results`);
+      return await httpClient.get(`/quizzes/${id}/results`);
     } catch (error: any) {
       console.error('Error fetching quiz results:', error);
       throw error;
     }
   },
 
-  // Get quiz by ID
-  getById: async (id: string) => {
+  share: async (data: any) => {
     try {
-      return await httpClient.get(`/quiz/${id}`);
+      const result = await httpClient.post('/quizzes/share', data);
+      return result;
     } catch (error: any) {
-      console.error('Error fetching quiz details:', error);
-      throw error;
-    }
-  },
-
-  // Update quiz
-  update: async (id: string, data: any) => {
-    try {
-      return await httpClient.put(`/quiz/${id}`, data);
-    } catch (error: any) {
-      console.error('Error updating quiz:', error);
+      console.error('Error sharing quiz:', error);
       throw error;
     }
   },
 };
 
-/* =========================
-   STUDENT MANAGEMENT APIs
-========================= */
 /* =========================
    STUDENT MANAGEMENT APIs
 ========================= */
@@ -560,10 +248,9 @@ export const studentsAPI = {
   getAll: async () => {
     try {
       const result = await httpClient.get('/students/all');
-      // Transform _id to id for frontend consistency
       if (result.data && Array.isArray(result.data)) {
         result.data = result.data.map(student => ({
-          id: student._id || student.id, // Use _id if id doesn't exist
+          id: student._id || student.id,
           name: student.name,
           usn: student.usn,
           email: student.email,
@@ -584,9 +271,7 @@ export const studentsAPI = {
 
   add: async (student: any) => {
     try {
-      console.log('Adding student:', student);
       const result = await httpClient.post('/students/add', student);
-      // Transform response
       if (result.data && result.data.student) {
         result.data.student = {
           id: result.data.student._id,
@@ -603,31 +288,9 @@ export const studentsAPI = {
 
   update: async (id: string, student: any) => {
     try {
-      if (!id) {
-        throw new Error('Student ID is required for update');
-      }
-      console.log('Updating student with ID:', id, 'Data:', student);
       return await httpClient.put(`/students/${id}`, student);
     } catch (error: any) {
       console.error('Error updating student:', error);
-      throw error;
-    }
-  },
-
-  getById: async (id: string) => {
-    try {
-      const result = await httpClient.get(`/students/${id}`);
-      // Transform response
-      if (result.data) {
-        result.data = {
-          id: result.data._id || result.data.id,
-          ...result.data
-        };
-        delete result.data._id;
-      }
-      return result;
-    } catch (error: any) {
-      console.error('Error fetching student:', error);
       throw error;
     }
   },
@@ -649,20 +312,21 @@ export const studentsAPI = {
       throw error;
     }
   },
+
+  deleteAll: async () => {
+    try {
+      return await httpClient.delete('/students/delete-all');
+    } catch (error: any) {
+      console.error('Error deleting all students:', error);
+      throw error;
+    }
+  },
 };
+
 /* =========================
    BOOKMARKS APIs
 ========================= */
 export const bookmarksAPI = {
-  getAll: async () => {
-    try {
-      return await httpClient.get('/bookmarks');
-    } catch (error: any) {
-      console.error('Error fetching bookmarks:', error);
-      throw error;
-    }
-  },
-
   create: async (data: any) => {
     try {
       return await httpClient.post('/bookmarks', data);
@@ -671,7 +335,14 @@ export const bookmarksAPI = {
       throw error;
     }
   },
-
+  getAll: async () => {
+    try {
+      return await httpClient.get('/bookmarks');
+    } catch (error: any) {
+      console.error('Error fetching bookmarks:', error);
+      throw error;
+    }
+  },
   delete: async (id: string) => {
     try {
       return await httpClient.delete(`/bookmarks/${id}`);
@@ -686,15 +357,6 @@ export const bookmarksAPI = {
    FOLDERS APIs
 ========================= */
 export const foldersAPI = {
-  getAll: async () => {
-    try {
-      return await httpClient.get('/folders');
-    } catch (error: any) {
-      console.error('Error fetching folders:', error);
-      throw error;
-    }
-  },
-
   create: async (data: any) => {
     try {
       return await httpClient.post('/folders', data);
@@ -703,7 +365,14 @@ export const foldersAPI = {
       throw error;
     }
   },
-
+  getAll: async () => {
+    try {
+      return await httpClient.get('/folders');
+    } catch (error: any) {
+      console.error('Error fetching folders:', error);
+      throw error;
+    }
+  },
   update: async (id: string, data: any) => {
     try {
       return await httpClient.put(`/folders/${id}`, data);
@@ -712,7 +381,6 @@ export const foldersAPI = {
       throw error;
     }
   },
-
   delete: async (id: string) => {
     try {
       return await httpClient.delete(`/folders/${id}`);
@@ -722,53 +390,3 @@ export const foldersAPI = {
     }
   },
 };
-
-/* =========================
-   UTILITY FUNCTIONS
-========================= */
-export const isAuthenticated = () => {
-  const studentToken = localStorage.getItem('studentToken');
-  const teacherToken = localStorage.getItem('token');
-  return !!(studentToken || teacherToken);
-};
-
-export const clearAuth = () => {
-  localStorage.removeItem('studentToken');
-  localStorage.removeItem('token');
-};
-
-// Network diagnostics helper
-export const networkDiagnostics = {
-  getServerInfo: () => {
-    const info = getServerInfo();
-    return {
-      ip: info.host,
-      port: info.port,
-      apiBase: API_BASE_URL,
-      isNative,
-      platform
-    };
-  },
-
-  testFromBrowser: () => {
-    const serverInfo = getServerInfo();
-    const testUrl = `${serverInfo.fullUrl}/api/health`;
-    if (import.meta.env.DEV) {
-      console.log(`🌐 Test URL: ${testUrl}`);
-      console.log(`📱 Open this in your phone's browser to test connection`);
-    }
-    return testUrl;
-  }
-};
-if (import.meta.env.DEV) {
-  const serverInfo = getServerInfo();
-  console.log('[DEBUG] Frontend configuration:', {
-    serverHost: serverInfo.host,
-    serverPort: serverInfo.port,
-    API_BASE_URL,
-    isNative,
-    platform
-  });
-}
-
-export default httpClient;

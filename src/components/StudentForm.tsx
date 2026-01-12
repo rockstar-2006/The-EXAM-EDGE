@@ -90,10 +90,10 @@ export function StudentForm({ open, onOpenChange, student, onSuccess }: StudentF
         try {
             if (student && student.id) {
                 await studentsAPI.update(student.id, formData);
-                toast.success('Record Synced: Persistence Layer Updated');
+                toast.success('Record Updated');
             } else {
                 await studentsAPI.add(formData);
-                toast.success('Registration Complete: Candidate Registered');
+                toast.success('Registration Complete');
             }
             setSubmitProgress(100);
             setTimeout(() => {
@@ -101,7 +101,7 @@ export function StudentForm({ open, onOpenChange, student, onSuccess }: StudentF
                 onOpenChange(false);
             }, 500);
         } catch (error: any) {
-            toast.error(error.response?.data?.message || 'Transaction Protocol Failure');
+            toast.error(error.response?.data?.message || 'Transaction failed');
         } finally {
             clearInterval(interval);
             setTimeout(() => { setLoading(false); setSubmitProgress(0); }, 300);
@@ -115,13 +115,13 @@ export function StudentForm({ open, onOpenChange, student, onSuccess }: StudentF
 
                 <DialogHeader className="p-8 pb-4">
                     <div className="flex items-center gap-3 text-primary font-black uppercase tracking-[0.2em] text-[10px] mb-2">
-                        <Activity className="w-3 h-3" /> Registry Operations
+                        <Activity className="w-3 h-3" /> Student Management
                     </div>
                     <DialogTitle className="text-4xl font-black tracking-tighter uppercase italic">
-                        {student ? 'Edit' : 'New'} <span className="text-primary italic">Candidate</span>
+                        {student ? 'Edit' : 'New'} <span className="text-primary italic">Student</span>
                     </DialogTitle>
                     <DialogDescription className="font-bold text-xs uppercase tracking-widest opacity-60">
-                        {student ? `Updating intelligence record for ${student.usn}` : 'Initialize registration protocol for new entrant'}
+                        {student ? `Update information for ${student.usn}` : 'Enter details for new student'}
                     </DialogDescription>
                 </DialogHeader>
 
@@ -131,7 +131,7 @@ export function StudentForm({ open, onOpenChange, student, onSuccess }: StudentF
                         {loading && (
                             <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="space-y-2">
                                 <div className="flex justify-between text-[10px] font-black uppercase tracking-widest text-primary">
-                                    <span>Syncing Payload...</span>
+                                    <span>Saving Data...</span>
                                     <span>{submitProgress}%</span>
                                 </div>
                                 <Progress value={submitProgress} className="h-1 bg-primary/10" />
@@ -142,12 +142,12 @@ export function StudentForm({ open, onOpenChange, student, onSuccess }: StudentF
                     {/* Form Grid */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div className="space-y-6">
-                            <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/40 border-b pb-2">Primary Identification</p>
+                            <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/40 border-b pb-2">Student Information</p>
                             <div className="space-y-4">
                                 {[
-                                    { id: 'name', label: 'Full Designation', icon: User, placeholder: 'JOHN DOE' },
+                                    { id: 'name', label: 'Full Name', icon: User, placeholder: 'JOHN DOE' },
                                     { id: 'usn', label: 'Identity USN', icon: Hash, placeholder: '1CR21CS001' },
-                                    { id: 'email', label: 'Network Address', icon: Mail, placeholder: 'JOE.D@SMART.EDU' }
+                                    { id: 'email', label: 'Email Address', icon: Mail, placeholder: 'JOE.D@SMART.EDU' }
                                 ].map((f) => (
                                     <div key={f.id} className="space-y-1.5">
                                         <Label className="text-[10px] font-black uppercase tracking-widest opacity-60 ml-1">{f.label}</Label>
@@ -170,7 +170,7 @@ export function StudentForm({ open, onOpenChange, student, onSuccess }: StudentF
                         </div>
 
                         <div className="space-y-6">
-                            <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/40 border-b pb-2">Deployment Context</p>
+                            <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/40 border-b pb-2">Academic Details</p>
                             <div className="space-y-4">
                                 <div className="space-y-1.5">
                                     <Label className="text-[10px] font-black uppercase tracking-widest opacity-60 ml-1">Assigned Branch</Label>
@@ -219,7 +219,7 @@ export function StudentForm({ open, onOpenChange, student, onSuccess }: StudentF
                 </div>
 
                 <DialogFooter className="p-8 bg-muted/20 border-t border-sidebar-border/50 gap-4">
-                    <Button variant="ghost" onClick={() => onOpenChange(false)} className="h-14 px-8 font-black uppercase text-[10px] tracking-widest hover:bg-muted/50">Abort Op</Button>
+                    <Button variant="ghost" onClick={() => onOpenChange(false)} className="h-14 px-8 font-black uppercase text-[10px] tracking-widest hover:bg-muted/50">Cancel</Button>
                     <Button
                         onClick={handleSubmit}
                         disabled={loading}
@@ -228,7 +228,7 @@ export function StudentForm({ open, onOpenChange, student, onSuccess }: StudentF
                         {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : (
                             <div className="flex items-center gap-2">
                                 <Check className="w-4 h-4 group-hover:scale-110 transition-transform" />
-                                <span>Commit Protocol</span>
+                                <span>Save Student</span>
                                 <ChevronRight className="w-4 h-4 opacity-40 group-hover:translate-x-1 transition-transform" />
                             </div>
                         )}

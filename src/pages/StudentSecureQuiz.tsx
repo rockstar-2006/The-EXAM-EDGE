@@ -266,7 +266,7 @@ export default function StudentSecureQuiz() {
     setWarningCount(prev => {
       const next = prev + 1;
       setLastViolation(reason);
-      toast.error(`⚠️ SECURITY WARNING [${next}/3]`, {
+      toast.error(`⚠️ ATTEMPT NOTICE [${next}/3]`, {
         description: reason,
         duration: 5000,
         position: 'top-center'
@@ -484,7 +484,7 @@ export default function StudentSecureQuiz() {
         setQuizStarted(true);
         setTimeLeft(attempt.timeRemaining || (quiz?.duration || 30) * 60);
         await initializeFullscreen();
-        toast.success('🔒 SECURE SESSION ACTIVE');
+        toast.success('🔒 SESSION ACTIVE');
       }
     } catch (e) {
       toast.error('Initialization Failed');
@@ -544,7 +544,7 @@ export default function StudentSecureQuiz() {
       />
       <div className="text-center space-y-2">
         <h2 className="text-xl font-bold tracking-[0.4em] uppercase opacity-80">Authenticating</h2>
-        <p className="text-[10px] font-black tracking-widest text-violet-400 animate-pulse uppercase">Creating Secure Session</p>
+        <p className="text-[10px] font-black tracking-widest text-violet-400 animate-pulse uppercase">Setting Up Session</p>
       </div>
     </div>
   );
@@ -568,7 +568,7 @@ export default function StudentSecureQuiz() {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Scan className="w-4 h-4 text-violet-400" />
-                <CardTitle className="text-xs font-black uppercase tracking-widest text-white">Security Checklist</CardTitle>
+                <CardTitle className="text-xs font-black uppercase tracking-widest text-white">Assessment Readiness</CardTitle>
               </div>
               <Badge variant="outline" className="text-[8px] border-violet-500/30 text-violet-400 bg-violet-500/5 uppercase font-black">Ready</Badge>
             </div>
@@ -602,7 +602,7 @@ export default function StudentSecureQuiz() {
             <div className="bg-rose-500/5 border border-rose-500/10 p-4 rounded-2xl flex gap-3 items-start">
               <ShieldAlert className="w-4 h-4 text-rose-500 shrink-0 mt-0.5" />
               <div className="space-y-1">
-                <p className="text-[10px] font-black uppercase text-rose-400 tracking-widest">Important Rules</p>
+                <p className="text-[10px] font-black uppercase text-rose-400 tracking-widest">Assessment Guidelines</p>
                 <p className="text-[10px] leading-relaxed text-slate-400 font-medium">Do not exit the app or switch tabs. Ensure notifications are turned off to avoid accidental disqualification.</p>
               </div>
             </div>
@@ -636,10 +636,10 @@ export default function StudentSecureQuiz() {
             {submissionResult?.isBlocked ? <ShieldAlert className="w-10 h-10 text-rose-500" /> : <Trophy className="w-10 h-10 text-white" />}
           </div>
           <h2 className="text-4xl font-black tracking-tighter uppercase leading-none">
-            {submissionResult?.isBlocked ? "EXAM DISQUALIFIED" : "ASSESSMENT SUBMITTED"}
+            {submissionResult?.isBlocked ? "ASSESSMENT VOID" : "ASSESSMENT SUBMITTED"}
           </h2>
           <p className="text-xs font-bold uppercase tracking-widest text-slate-400">
-            {submissionResult?.isBlocked ? "Security Protocol Violation Detected" : "Your responses have been successfully recorded."}
+            {submissionResult?.isBlocked ? "Assessment environment violation detected" : "Your responses have been successfully recorded."}
           </p>
         </div>
 
@@ -909,7 +909,7 @@ export default function StudentSecureQuiz() {
                 <ShieldAlert className="w-10 h-10 text-white" />
               </div>
               <div className="space-y-4">
-                <h3 className="text-3xl font-black uppercase tracking-tighter text-rose-500">Security Breach</h3>
+                <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-foreground/40 px-2">Question Breakdown</h3>
                 <p className="text-xl font-bold text-white leading-tight">VIOLATION RECORDED: <span className="text-rose-400 block mt-2 text-sm uppercase">{lastViolation}</span></p>
                 <div className="flex justify-center gap-2 pt-2">
                   {[...Array(3)].map((_, i) => (

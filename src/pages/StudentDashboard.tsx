@@ -138,7 +138,7 @@ const QuizResultsModal = memo(({ isOpen, onClose, result, loading }: any) => {
 
               {/* Questions Breakdown */}
               <div className="space-y-4">
-                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500/40">Question Breakdown</p>
+                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500/40">Performance Breakdown</p>
                 {result?.answers?.map((ans: any, idx: number) => (
                   <div key={idx} className="p-4 rounded-2xl border bg-slate-50 dark:bg-white/5 border-slate-200 dark:border-white/10">
                     <div className="flex items-start justify-between gap-4 mb-3">
@@ -293,7 +293,7 @@ const QuizCard = memo(({ quiz, onStart, onDelete, onViewResults, delay }: { quiz
                   onClick={() => onViewResults(quiz)}
                   className="w-full h-10 font-black uppercase tracking-[0.2em] text-[9px] rounded-xl bg-rose-500/10 text-rose-500 hover:bg-rose-500/20 border border-rose-500/20"
                 >
-                  VIEW SECURITY REPORT
+                  VIEW REPORT
                 </Button>
               </div>
             )}
@@ -376,7 +376,7 @@ const StudentDashboard = () => {
       };
       setSelectedResult(finalResult);
     } catch (error) {
-      toast.error('Failed to retrieve performance intelligence');
+      toast.error('Failed to retrieve performance analytics');
       setResultsModalOpen(false);
     } finally {
       setResultsLoading(false);
@@ -468,7 +468,7 @@ const StudentDashboard = () => {
           animate="show"
           className="flex-1 overflow-y-auto px-6 md:px-10 py-6 space-y-8 gpu-accelerated scrollbar-hide pb-20"
         >
-          {/* Live Intelligence Feed (Professional Ticker) */}
+          {/* Information Ticker */}
           <motion.div variants={itemVariants} className="bg-slate-900/5 dark:bg-white/5 border-y border-primary/5 py-2 overflow-hidden whitespace-nowrap relative rounded-xl">
             <motion.div
               animate={{ x: [0, -1000] }}
@@ -476,11 +476,11 @@ const StudentDashboard = () => {
               className="flex gap-12 items-center"
             >
               {[
-                "PROTOCOL ACTIVE: QUIZ SESSIONS ARE MONITORED",
-                "REFRESH COMPLETE: NEW QUIZZES AVAILABLE",
+                "NOTICE: QUIZ SESSIONS ARE MONITORED",
+                "REFRESH COMPLETE: NEW ASSESSMENTS AVAILABLE",
                 "PLEASE MAINTAIN ACADEMIC INTEGRITY",
                 "STAY FOCUSED. BEST OF LUCK WITH YOUR QUIZ!",
-                "SECURE LOGIN ACTIVE: READY FOR ASSESSMENT"
+                "SECURE LOGIN ACTIVE: READY FOR EVALUATION"
               ].map((msg, i) => (
                 <div key={i} className="flex items-center gap-3">
                   <Activity className="h-3 w-3 text-secondary" />
@@ -586,7 +586,7 @@ const StudentDashboard = () => {
                     <TabsContent value="available" className="mt-0 outline-none">
                       <div className="mobile-grid">
                         {availableQuizzes.length === 0 ? (
-                          <EmptyState icon={Search} message="No quizzes available at the moment." onRetry={fetchQuizzes} />
+                          <EmptyState icon={Search} message="No assessments available at the moment." onRetry={fetchQuizzes} />
                         ) : (
                           availableQuizzes.map((quiz, idx) => (
                             <QuizCard key={quiz.id || quiz._id} quiz={quiz} onStart={handleStartQuiz} onDelete={handleDeleteQuiz} onViewResults={handleViewResults} delay={idx * 0.05} />
@@ -622,7 +622,7 @@ const StudentDashboard = () => {
                     <TabsContent value="disqualified" className="mt-4 outline-none">
                       <div className="mobile-grid">
                         {disqualifiedQuizzes.length === 0 ? (
-                          <EmptyState icon={AlertTriangle} message="Security protocol clean. No violations." />
+                          <EmptyState icon={AlertTriangle} message="No academic violations detected." />
                         ) : (
                           disqualifiedQuizzes.map((quiz, idx) => (
                             <QuizCard key={quiz.id || quiz._id} quiz={quiz} onStart={handleStartQuiz} onDelete={handleDeleteQuiz} onViewResults={handleViewResults} delay={idx * 0.05} />

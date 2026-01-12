@@ -37,13 +37,13 @@ const StudentAppLogin = () => {
     e.preventDefault();
     setIsLoading(true);
     try {
-      const response = await studentAuthAPI.login(loginData.email, loginData.password);
+      const response = await studentAuthAPI.login({ email: loginData.email, password: loginData.password });
       storage.setItem('studentToken', response.data.token);
       storage.setItem('studentData', JSON.stringify(response.data.student));
       toast.success('Login Successful: Welcome back!');
       navigate('/student/dashboard');
     } catch (error: any) {
-      toast.error(error.response?.data?.message || 'Authentication Protocol Failed');
+      toast.error(error.response?.data?.message || 'Login failed');
     } finally {
       setIsLoading(false);
     }
@@ -132,7 +132,7 @@ const StudentAppLogin = () => {
             </h1>
             <div className="flex items-center justify-center gap-2 text-muted-foreground font-black uppercase tracking-[0.3em] text-[8px]">
               <Activity className="w-2.5 h-2.5 text-primary" />
-              Secure Assessment System
+              Student Assessment System
               <Activity className="w-2.5 h-2.5 text-primary" />
             </div>
           </div>
@@ -142,7 +142,7 @@ const StudentAppLogin = () => {
           <div className="absolute top-0 left-0 w-full h-[3px] bg-gradient-to-r from-primary via-secondary to-primary opacity-80" />
 
           <CardHeader className="p-8 pb-4 text-center">
-            <CardTitle className="text-xl font-black tracking-tight uppercase italic">Welcome Cadet</CardTitle>
+            <CardTitle className="text-xl font-black tracking-tight uppercase italic">Welcome Student</CardTitle>
             <CardDescription className="font-bold uppercase text-[9px] tracking-widest opacity-40">
               Please sign in to access your quizzes
             </CardDescription>
@@ -177,7 +177,7 @@ const StudentAppLogin = () => {
                   >
                     <div className="space-y-4">
                       <div className="space-y-2">
-                        <Label className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/60 pl-1">Faculty ID / Student Email</Label>
+                        <Label className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/60 pl-1">Email Address</Label>
                         <div className="relative">
                           <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-primary/40" />
                           <Input
@@ -192,7 +192,7 @@ const StudentAppLogin = () => {
                       </div>
 
                       <div className="space-y-2">
-                        <Label className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/60 pl-1">Security Key</Label>
+                        <Label className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/60 pl-1">Password</Label>
                         <div className="relative">
                           <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-primary/40" />
                           <Input
@@ -219,7 +219,7 @@ const StudentAppLogin = () => {
                         <Activity className="w-5 h-5 animate-spin" />
                       ) : (
                         <span className="flex items-center gap-2">
-                          Authorize Entry <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                          Sign In <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                         </span>
                       )}
                     </Button>
@@ -349,7 +349,7 @@ const StudentAppLogin = () => {
                             className="space-y-4"
                           >
                             <div className="space-y-2">
-                              <Label className="text-[9px] font-black uppercase text-muted-foreground pl-1">Initialize Key</Label>
+                              <Label className="text-[9px] font-black uppercase text-muted-foreground pl-1">Password</Label>
                               <div className="relative">
                                 <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-primary/40" />
                                 <Input
@@ -363,7 +363,7 @@ const StudentAppLogin = () => {
                               </div>
                             </div>
                             <div className="space-y-2">
-                              <Label className="text-[9px] font-black uppercase text-muted-foreground pl-1">Confirm Integrity</Label>
+                              <Label className="text-[9px] font-black uppercase text-muted-foreground pl-1">Confirm Password</Label>
                               <div className="relative">
                                 <Shield className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-primary/40" />
                                 <Input

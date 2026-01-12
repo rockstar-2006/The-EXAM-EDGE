@@ -400,7 +400,7 @@ export default function CreateQuizPage() {
       const result = response.data;
       const quizId = result.quizId || result.quiz?._id;
       setSavedQuizId(quizId);
-      toast.success('Quiz secured in database');
+      toast.success('Quiz saved successfully');
 
       return {
         ...quizData,
@@ -411,7 +411,7 @@ export default function CreateQuizPage() {
       };
     } catch (error: any) {
       console.error('Save error:', error);
-      const message = error.response?.data?.message || 'Data persistence protocol failed';
+      const message = error.response?.data?.message || 'Failed to save quiz';
       toast.error(message);
       return null;
     } finally {
@@ -480,7 +480,7 @@ export default function CreateQuizPage() {
       fetchFolders();
     } catch (error) {
       console.error('Bookmark error:', error);
-      toast.error('Archival protocol failed');
+      toast.error('Failed to archive questions');
     }
   };
 
@@ -526,7 +526,7 @@ export default function CreateQuizPage() {
       setSelectedStudents([]);
     } catch (error: any) {
       console.error('Sharing failed:', error);
-      const message = error.response?.data?.message || 'Sharing protocols interrupted';
+      const message = error.response?.data?.message || 'Sharing failed';
       toast.error(message);
     } finally {
       setIsSharing(false);
@@ -576,7 +576,7 @@ export default function CreateQuizPage() {
               <CardHeader className="pb-4">
                 <CardTitle className="text-xl font-bold flex items-center gap-2">
                   <FileText className="w-5 h-5 text-primary" />
-                  Knowledge Base
+                  Source Material
                 </CardTitle>
                 <CardDescription>Provide the source material for AI analysis.</CardDescription>
               </CardHeader>

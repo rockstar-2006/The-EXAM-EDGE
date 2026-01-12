@@ -108,13 +108,13 @@ export default function DashboardPage() {
         <div className="space-y-2">
           <div className="flex items-center gap-2 text-primary font-bold uppercase tracking-[0.2em] text-[10px]">
             <Sparkles className="w-4 h-4" />
-            Faculty Control Center
+            Faculty Management Hub
           </div>
           <h1 className="text-4xl md:text-5xl font-black tracking-tighter uppercase italic">
             Welcome back, <span className="bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">Professor</span>
           </h1>
           <p className="text-muted-foreground text-lg font-medium max-w-2xl">
-            Manage your academic resources, deploy student assessments, and oversee performance metrics from a centralized portal.
+            Access your academic dashboard to manage student records, create assessments, and review performance reports.
           </p>
         </div>
         <Button size="lg" className="gradient-primary shadow-glow hover:scale-105 transition-all group" asChild>

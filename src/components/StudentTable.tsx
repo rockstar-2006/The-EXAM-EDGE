@@ -121,7 +121,7 @@ export function StudentTable({
         <div className="relative flex-1 group w-full">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
           <Input
-            placeholder="Search student ledger (Name, USN, Email)..."
+            placeholder="Search students (Name, USN, Email)..."
             value={searchTerm}
             onChange={(e) => {
               setSearchTerm(e.target.value);
@@ -182,7 +182,7 @@ export function StudentTable({
       <div className="flex items-center justify-between px-2">
         <div className="text-[11px] font-black uppercase tracking-widest text-muted-foreground/60 flex items-center gap-2">
           <User className="w-3.5 h-3.5" />
-          Entries {startIndex + 1} — {Math.min(startIndex + itemsPerPage, filteredStudents.length)} <span className="text-muted-foreground/30 px-1">/</span> Total {filteredStudents.length}
+          Showing {startIndex + 1} — {Math.min(startIndex + itemsPerPage, filteredStudents.length)} <span className="text-muted-foreground/30 px-1">/</span> Total {filteredStudents.length} Students
         </div>
         {showCheckboxes && selectedStudents.length > 0 && (
           <Badge className="bg-primary text-white font-bold tracking-tighter shadow-glow">
