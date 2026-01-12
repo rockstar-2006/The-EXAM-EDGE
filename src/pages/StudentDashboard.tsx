@@ -509,7 +509,7 @@ const StudentDashboard = () => {
                 <div className="space-y-1 flex-1">
                   <div className="flex items-center justify-between">
                     <h2 className="text-xl font-black tracking-tighter uppercase italic text-slate-900 dark:text-white leading-none">
-                      {studentData?.name || 'Student'}
+                      {studentData?.name || 'Authorized Student'}
                     </h2>
                   </div>
                   <div className="flex items-center gap-2 opacity-60 mb-2">

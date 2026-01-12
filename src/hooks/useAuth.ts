@@ -17,11 +17,12 @@ export const useAuth = () => {
   }, []);
 
   const checkAuth = async () => {
+    const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error('Auth Timeout')), 5000));
     try {
-      const response = await api.get('/auth/me');
+      const resPromise = api.get('/auth/me');
+      const response: any = await Promise.race([resPromise, timeout]);
       setUser(response.data.user);
     } catch (error) {
-      // Cookie expired or invalid
       setUser(null);
     }
     setLoading(false);
