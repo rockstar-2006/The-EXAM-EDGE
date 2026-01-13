@@ -24,7 +24,8 @@ import {
   XCircle,
   Settings,
   ArrowRight,
-  Loader2
+  Loader2,
+  ShieldCheck
 } from 'lucide-react';
 import { studentAuthAPI, storage } from '@/services/api';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -64,18 +65,18 @@ interface Quiz {
 // --- SUBCOMPONENTS ---
 
 const EmptyState = memo(({ icon: Icon, message, onRetry }: any) => (
-  <div className="py-12 text-center bg-slate-50 rounded-3xl border border-slate-100 px-6">
-    <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-sm">
-      <Icon className="w-6 h-6 text-slate-400" />
+  <div className="py-16 text-center bg-white rounded-[2.5rem] border border-slate-100 px-6 shadow-sm">
+    <div className="w-16 h-16 bg-slate-50 rounded-3xl flex items-center justify-center mx-auto mb-6 border border-slate-100">
+      <Icon className="w-8 h-8 text-slate-300" />
     </div>
-    <p className="text-slate-600 font-medium text-sm leading-relaxed max-w-xs mx-auto mb-6">{message}</p>
+    <p className="text-slate-500 font-semibold text-sm leading-relaxed max-w-xs mx-auto mb-8 uppercase tracking-wide">{message}</p>
     {onRetry && (
       <Button
         variant="outline"
         onClick={onRetry}
-        className="h-10 px-6 font-bold text-xs rounded-xl bg-white border-slate-200"
+        className="h-12 px-8 font-bold text-xs rounded-2xl bg-white border-slate-200 text-indigo-600 hover:bg-indigo-50 hover:border-indigo-100 transition-all uppercase tracking-widest shadow-sm"
       >
-        Refresh List
+        Sync Repository
       </Button>
     )}
   </div>
@@ -86,78 +87,80 @@ const QuizResultsModal = memo(({ isOpen, onClose, result, loading }: any) => {
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl w-[95vw] h-[85vh] p-0 overflow-hidden bg-white border-none shadow-2xl rounded-3xl">
-        <DialogHeader className="p-6 pb-4 border-b border-slate-50">
+      <DialogContent className="max-w-2xl w-[95vw] h-[85vh] p-0 overflow-hidden bg-white border-none shadow-2xl rounded-[2.5rem] animate-in zoom-in-95 duration-200">
+        <DialogHeader className="p-8 pb-4 border-b border-slate-50 bg-slate-50/30 backdrop-blur-sm">
           <div className="flex items-center gap-3 mb-2">
             <Badge className={cn(
-              "font-bold uppercase text-[9px] tracking-wider px-2 py-0.5 rounded-md border-none",
+              "font-bold uppercase text-[9px] tracking-[0.1em] px-2.5 py-1 rounded-lg border-none",
               result?.status === 'blocked' ? "bg-red-500 text-white" : "bg-teal-500 text-white"
             )}>
-              {result?.status === 'blocked' ? 'RESTRICTED' : 'EVALUATION REPORT'}
+              {result?.status === 'blocked' ? 'Assessment Restricted' : 'Evaluation Summary'}
             </Badge>
           </div>
-          <DialogTitle className="text-xl font-bold text-slate-900">
+          <DialogTitle className="text-2xl font-bold text-slate-900 tracking-tight">
             {result?.quizTitle}
           </DialogTitle>
         </DialogHeader>
 
-        <ScrollArea className="flex-1 px-6 py-6">
+        <ScrollArea className="flex-1 px-8 py-6">
           {loading ? (
-            <div className="py-20 flex flex-col items-center justify-center gap-3">
-              <Loader2 className="h-8 w-8 text-indigo-600 animate-spin" />
-              <p className="text-xs font-medium text-slate-500">Retrieving analytics...</p>
+            <div className="py-24 flex flex-col items-center justify-center gap-4">
+              <Loader2 className="h-12 w-12 text-indigo-600 animate-spin" />
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] animate-pulse">Retrieving Analytics...</p>
             </div>
           ) : (
-            <div className="space-y-6">
-              <div className="grid grid-cols-2 gap-3">
-                <div className="bg-slate-50 p-4 rounded-2xl">
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Score Obtained</p>
-                  <p className="text-2xl font-bold text-slate-900">{result?.score} <span className="text-sm font-medium text-slate-400">/ {result?.maxMarks}</span></p>
+            <div className="space-y-8 pb-10">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="bg-[#FBFDFF] p-6 rounded-[2rem] border border-slate-100 shadow-sm flex flex-col justify-center items-center">
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Final Score</p>
+                  <p className="text-3xl font-bold text-slate-900">{result?.score} <span className="text-sm font-medium text-slate-300">/ {result?.maxMarks}</span></p>
                 </div>
-                <div className="bg-indigo-50 p-4 rounded-2xl">
-                  <p className="text-[10px] font-bold text-indigo-400 uppercase tracking-wider mb-1">Accuracy</p>
-                  <p className="text-2xl font-bold text-indigo-600">{Math.round(result?.percentage)}%</p>
+                <div className="bg-indigo-50/30 p-6 rounded-[2rem] border border-indigo-50 shadow-sm flex flex-col justify-center items-center">
+                  <p className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest mb-1">Accuracy</p>
+                  <p className="text-3xl font-bold text-indigo-600">{Math.round(result?.percentage)}%</p>
                 </div>
               </div>
 
               {result?.status === 'blocked' && (
-                <div className="bg-red-50 border border-red-100 p-4 rounded-2xl text-red-700">
-                  <div className="flex items-center gap-2 mb-1">
-                    <AlertTriangle className="h-4 w-4" />
-                    <p className="text-[10px] font-bold uppercase tracking-wider">Security Violation Detected</p>
+                <div className="bg-red-50/50 border border-red-100 p-6 rounded-[2rem] text-red-700 animate-in slide-in-from-top-2 duration-300 shadow-sm">
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className="p-2 bg-red-50 rounded-xl">
+                      <AlertTriangle className="h-4 w-4 text-red-600" />
+                    </div>
+                    <p className="text-[10px] font-bold uppercase tracking-[0.15em]">Integrity Compromise Detected</p>
                   </div>
-                  <p className="text-sm font-bold italic">{result?.reason || 'Academic integrity compromise detected.'}</p>
+                  <p className="text-sm font-bold italic leading-relaxed pl-1">{result?.reason || 'Academic integrity violation recorded.'}</p>
                 </div>
               )}
 
-              <div className="space-y-3">
-                <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Review Session</p>
+              <div className="space-y-4">
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.15em] pl-1">Review Session</p>
                 {result?.answers?.map((ans: any, idx: number) => (
-                  <div key={idx} className="p-4 rounded-2xl border border-slate-100 bg-white">
-                    <div className="flex items-start justify-between gap-4 mb-3">
-                      <div className="flex-1">
-                        <span className="text-[10px] font-bold text-slate-400 mb-1 block">Question {idx + 1}</span>
-                        <p className="text-sm font-semibold text-slate-800 leading-snug">{ans.question}</p>
+                  <div key={idx} className="p-6 rounded-[2rem] border border-slate-50 bg-[#FBFDFF] hover:border-slate-200 transition-colors">
+                    <div className="flex items-start justify-between gap-6 mb-4">
+                      <div className="flex-1 min-w-0">
+                        <span className="text-[10px] font-bold text-slate-400 mb-1.5 block uppercase tracking-wider">Item {idx + 1}</span>
+                        <p className="text-sm sm:text-base font-bold text-slate-800 leading-snug break-words">{ans.question}</p>
                       </div>
                       <div className={cn(
-                        "p-1.5 rounded-lg",
-                        ans.isCorrect ? "bg-teal-50 text-teal-600" : "bg-red-50 text-red-600"
+                        "p-2.5 rounded-xl shrink-0 border",
+                        ans.isCorrect ? "bg-teal-50 text-teal-600 border-teal-100" : "bg-red-50 text-red-600 border-red-100"
                       )}>
-                        {ans.isCorrect ? <CheckCircle2 className="h-4 w-4" /> : <XCircle className="h-4 w-4" />}
+                        {ans.isCorrect ? <CheckCircle2 className="h-5 w-5" /> : <XCircle className="h-5 w-5" />}
                       </div>
                     </div>
 
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-2 bg-slate-50 p-2.5 rounded-xl">
-                        <span className="text-[10px] font-bold text-slate-400 uppercase">Response:</span>
-                        <span className={cn("text-xs font-bold", ans.isCorrect ? "text-teal-600" : "text-red-600")}>
-                          {ans.studentAnswer || 'N/A'}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4">
+                      <div className="flex flex-col gap-1.5 bg-white p-3.5 rounded-2xl border border-slate-100 shadow-sm">
+                        <span className="text-[9px] font-black text-slate-300 uppercase tracking-widest">Your Response</span>
+                        <span className={cn("text-xs font-bold leading-tight", ans.isCorrect ? "text-teal-600" : "text-red-500")}>
+                          {ans.studentAnswer || 'NO RESPONSE'}
                         </span>
                       </div>
                       {!ans.isCorrect && (
-                        <div className="flex items-center gap-2 bg-teal-50 p-2.5 rounded-xl">
-                          <span className="text-[10px] font-bold text-teal-600/60 uppercase">Correct:</span>
-                          <span className="text-xs font-bold text-teal-700">{ans.correctAnswer}</span>
+                        <div className="flex flex-col gap-1.5 bg-teal-50/50 p-3.5 rounded-2xl border border-teal-100/50 shadow-sm">
+                          <span className="text-[9px] font-black text-teal-600/50 uppercase tracking-widest">Correct Solution</span>
+                          <span className="text-xs font-bold text-teal-700 leading-tight">{ans.correctAnswer}</span>
                         </div>
                       )}
                     </div>
@@ -178,61 +181,71 @@ const QuizCard = memo(({ quiz, onStart, onDelete, onViewResults }: { quiz: Quiz;
   const isInProgress = quiz.attemptStatus === 'started';
 
   return (
-    <Card className="shadow-sm hover:shadow-md transition-all border-slate-100 bg-white rounded-3xl overflow-hidden group">
+    <Card className="shadow-sm hover:shadow-xl hover:-translate-y-0.5 transition-all border-slate-100 bg-white rounded-[2rem] overflow-hidden group border-2 hover:border-indigo-100">
       <CardContent className="p-6 sm:p-8">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
-          <div className="flex-1 min-w-0 space-y-2">
-            <div className="flex items-center gap-2">
-              <h3 className="text-lg font-bold text-slate-900 truncate pr-4">{quiz.title}</h3>
-              {isInProgress && <Badge className="bg-amber-100 text-amber-700 border-none text-[10px] font-bold px-2 py-0">RESUME</Badge>}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-8">
+          <div className="flex-1 min-w-0 space-y-3">
+            <div className="flex flex-wrap items-center gap-3">
+              <h3 className="text-xl font-bold text-slate-900 leading-tight">{quiz.title}</h3>
+              {isInProgress && <Badge className="bg-amber-100 text-amber-700 border-amber-200 text-[9px] font-black px-2.5 py-0.5 rounded-lg uppercase tracking-wider">In Progress</Badge>}
             </div>
-            <p className="text-sm font-medium text-slate-500 line-clamp-1">{quiz.description || 'No description provided'}</p>
-            <div className="flex items-center gap-4 text-slate-400 pt-2">
-              <div className="flex items-center gap-1.5">
-                <Clock className="w-3.5 h-3.5" />
-                <span className="text-xs font-semibold">{quiz.duration} mins</span>
+            <p className="text-sm font-semibold text-slate-500 leading-relaxed max-w-2xl">{quiz.description || 'Institutional Assessment Resource'}</p>
+            <div className="flex flex-wrap items-center gap-5 text-slate-400 pt-2 border-t border-slate-50 mt-4">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-slate-50 flex items-center justify-center border border-slate-100">
+                  <Clock className="w-4 h-4 text-slate-400" />
+                </div>
+                <span className="text-xs font-bold text-slate-600 uppercase tracking-tight">{quiz.duration} Mins</span>
               </div>
-              <div className="flex items-center gap-1.5">
-                <Layers className="w-3.5 h-3.5" />
-                <span className="text-xs font-semibold">{quiz.questionCount} Questions</span>
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-slate-50 flex items-center justify-center border border-slate-100">
+                  <Layers className="w-4 h-4 text-slate-400" />
+                </div>
+                <span className="text-xs font-bold text-slate-600 uppercase tracking-tight">{quiz.questionCount} Items</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-slate-50 flex items-center justify-center border border-slate-100">
+                  <Trophy className="w-4 h-4 text-slate-400" />
+                </div>
+                <span className="text-xs font-bold text-slate-600 uppercase tracking-tight">{quiz.totalMarks} Marks</span>
               </div>
             </div>
           </div>
 
-          <div className="flex items-center gap-3 sm:w-auto w-full">
+          <div className="flex flex-col sm:flex-row items-center gap-4 sm:w-auto w-full pt-4 sm:pt-0 shrink-0 border-t sm:border-t-0 sm:border-l border-slate-50 sm:pl-8">
             {isCompleted ? (
-              <div className="flex items-center gap-3 w-full sm:w-auto">
-                <div className="bg-teal-50 px-4 py-2 rounded-2xl flex flex-col items-center min-w-[80px]">
-                  <span className="text-[8px] font-bold text-teal-600 uppercase">Score</span>
-                  <span className="text-lg font-bold text-teal-700 leading-tight">{quiz.score}</span>
+              <div className="flex items-center gap-4 w-full sm:w-auto">
+                <div className="bg-teal-50/50 border border-teal-100 px-6 py-3 rounded-2xl flex flex-col items-center min-w-[100px] shadow-sm">
+                  <span className="text-[9px] font-black text-teal-600 uppercase tracking-[0.1em] mb-1">Final Score</span>
+                  <span className="text-2xl font-black text-teal-700 leading-none">{quiz.score}</span>
                 </div>
                 <Button
                   onClick={() => onViewResults(quiz)}
-                  className="h-12 px-6 rounded-2xl border-indigo-100 font-bold text-xs text-indigo-600 hover:bg-indigo-50"
-                  variant="outline"
+                  className="h-14 px-8 rounded-2xl border-indigo-100 font-bold text-xs text-indigo-600 hover:bg-indigo-50 hover:border-indigo-200 transition-all uppercase tracking-widest shadow-sm bg-white border"
+                  variant="ghost"
                 >
-                  Results
+                  Analysis
                 </Button>
               </div>
             ) : isDisqualified ? (
-              <div className="flex items-center gap-3 w-full sm:w-auto text-red-600 bg-red-50 p-3 rounded-2xl border border-red-100">
-                <AlertTriangle className="w-4 h-4 flex-shrink-0" />
-                <div className="flex flex-col">
-                  <span className="text-[9px] font-bold uppercase">Restricted</span>
-                  <span className="text-[10px] font-semibold opacity-80 truncate max-w-[120px]">{quiz.reason}</span>
+              <div className="flex items-center gap-4 w-full sm:w-auto text-red-600 bg-red-50/50 p-4 rounded-2xl border border-red-100 shadow-sm">
+                <AlertTriangle className="w-6 h-6 flex-shrink-0 text-red-500" />
+                <div className="flex-1 min-w-0 pr-4">
+                  <span className="text-[9px] font-black uppercase tracking-widest block mb-0.5">Attempt Blocked</span>
+                  <span className="text-[10px] font-bold opacity-80 leading-snug line-clamp-1">{quiz.reason}</span>
                 </div>
-                <Button onClick={() => onViewResults(quiz)} variant="ghost" size="sm" className="h-8 text-red-600 hover:bg-red-100 font-bold px-3">Details</Button>
+                <Button onClick={() => onViewResults(quiz)} variant="outline" size="sm" className="h-10 text-red-600 hover:bg-red-100 font-bold px-4 rounded-xl border-red-200 bg-white">Report</Button>
               </div>
             ) : (
               <Button
                 onClick={() => onStart(quiz.id || quiz._id || '')}
                 className={cn(
-                  "h-12 sm:px-10 px-6 rounded-2xl font-bold text-sm w-full sm:w-auto transition-all shadow-md active:scale-95",
-                  isInProgress ? "bg-amber-500 hover:bg-amber-600 text-white" : "bg-indigo-600 hover:bg-indigo-700 text-white"
+                  "h-14 sm:px-12 px-6 rounded-2xl font-bold text-sm w-full sm:w-auto transition-all shadow-lg active:scale-95 uppercase tracking-widest",
+                  isInProgress ? "bg-amber-500 hover:bg-amber-600 text-white shadow-amber-100" : "bg-indigo-600 hover:bg-indigo-700 text-white shadow-indigo-100"
                 )}
               >
-                {isInProgress ? 'Resume Assessment' : 'Start Assessment'}
-                <ArrowRight className="w-4 h-4 ml-2" />
+                {isInProgress ? 'Resume Attempt' : 'Start Exam'}
+                <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
               </Button>
             )}
           </div>
@@ -315,7 +328,7 @@ const StudentDashboard = () => {
   const handleLogout = () => {
     storage.removeItem('studentToken');
     storage.removeItem('studentData');
-    toast.info('Session ended');
+    toast.info('Session deauthorized');
     navigate('/student/login');
   };
 
@@ -326,9 +339,15 @@ const StudentDashboard = () => {
 
   if (loading) {
     return (
-      <div className="h-screen w-full flex flex-col items-center justify-center bg-white">
-        <Loader2 className="h-10 w-10 text-indigo-600 animate-spin mb-4" />
-        <p className="text-xs font-bold text-slate-400 uppercase tracking-widest animate-pulse">Synchronizing Data...</p>
+      <div className="h-screen w-full flex flex-col items-center justify-center bg-white gap-6">
+        <div className="w-20 h-20 bg-indigo-50 rounded-3xl flex items-center justify-center border border-indigo-100 shadow-sm animate-pulse">
+          <GraduationCap className="h-10 w-10 text-indigo-600" />
+        </div>
+        <div className="text-center space-y-2">
+          <p className="text-[11px] font-black text-slate-900 uppercase tracking-[0.35em] animate-in fade-in zoom-in duration-500">Initializing Terminal</p>
+          <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest animate-pulse">Synchronizing Assessment Hub</p>
+        </div>
+        <Loader2 className="h-5 w-5 text-indigo-400 animate-spin absolute bottom-20" />
       </div>
     );
   }
@@ -336,82 +355,89 @@ const StudentDashboard = () => {
   return (
     <div className="min-h-screen w-full bg-[#FBFDFF] text-slate-900 pb-20">
       {/* High-Performance Clean Header */}
-      <header className="sticky top-0 bg-white/80 backdrop-blur-md border-b border-slate-100 z-30">
+      <header className="sticky top-0 bg-white/90 backdrop-blur-xl border-b border-slate-100 z-30 transition-all duration-300">
         <div className="max-w-5xl mx-auto px-6 h-20 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-indigo-600 flex items-center justify-center shadow-lg shadow-indigo-100">
-              <GraduationCap className="h-6 w-6 text-white" />
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 rounded-2xl bg-indigo-600 flex items-center justify-center shadow-lg shadow-indigo-100 border border-indigo-500 transform transition-transform hover:scale-105 active:scale-95">
+              <GraduationCap className="h-7 w-7 text-white" />
             </div>
             <div>
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider leading-none mb-1">Internal Hub</p>
-              <h1 className="text-lg font-bold text-slate-900 leading-none">Student Dashboard</h1>
+              <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] leading-none mb-1.5 opacity-70">Internal Terminal</p>
+              <h1 className="text-xl font-bold text-slate-900 leading-none tracking-tight">Dashboard</h1>
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
             <Link to="/student/settings">
-              <Button variant="ghost" size="icon" className="rounded-xl w-10 h-10 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50">
+              <Button variant="ghost" size="icon" className="rounded-2xl w-12 h-12 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50/50 border border-transparent hover:border-indigo-100 transition-all">
                 <Settings className="h-5 w-5" />
               </Button>
             </Link>
-            <div className="h-6 w-px bg-slate-100 mx-1" />
-            <Button variant="ghost" onClick={handleLogout} className="text-slate-400 hover:text-red-600 hover:bg-red-50 p-2 rounded-xl transition-all">
-              <LogOut className="h-5 w-5" />
+            <div className="h-6 w-px bg-slate-100 mx-2" />
+            <Button variant="ghost" onClick={handleLogout} className="text-slate-400 hover:text-red-600 hover:bg-red-50/50 border border-transparent hover:border-red-100 h-12 px-5 rounded-2xl font-bold text-xs uppercase tracking-widest transition-all">
+              <LogOut className="h-5 w-5 mr-2" /> Exit
             </Button>
           </div>
         </div>
       </header>
 
-      <main className="max-w-5xl mx-auto px-6 py-10 space-y-10">
-        {/* Simplified User Profile Banner */}
-        <section className="bg-white p-6 sm:p-8 rounded-[2rem] border border-slate-100 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-6">
-          <div className="flex items-center gap-5">
-            <div className="w-16 h-16 rounded-2xl bg-slate-100 flex items-center justify-center border-4 border-white shadow-inner">
-              <User className="h-8 w-8 text-slate-400" />
+      <main className="max-w-5xl mx-auto px-6 py-12 space-y-12">
+        {/* Professional Header Banner */}
+        <section className="bg-white p-8 sm:p-10 rounded-[2.5rem] border border-slate-100 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-8 border-2 hover:border-indigo-100 transition-all animate-in slide-in-from-bottom-5 duration-700">
+          <div className="flex items-center gap-6">
+            <div className="w-20 h-20 rounded-[1.75rem] bg-slate-50 flex items-center justify-center border-4 border-white shadow-inner shrink-0 group hover:rotate-6 transition-transform">
+              <User className="h-10 w-10 text-slate-300 group-hover:text-indigo-400 transition-colors" />
             </div>
-            <div>
-              <h2 className="text-2xl font-bold text-slate-900">{studentData?.name || 'Authorized Student'}</h2>
-              <div className="flex items-center gap-3 mt-1.5">
-                <Badge variant="outline" className="text-[10px] font-bold text-slate-500 border-slate-200 px-2 rounded-lg">{studentData?.usn || 'USN'}</Badge>
-                <div className="flex items-center gap-1.5 text-xs font-bold text-teal-600 uppercase tracking-wider">
-                  <div className="w-2 h-2 rounded-full bg-teal-500 animate-pulse" />
-                  Active Session
+            <div className="min-w-0">
+              <h2 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight mb-2 leading-tight">{studentData?.name || 'Verified Student Account'}</h2>
+              <div className="flex flex-wrap items-center gap-3">
+                <Badge variant="outline" className="text-[10px] font-black text-slate-500 border-slate-200 px-3 py-1 rounded-lg uppercase tracking-wider bg-white">USR: {studentData?.usn || 'Terminal'}</Badge>
+                <div className="flex items-center gap-2 text-[10px] font-black text-teal-600 uppercase tracking-[0.2em] bg-teal-50/50 px-3 py-1 rounded-lg border border-teal-100">
+                  <div className="w-1.5 h-1.5 rounded-full bg-teal-500 animate-pulse shadow-[0_0_8px_rgba(20,184,166,0.6)]" />
+                  Status Active
                 </div>
               </div>
             </div>
           </div>
 
-          <div className="flex gap-4 border-t sm:border-t-0 sm:border-l border-slate-100 pt-6 sm:pt-0 sm:pl-8">
-            <div className="text-center sm:text-left">
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Available</p>
-              <p className="text-xl font-bold text-slate-900">{availableQuizzes.length}</p>
+          <div className="flex gap-6 border-t sm:border-t-0 sm:border-l border-slate-50 pt-8 sm:pt-0 sm:pl-10 shrink-0">
+            <div className="space-y-1">
+              <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest">Repository</p>
+              <div className="flex items-baseline gap-1.5">
+                <p className="text-3xl font-black text-slate-900">{availableQuizzes.length}</p>
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">Tasks</span>
+              </div>
             </div>
-            <div className="text-center sm:text-left">
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Completed</p>
-              <p className="text-xl font-bold text-slate-900">{completedQuizzes.length}</p>
+            <div className="w-px h-12 bg-slate-50 mx-2 hidden sm:block" />
+            <div className="space-y-1">
+              <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest">Completed</p>
+              <div className="flex items-baseline gap-1.5">
+                <p className="text-3xl font-black text-indigo-600">{completedQuizzes.length}</p>
+                <span className="text-[10px] font-bold text-indigo-400 uppercase tracking-tighter">Done</span>
+              </div>
             </div>
           </div>
         </section>
 
         {/* Assessment Interface */}
-        <section className="space-y-6">
+        <section className="space-y-8 animate-in fade-in duration-1000">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="bg-transparent gap-6 h-auto p-0 mb-8 overflow-x-auto w-full no-scrollbar flex-nowrap inline-flex border-b border-slate-100 rounded-none pb-0">
+            <TabsList className="bg-transparent gap-8 h-auto p-0 mb-10 overflow-x-auto w-full no-scrollbar flex-nowrap inline-flex border-b border-slate-100 rounded-none pb-0">
               <TabsTrigger
                 value="available"
-                className="px-4 pb-4 border-b-2 border-transparent data-[state=active]:border-indigo-600 data-[state=active]:bg-transparent data-[state=active]:text-indigo-600 text-slate-400 font-bold text-xs uppercase tracking-widest rounded-none transition-all"
+                className="px-6 pb-6 border-b-2 border-transparent data-[state=active]:border-indigo-600 data-[state=active]:bg-transparent data-[state=active]:text-indigo-600 text-slate-400 font-black text-[11px] uppercase tracking-[0.2em] rounded-none transition-all outline-none"
               >
                 Assessments
               </TabsTrigger>
               <TabsTrigger
                 value="completed"
-                className="px-4 pb-4 border-b-2 border-transparent data-[state=active]:border-indigo-600 data-[state=active]:bg-transparent data-[state=active]:text-indigo-600 text-slate-400 font-bold text-xs uppercase tracking-widest rounded-none transition-all"
+                className="px-6 pb-6 border-b-2 border-transparent data-[state=active]:border-indigo-600 data-[state=active]:bg-transparent data-[state=active]:text-indigo-600 text-slate-400 font-black text-[11px] uppercase tracking-[0.2em] rounded-none transition-all outline-none"
               >
                 Past Records
               </TabsTrigger>
               <TabsTrigger
                 value="disqualified"
-                className="px-4 pb-4 border-b-2 border-transparent data-[state=active]:border-red-600 data-[state=active]:bg-transparent data-[state=active]:text-red-600 text-slate-400 font-bold text-xs uppercase tracking-widest rounded-none transition-all"
+                className="px-6 pb-6 border-b-2 border-transparent data-[state=active]:border-red-600 data-[state=active]:bg-transparent data-[state=active]:text-red-600 text-slate-400 font-black text-[11px] uppercase tracking-[0.2em] rounded-none transition-all outline-none"
               >
                 Restricted
               </TabsTrigger>
@@ -420,15 +446,15 @@ const StudentDashboard = () => {
             <AnimatePresence mode="wait">
               <motion.div
                 key={activeTab}
-                initial={{ opacity: 0, y: 10 }}
+                initial={{ opacity: 0, y: 15 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -10 }}
-                transition={{ duration: 0.2 }}
+                transition={{ duration: 0.3, ease: 'easeOut' }}
                 className="outline-none"
               >
-                <TabsContent value="available" className="mt-0 space-y-4 outline-none">
+                <TabsContent value="available" className="mt-0 space-y-6 outline-none">
                   {availableQuizzes.length === 0 ? (
-                    <EmptyState icon={Search} message="No new assessments published for you." onRetry={fetchQuizzes} />
+                    <EmptyState icon={Search} message="Zero assessments found in repository." onRetry={fetchQuizzes} />
                   ) : (
                     availableQuizzes.map((quiz) => (
                       <QuizCard key={quiz.id || quiz._id} quiz={quiz} onStart={handleStartQuiz} onDelete={() => { }} onViewResults={handleViewResults} />
@@ -436,9 +462,9 @@ const StudentDashboard = () => {
                   )}
                 </TabsContent>
 
-                <TabsContent value="completed" className="mt-0 space-y-4 outline-none">
+                <TabsContent value="completed" className="mt-0 space-y-6 outline-none">
                   {completedQuizzes.length === 0 ? (
-                    <EmptyState icon={Trophy} message="You haven't completed any assessments yet." />
+                    <EmptyState icon={CheckCircle2} message="No completed records detected." />
                   ) : (
                     completedQuizzes.map((quiz) => (
                       <QuizCard key={quiz.id || quiz._id} quiz={quiz} onStart={handleStartQuiz} onDelete={() => { }} onViewResults={handleViewResults} />
@@ -446,9 +472,9 @@ const StudentDashboard = () => {
                   )}
                 </TabsContent>
 
-                <TabsContent value="disqualified" className="mt-0 space-y-4 outline-none">
+                <TabsContent value="disqualified" className="mt-0 space-y-6 outline-none">
                   {disqualifiedQuizzes.length === 0 ? (
-                    <EmptyState icon={AlertTriangle} message="Excellent! Zero academic violations noted." />
+                    <EmptyState icon={ShieldCheck} message="Excellent Performance: Zero integrity alerts noted." />
                   ) : (
                     disqualifiedQuizzes.map((quiz) => (
                       <QuizCard key={quiz.id || quiz._id} quiz={quiz} onStart={handleStartQuiz} onDelete={() => { }} onViewResults={handleViewResults} />
