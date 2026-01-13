@@ -353,10 +353,10 @@ const StudentDashboard = () => {
   }
 
   return (
-    <div className="min-h-screen w-full bg-[#FBFDFF] text-slate-900 pb-20">
+    <div className="min-h-screen w-full bg-[#FBFDFF] text-slate-900 flex flex-col">
       {/* High-Performance Clean Header */}
-      <header className="sticky top-0 bg-white/90 backdrop-blur-xl border-b border-slate-100 z-30 transition-all duration-300">
-        <div className="max-w-5xl mx-auto px-6 h-20 flex items-center justify-between">
+      <header className="sticky top-0 bg-white/95 backdrop-blur-xl border-b border-slate-100 z-40 shrink-0">
+        <div className="max-w-5xl mx-auto px-4 h-16 sm:h-20 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <div className="w-12 h-12 rounded-2xl bg-indigo-600 flex items-center justify-center shadow-lg shadow-indigo-100 border border-indigo-500 transform transition-transform hover:scale-105 active:scale-95">
               <GraduationCap className="h-7 w-7 text-white" />
@@ -380,112 +380,114 @@ const StudentDashboard = () => {
           </div>
         </div>
       </header>
-
-      <main className="max-w-5xl mx-auto px-6 py-12 space-y-12">
-        {/* Professional Header Banner */}
-        <section className="bg-white p-8 sm:p-10 rounded-[2.5rem] border border-slate-100 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-8 border-2 hover:border-indigo-100 transition-all animate-in slide-in-from-bottom-5 duration-700">
-          <div className="flex items-center gap-6">
-            <div className="w-20 h-20 rounded-[1.75rem] bg-slate-50 flex items-center justify-center border-4 border-white shadow-inner shrink-0 group hover:rotate-6 transition-transform">
-              <User className="h-10 w-10 text-slate-300 group-hover:text-indigo-400 transition-colors" />
-            </div>
-            <div className="min-w-0">
-              <h2 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight mb-2 leading-tight">{studentData?.name || 'Verified Student Account'}</h2>
-              <div className="flex flex-wrap items-center gap-3">
-                <Badge variant="outline" className="text-[10px] font-black text-slate-500 border-slate-200 px-3 py-1 rounded-lg uppercase tracking-wider bg-white">USR: {studentData?.usn || 'Terminal'}</Badge>
-                <div className="flex items-center gap-2 text-[10px] font-black text-teal-600 uppercase tracking-[0.2em] bg-teal-50/50 px-3 py-1 rounded-lg border border-teal-100">
-                  <div className="w-1.5 h-1.5 rounded-full bg-teal-500 animate-pulse shadow-[0_0_8px_rgba(20,184,166,0.6)]" />
-                  Status Active
+      <div className="flex-1 overflow-y-auto overflow-x-hidden">
+        <main className="max-w-5xl mx-auto px-4 sm:px-6 py-6 sm:py-12 space-y-8 sm:space-y-12">
+          {/* Professional Header Banner */}
+          <section className="bg-white p-6 sm:p-10 rounded-3xl sm:rounded-[2.5rem] border border-slate-100 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-6 sm:gap-8 border-2 hover:border-indigo-100 transition-all animate-in slide-in-from-bottom-5 duration-700">
+            <div className="flex items-center gap-4 sm:gap-6">
+              <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl sm:rounded-[1.75rem] bg-slate-50 flex items-center justify-center border-4 border-white shadow-inner shrink-0 group hover:rotate-6 transition-transform">
+                <User className="h-8 w-8 sm:h-10 sm:h-10 text-slate-300 group-hover:text-indigo-400 transition-colors" />
+              </div>
+              <div className="min-w-0">
+                <h2 className="text-xl sm:text-3xl font-black text-slate-900 tracking-tight mb-1 sm:mb-2 leading-tight truncate">{studentData?.name || 'Verified Student Account'}</h2>
+                <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+                  <Badge variant="outline" className="text-[9px] font-black text-slate-500 border-slate-200 px-2 py-0.5 sm:px-3 sm:py-1 rounded-lg uppercase tracking-wider bg-white">USR: {studentData?.usn || 'Terminal'}</Badge>
+                  <div className="flex items-center gap-2 text-[9px] font-black text-teal-600 uppercase tracking-[0.2em] bg-teal-50/50 px-2 py-0.5 sm:px-3 sm:py-1 rounded-lg border border-teal-100">
+                    <div className="w-1.5 h-1.5 rounded-full bg-teal-500 animate-pulse" />
+                    Live
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
 
-          <div className="flex gap-6 border-t sm:border-t-0 sm:border-l border-slate-50 pt-8 sm:pt-0 sm:pl-10 shrink-0">
-            <div className="space-y-1">
-              <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest">Repository</p>
-              <div className="flex items-baseline gap-1.5">
-                <p className="text-3xl font-black text-slate-900">{availableQuizzes.length}</p>
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">Tasks</span>
+            <div className="flex gap-4 sm:gap-6 border-t sm:border-t-0 sm:border-l border-slate-50 pt-6 sm:pt-0 sm:pl-10 shrink-0">
+              <div className="space-y-1">
+                <p className="text-[9px] sm:text-[10px] font-black text-slate-300 uppercase tracking-widest">Repository</p>
+                <div className="flex items-baseline gap-1.5">
+                  <p className="text-2xl sm:text-3xl font-black text-slate-900">{availableQuizzes.length}</p>
+                  <span className="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-tighter">Tasks</span>
+                </div>
+              </div>
+              <div className="w-px h-10 sm:h-12 bg-slate-50 mx-1 sm:mx-2" />
+              <div className="space-y-1">
+                <p className="text-[9px] sm:text-[10px] font-black text-slate-300 uppercase tracking-widest">Completed</p>
+                <div className="flex items-baseline gap-1.5">
+                  <p className="text-2xl sm:text-3xl font-black text-indigo-600">{completedQuizzes.length}</p>
+                  <span className="text-[9px] sm:text-[10px] font-bold text-indigo-400 uppercase tracking-tighter">Done</span>
+                </div>
               </div>
             </div>
-            <div className="w-px h-12 bg-slate-50 mx-2 hidden sm:block" />
-            <div className="space-y-1">
-              <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest">Completed</p>
-              <div className="flex items-baseline gap-1.5">
-                <p className="text-3xl font-black text-indigo-600">{completedQuizzes.length}</p>
-                <span className="text-[10px] font-bold text-indigo-400 uppercase tracking-tighter">Done</span>
+          </section>
+
+          <section className="space-y-6 animate-in fade-in duration-1000">
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+              <div className="sticky top-16 sm:top-20 bg-[#FBFDFF]/80 backdrop-blur-md z-30 -mx-4 px-4 pt-2">
+                <TabsList className="bg-slate-50/50 p-1 rounded-2xl border border-slate-100 w-full flex overflow-x-auto no-scrollbar">
+                  <TabsTrigger
+                    value="available"
+                    className="flex-1 px-3 sm:px-6 py-3 rounded-xl data-[state=active]:bg-white data-[state=active]:text-indigo-600 data-[state=active]:shadow-sm text-slate-400 font-bold text-[10px] sm:text-[11px] uppercase tracking-wider transition-all"
+                  >
+                    Available
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="completed"
+                    className="flex-1 px-3 sm:px-6 py-3 rounded-xl data-[state=active]:bg-white data-[state=active]:text-indigo-600 data-[state=active]:shadow-sm text-slate-400 font-bold text-[10px] sm:text-[11px] uppercase tracking-wider transition-all"
+                  >
+                    Completed
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="disqualified"
+                    className="flex-1 px-3 sm:px-6 py-3 rounded-xl data-[state=active]:bg-white data-[state=active]:text-red-600 data-[state=active]:shadow-sm text-slate-400 font-bold text-[10px] sm:text-[11px] uppercase tracking-wider transition-all"
+                  >
+                    Restricted
+                  </TabsTrigger>
+                </TabsList>
               </div>
-            </div>
-          </div>
-        </section>
 
-        {/* Assessment Interface */}
-        <section className="space-y-8 animate-in fade-in duration-1000">
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="bg-transparent gap-8 h-auto p-0 mb-10 overflow-x-auto w-full no-scrollbar flex-nowrap inline-flex border-b border-slate-100 rounded-none pb-0">
-              <TabsTrigger
-                value="available"
-                className="px-6 pb-6 border-b-2 border-transparent data-[state=active]:border-indigo-600 data-[state=active]:bg-transparent data-[state=active]:text-indigo-600 text-slate-400 font-black text-[11px] uppercase tracking-[0.2em] rounded-none transition-all outline-none"
-              >
-                Assessments
-              </TabsTrigger>
-              <TabsTrigger
-                value="completed"
-                className="px-6 pb-6 border-b-2 border-transparent data-[state=active]:border-indigo-600 data-[state=active]:bg-transparent data-[state=active]:text-indigo-600 text-slate-400 font-black text-[11px] uppercase tracking-[0.2em] rounded-none transition-all outline-none"
-              >
-                Past Records
-              </TabsTrigger>
-              <TabsTrigger
-                value="disqualified"
-                className="px-6 pb-6 border-b-2 border-transparent data-[state=active]:border-red-600 data-[state=active]:bg-transparent data-[state=active]:text-red-600 text-slate-400 font-black text-[11px] uppercase tracking-[0.2em] rounded-none transition-all outline-none"
-              >
-                Restricted
-              </TabsTrigger>
-            </TabsList>
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={activeTab}
+                  initial={{ opacity: 0, y: 15 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  transition={{ duration: 0.3, ease: 'easeOut' }}
+                  className="outline-none"
+                >
+                  <TabsContent value="available" className="mt-0 space-y-6 outline-none">
+                    {availableQuizzes.length === 0 ? (
+                      <EmptyState icon={Search} message="Zero assessments found in repository." onRetry={fetchQuizzes} />
+                    ) : (
+                      availableQuizzes.map((quiz) => (
+                        <QuizCard key={quiz.id || quiz._id} quiz={quiz} onStart={handleStartQuiz} onDelete={() => { }} onViewResults={handleViewResults} />
+                      ))
+                    )}
+                  </TabsContent>
 
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={activeTab}
-                initial={{ opacity: 0, y: 15 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                transition={{ duration: 0.3, ease: 'easeOut' }}
-                className="outline-none"
-              >
-                <TabsContent value="available" className="mt-0 space-y-6 outline-none">
-                  {availableQuizzes.length === 0 ? (
-                    <EmptyState icon={Search} message="Zero assessments found in repository." onRetry={fetchQuizzes} />
-                  ) : (
-                    availableQuizzes.map((quiz) => (
-                      <QuizCard key={quiz.id || quiz._id} quiz={quiz} onStart={handleStartQuiz} onDelete={() => { }} onViewResults={handleViewResults} />
-                    ))
-                  )}
-                </TabsContent>
+                  <TabsContent value="completed" className="mt-0 space-y-6 outline-none">
+                    {completedQuizzes.length === 0 ? (
+                      <EmptyState icon={CheckCircle2} message="No completed records detected." />
+                    ) : (
+                      completedQuizzes.map((quiz) => (
+                        <QuizCard key={quiz.id || quiz._id} quiz={quiz} onStart={handleStartQuiz} onDelete={() => { }} onViewResults={handleViewResults} />
+                      ))
+                    )}
+                  </TabsContent>
 
-                <TabsContent value="completed" className="mt-0 space-y-6 outline-none">
-                  {completedQuizzes.length === 0 ? (
-                    <EmptyState icon={CheckCircle2} message="No completed records detected." />
-                  ) : (
-                    completedQuizzes.map((quiz) => (
-                      <QuizCard key={quiz.id || quiz._id} quiz={quiz} onStart={handleStartQuiz} onDelete={() => { }} onViewResults={handleViewResults} />
-                    ))
-                  )}
-                </TabsContent>
-
-                <TabsContent value="disqualified" className="mt-0 space-y-6 outline-none">
-                  {disqualifiedQuizzes.length === 0 ? (
-                    <EmptyState icon={Shield} message="Excellent Performance: Zero integrity alerts noted." />
-                  ) : (
-                    disqualifiedQuizzes.map((quiz) => (
-                      <QuizCard key={quiz.id || quiz._id} quiz={quiz} onStart={handleStartQuiz} onDelete={() => { }} onViewResults={handleViewResults} />
-                    ))
-                  )}
-                </TabsContent>
-              </motion.div>
-            </AnimatePresence>
-          </Tabs>
-        </section>
-      </main>
+                  <TabsContent value="disqualified" className="mt-0 space-y-6 outline-none">
+                    {disqualifiedQuizzes.length === 0 ? (
+                      <EmptyState icon={Shield} message="Excellent Performance: Zero integrity alerts noted." />
+                    ) : (
+                      disqualifiedQuizzes.map((quiz) => (
+                        <QuizCard key={quiz.id || quiz._id} quiz={quiz} onStart={handleStartQuiz} onDelete={() => { }} onViewResults={handleViewResults} />
+                      ))
+                    )}
+                  </TabsContent>
+                </motion.div>
+              </AnimatePresence>
+            </Tabs>
+          </section>
+        </main>
+      </div>
 
       <QuizResultsModal
         isOpen={resultsModalOpen}
