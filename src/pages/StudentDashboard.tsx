@@ -25,7 +25,7 @@ import {
   Settings,
   ArrowRight,
   Loader2,
-  ShieldCheck
+  Shield
 } from 'lucide-react';
 import { studentAuthAPI, storage } from '@/services/api';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -67,7 +67,7 @@ interface Quiz {
 const EmptyState = memo(({ icon: Icon, message, onRetry }: any) => (
   <div className="py-16 text-center bg-white rounded-[2.5rem] border border-slate-100 px-6 shadow-sm">
     <div className="w-16 h-16 bg-slate-50 rounded-3xl flex items-center justify-center mx-auto mb-6 border border-slate-100">
-      <Icon className="w-8 h-8 text-slate-300" />
+      {Icon ? <Icon className="w-8 h-8 text-slate-300" /> : <div className="w-8 h-8 bg-slate-200 rounded-full" />}
     </div>
     <p className="text-slate-500 font-semibold text-sm leading-relaxed max-w-xs mx-auto mb-8 uppercase tracking-wide">{message}</p>
     {onRetry && (
@@ -474,7 +474,7 @@ const StudentDashboard = () => {
 
                 <TabsContent value="disqualified" className="mt-0 space-y-6 outline-none">
                   {disqualifiedQuizzes.length === 0 ? (
-                    <EmptyState icon={ShieldCheck} message="Excellent Performance: Zero integrity alerts noted." />
+                    <EmptyState icon={Shield} message="Excellent Performance: Zero integrity alerts noted." />
                   ) : (
                     disqualifiedQuizzes.map((quiz) => (
                       <QuizCard key={quiz.id || quiz._id} quiz={quiz} onStart={handleStartQuiz} onDelete={() => { }} onViewResults={handleViewResults} />

@@ -16,7 +16,6 @@ import {
   Trophy,
   Scan,
   ShieldAlert,
-  ShieldCheck,
   EyeOff,
   Code,
   ArrowRight,
@@ -211,10 +210,12 @@ export default function StudentSecureQuiz() {
         if (!res.data?.success) throw new Error('Access Denied');
 
         const qD = res.data.quiz;
+        if (!qD) throw new Error('Quiz not found');
+
         setQuiz({
           ...qD,
           _id: qD.id || qD._id,
-          questions: qD.questions.map((q: any) => ({ ...q, _id: q.id || q._id }))
+          questions: (qD.questions || []).map((q: any) => ({ ...q, _id: q.id || q._id }))
         });
 
         // Load Persistent State
@@ -238,7 +239,9 @@ export default function StudentSecureQuiz() {
         }
         setSecurityStatus('ready');
       } catch (e) {
-        toast.error('Initialization Failed');
+        console.error('Quiz initialization error:', e);
+        toast.error('Initialization Failed: ' + (e instanceof Error ? e.message : 'Unknown error'));
+        setSecurityStatus('failed');
       } finally {
         setLoading(false);
       }
@@ -366,13 +369,13 @@ export default function StudentSecureQuiz() {
           <CardContent className="p-6 space-y-6">
             <ul className="space-y-4">
               {[
-                { icon: ShieldCheck, text: "Interface lockout will be active" },
+                { icon: Shield, text: "Interface lockout will be active" },
                 { icon: EyeOff, text: "Disable notifications to avoid focus loss" },
                 { icon: Info, text: "Three violations will end the session" }
               ].map((item, i) => (
                 <li key={i} className="flex items-center gap-3 text-xs font-semibold text-slate-600">
                   <div className="w-6 h-6 rounded-lg bg-teal-50 flex items-center justify-center">
-                    <item.icon className="w-3.5 h-3.5 text-teal-600" />
+                    {item.icon ? <item.icon className="w-3.5 h-3.5 text-teal-600" /> : <Shield className="w-3.5 h-3.5 text-teal-600" />}
                   </div>
                   {item.text}
                 </li>
@@ -426,10 +429,24 @@ export default function StudentSecureQuiz() {
   );
 
   // 4. Main Interface
-  const currentQ = quiz?.questions[currentQuestion];
+  const currentQ = quiz?.questions?.[currentQuestion];
+
+  // Safety: If somehow quiz is missing but we're marked as started, show error
+  if (!quiz || (quizStarted && !currentQ)) {
+    return (
+      <div className="h-screen flex flex-col items-center justify-center bg-white p-6 text-center">
+        <AlertCircle className="w-12 h-12 text-red-500 mb-4" />
+        <h2 className="text-xl font-bold mb-2">Quiz Session Error</h2>
+        <p className="text-slate-500 mb-6">Unable to load quiz content. Please try restarting the session.</p>
+        <Button onClick={() => navigate('/student/dashboard')}>Return to Dashboard</Button>
+      </div>
+    );
+  }
+
   const formatTime = (seconds: number) => {
+    if (!seconds || isNaN(seconds)) return "00:00";
     const m = Math.floor(seconds / 60);
-    const s = seconds % 60;
+    const s = Math.floor(seconds % 60);
     return `${m}:${s.toString().padStart(2, '0')}`;
   };
 
