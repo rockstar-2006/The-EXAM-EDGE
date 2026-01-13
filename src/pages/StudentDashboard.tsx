@@ -23,7 +23,8 @@ import {
   CheckCircle2,
   XCircle,
   Settings,
-  ArrowRight
+  ArrowRight,
+  Loader2
 } from 'lucide-react';
 import { studentAuthAPI, storage } from '@/services/api';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
