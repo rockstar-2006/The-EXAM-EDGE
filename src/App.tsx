@@ -61,6 +61,7 @@ const App = () => {
                                 <Route path="/students" element={<StudentsPage />} />
                                 <Route path="/create-quiz" element={<CreateQuizPage />} />
                                 <Route path="/results" element={<ResultsPage />} />
+                                <Route path="/quiz/:quizId/results" element={<QuizResultsPage />} />
                                 <Route path="/bookmarks" element={<BookmarksPage />} />
                                 <Route path="/settings" element={<SettingsPage type="teacher" />} />
                             </Route>
@@ -70,7 +71,6 @@ const App = () => {
                         <Route path="/student/login" element={<StudentAppLogin />} />
                         <Route path="/student/reset-password/:token" element={<ResetPasswordPage type="student" />} />
                         <Route path="/quiz/share/:token" element={<StudentQuizPage />} />
-                        <Route path="/quiz/results/:attemptId" element={<QuizResultsPage />} />
 
                         <Route element={<ProtectedRoute role="student" />}>
                             <Route path="/student/dashboard" element={<StudentDashboard />} />

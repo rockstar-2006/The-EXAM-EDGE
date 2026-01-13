@@ -6,17 +6,11 @@ import {
   Clock,
   CheckCircle2,
   AlertCircle,
-  ArrowLeft,
-  BookOpen,
-  CheckCircle,
-  AlertTriangle,
   Shield,
-  WifiOff,
   RefreshCw,
   ChevronRight,
   ChevronLeft,
   Activity,
-  Zap,
   Lock,
   Target,
   Trophy,
@@ -24,7 +18,11 @@ import {
   ShieldAlert,
   ShieldCheck,
   EyeOff,
-  Code
+  Code,
+  ArrowRight,
+  ArrowLeft,
+  AlertTriangle,
+  Info
 } from 'lucide-react';
 import { studentAuthAPI, storage } from '@/services/api';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -34,23 +32,14 @@ import { Textarea } from '@/components/ui/textarea';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
-import { motion, AnimatePresence, Variants } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
-import { StatusBar, Style } from '@capacitor/status-bar';
+import { StatusBar } from '@capacitor/status-bar';
 import { App } from '@capacitor/app';
 import { Capacitor } from '@capacitor/core';
 import { NavigationBar } from '@capgo/capacitor-navigation-bar';
 
-// Fullscreen plugin declaration
-declare global {
-  interface Window {
-    AndroidFullScreen?: {
-      immersiveMode?: () => void;
-      showSystemUI?: () => void;
-    };
-  }
-}
-
+// --- TYPES ---
 interface Question {
   _id: string;
   type: 'mcq' | 'short-answer' | 'truefalse';
@@ -72,11 +61,9 @@ interface Quiz {
   attemptId?: string;
 }
 
-// 📝 CODE AWARE TEXT RENDERING - Optimized for multi-line support
+// 📝 OPTIMIZED TEXT RENDERING
 const FormattedText = ({ text, isQuestion = false }: { text: string; isQuestion?: boolean }) => {
   if (!text) return null;
-
-  // Split by triple backticks, keeping the backticks in the result
   const parts = text.split(/(```)/g);
   let isCode = false;
   let codeBuffer = "";
@@ -85,18 +72,10 @@ const FormattedText = ({ text, isQuestion = false }: { text: string; isQuestion?
   parts.forEach((part, i) => {
     if (part === "```") {
       if (isCode) {
-        // Closing code block
-        const formattedCode = formatCodeSnippet(codeBuffer);
         result.push(
-          <div key={i} className="my-6 relative group overflow-hidden">
-            <div className="absolute top-0 right-0 p-2 z-10 opacity-30 group-hover:opacity-100 transition-opacity">
-              <span className="text-[9px] font-black uppercase tracking-widest text-violet-400 bg-black/40 px-2 py-0.5 rounded-lg border border-violet-500/20">Source_Code</span>
-            </div>
-            <pre
-              style={{ textTransform: 'none' }}
-              className="relative p-6 bg-slate-950 border border-violet-500/20 rounded-2xl font-mono text-[13px] sm:text-sm leading-relaxed overflow-x-auto text-violet-100 shadow-2xl scrollbar-thin scrollbar-thumb-violet-500/20"
-            >
-              <code>{formattedCode}</code>
+          <div key={i} className="my-4 bg-slate-900 rounded-xl overflow-hidden border border-slate-800">
+            <pre className="p-4 font-mono text-[13px] leading-relaxed overflow-x-auto text-indigo-300">
+              <code>{codeBuffer.trim()}</code>
             </pre>
           </div>
         );
@@ -106,11 +85,10 @@ const FormattedText = ({ text, isQuestion = false }: { text: string; isQuestion?
         isCode = true;
       }
     } else {
-      if (isCode) {
-        codeBuffer += part;
-      } else if (part.trim()) {
+      if (isCode) codeBuffer += part;
+      else if (part.trim()) {
         result.push(
-          <p key={i} className="whitespace-pre-wrap leading-relaxed inline-block w-full text-inherit normal-case" style={{ textTransform: 'none' }}>
+          <p key={i} className="whitespace-pre-wrap leading-relaxed text-inherit">
             {part}
           </p>
         );
@@ -118,45 +96,11 @@ const FormattedText = ({ text, isQuestion = false }: { text: string; isQuestion?
     }
   });
 
-  // Handle unclosed blocks
-  if (isCode && codeBuffer) {
-    result.push(
-      <pre key="unclosed" style={{ textTransform: 'none' }} className="p-6 bg-slate-950 border border-violet-500/20 rounded-2xl font-mono text-[13px] sm:text-sm overflow-x-auto text-violet-100">
-        <code>{formatCodeSnippet(codeBuffer)}</code>
-      </pre>
-    );
-  }
-
   return (
-    <div className={cn("space-y-4", isQuestion ? "text-white" : "text-slate-400")}>
+    <div className={cn("space-y-3", isQuestion ? "text-slate-900 font-bold" : "text-slate-600")}>
       {result}
     </div>
   );
-};
-
-// Helper to fix flattened AI code
-const formatCodeSnippet = (code: string) => {
-  let clean = code.trim();
-
-  // Strip language tag if present (e.g., ```java)
-  clean = clean.replace(/^[a-zA-Z]+\n/, '');
-
-  // If the code is clearly all caps, convert it to a more readable state 
-  // (Note: This is a fallback if the AI ignores directives)
-  if (clean === clean.toUpperCase() && clean.length > 50) {
-    clean = clean.toLowerCase();
-  }
-
-  // If the code is missing newlines (detected by lack of them but presence of braces/semicolons)
-  if (!clean.includes('\n') && (clean.includes('{') || clean.includes(';'))) {
-    clean = clean
-      .replace(/{\s*/g, ' {\n  ')
-      .replace(/;\s*/g, ';\n  ')
-      .replace(/}\s*/g, '\n}\n')
-      .replace(/\n\s*\n/g, '\n');
-  }
-
-  return clean;
 };
 
 export default function StudentSecureQuiz() {
@@ -168,7 +112,6 @@ export default function StudentSecureQuiz() {
   const [quiz, setQuiz] = useState<Quiz | null>(null);
   const [quizStarted, setQuizStarted] = useState(false);
   const [studentInfo, setStudentInfo] = useState<any>(null);
-  const [networkError, setNetworkError] = useState(false);
 
   // Quiz States
   const [currentQuestion, setCurrentQuestion] = useState(0);
@@ -179,23 +122,14 @@ export default function StudentSecureQuiz() {
   const [quizSubmitted, setQuizSubmitted] = useState(false);
   const [attemptId, setAttemptId] = useState<string>('');
   const [isStarting, setIsStarting] = useState(false);
-  const [showDetailedReview, setShowDetailedReview] = useState(false);
+  const [showSubmitConfirm, setShowSubmitConfirm] = useState(false);
 
   // Security States
   const [warningCount, setWarningCount] = useState(0);
   const [showWarningModal, setShowWarningModal] = useState(false);
   const [lastViolation, setLastViolation] = useState('');
   const [isBlocked, setIsBlocked] = useState(false);
-
-  // 🛡️ Security Check States
-  const [isCheckingSecurity, setIsCheckingSecurity] = useState(true);
   const [securityStatus, setSecurityStatus] = useState<'scanning' | 'ready' | 'failed'>('scanning');
-  const [securityLogs, setSecurityLogs] = useState<{ id: string; label: string; status: 'pending' | 'ok' | 'fail' }[]>([
-    { id: 'env', label: 'App Integrity Check', status: 'pending' },
-    { id: 'vpn', label: 'VPN & Proxy Detection', status: 'pending' },
-    { id: 'dev', label: 'Developer Mode Detection', status: 'pending' },
-    { id: 'scr', label: 'Screen Mirroring Check', status: 'pending' }
-  ]);
 
   // Security Refs
   const lastViolationTime = useRef<number>(0);
@@ -203,62 +137,49 @@ export default function StudentSecureQuiz() {
   const isFullscreenActive = useRef(false);
   const isSecurityPaused = useRef(false);
   const isTransitioning = useRef(false);
-  const persistentViolationTimer = useRef<number | null>(null);
-  const [showSubmitConfirm, setShowSubmitConfirm] = useState(false);
 
-  // Initialize Fullscreen
+  // Persistence: Auto-Save to LocalStorage
+  useEffect(() => {
+    if (quizId && Object.keys(answers).length > 0) {
+      storage.setItem(`quiz_state_${quizId}`, JSON.stringify({
+        answers,
+        currentQuestion
+      }));
+    }
+  }, [answers, currentQuestion, quizId]);
+
+  // Fullscreen Helpers
   const initializeFullscreen = useCallback(async () => {
     if (!Capacitor.isNativePlatform()) return;
     try {
       isTransitioning.current = true;
-      console.log('🔒 Locking interface...');
-      isFullscreenActive.current = true;
-
       await StatusBar.hide();
-
       if (Capacitor.getPlatform() === 'android') {
-        if (window.AndroidFullScreen?.immersiveMode) {
-          window.AndroidFullScreen.immersiveMode();
-        }
         const NB: any = NavigationBar;
         if (NB?.hide) await NB.hide();
-        if (NB?.setBehavior) await NB.setBehavior({ behavior: 'sticky-immersive' });
       }
-
       setTimeout(() => {
         originalDimensions.current = { width: window.innerWidth, height: window.innerHeight };
         isTransitioning.current = false;
-        console.log('📐 Protected dimensions locked:', originalDimensions.current);
-      }, 1500);
-      return true;
+      }, 1000);
     } catch (e) {
-      console.error('Security Init Error:', e);
       isTransitioning.current = false;
-      return false;
     }
   }, []);
 
   const exitFullscreen = useCallback(async () => {
-    isFullscreenActive.current = false;
     if (!Capacitor.isNativePlatform()) return;
     try {
-      console.log('🔓 Deactivating secure mode...');
       await StatusBar.show();
       if (Capacitor.getPlatform() === 'android') {
         const NB: any = NavigationBar;
         if (NB?.show) await NB.show();
-        if (window.AndroidFullScreen?.showSystemUI) {
-          window.AndroidFullScreen.showSystemUI();
-        }
       }
-    } catch (e) {
-      console.error('Security Exit Error:', e);
-    }
+    } catch (e) { }
   }, []);
 
   const triggerViolation = useCallback((reason: string) => {
     if (isTransitioning.current || isSecurityPaused.current || isBlocked) return;
-
     const now = Date.now();
     if (now - lastViolationTime.current < 3000) return;
     lastViolationTime.current = now;
@@ -266,214 +187,89 @@ export default function StudentSecureQuiz() {
     setWarningCount(prev => {
       const next = prev + 1;
       setLastViolation(reason);
-      toast.error(`⚠️ ATTEMPT NOTICE [${next}/3]`, {
-        description: reason,
-        duration: 5000,
-        position: 'top-center'
-      });
+      toast.error(`SECURITY ALERT [${next}/3]`, { description: reason, position: 'top-center' });
 
       if (next >= 3) {
         setIsBlocked(true);
         handleSubmitQuiz(true, `Strikes Exceeded: ${reason}`);
         return 3;
       }
-
       isSecurityPaused.current = true;
       setShowWarningModal(true);
       return next;
     });
-  }, [isBlocked, quizId, attemptId]);
+  }, [isBlocked, attemptId]);
 
-  // 🛡️ SECURITY SCANNER LOGIC
-  const runSecurityScan = useCallback(async () => {
-    setSecurityStatus('scanning');
-
-    const updateLog = (id: string, status: 'ok' | 'fail') => {
-      setSecurityLogs(prev => prev.map(log => log.id === id ? { ...log, status } : log));
-    };
-
-    try {
-      // 1. App Integrity
-      await new Promise(r => setTimeout(r, 150));
-      updateLog('env', 'ok');
-
-      // 2. VPN Detection
-      await new Promise(r => setTimeout(r, 200));
-      updateLog('vpn', 'ok');
-
-      // 3. Developer Options / Overlays
-      await new Promise(r => setTimeout(r, 150));
-      updateLog('dev', 'ok');
-
-      // 4. Dimensions Check
-      originalDimensions.current = { width: window.innerWidth, height: window.innerHeight };
-      updateLog('scr', 'ok');
-
-      setSecurityStatus('ready');
-      setSecurityPassed(true);
-    } catch (e) {
-      setSecurityStatus('failed');
-    }
-  }, []);
-
-  const [securityPassed, setSecurityPassed] = useState(false);
-
-  // Initial Fetch & Security Check
+  // Main Logic Fetch
   useEffect(() => {
     const init = async () => {
       if (!quizId) return navigate('/student/dashboard');
-
       try {
         setLoading(true);
-        const token = storage.getItem('studentToken');
-        if (!token) return navigate('/student/login');
+        const res = await studentAuthAPI.getQuizDetails(quizId);
+        if (!res.data?.success) throw new Error('Access Denied');
 
-        const studentData = storage.getItem('studentData');
-        if (studentData) setStudentInfo(JSON.parse(studentData));
-
-        const response = await studentAuthAPI.getQuizDetails(quizId);
-        if (!response.data?.success) throw new Error(response.data?.message || 'Access Denied');
-
-        const qD = response.data.quiz;
+        const qD = res.data.quiz;
         setQuiz({
           ...qD,
           _id: qD.id || qD._id,
-          questionCount: qD.questions.length,
           questions: qD.questions.map((q: any) => ({ ...q, _id: q.id || q._id }))
         });
 
-        // Strict Resume & One-Time Link Logic
-        if (response.data.existingAttempt) {
-          const { existingAttempt } = response.data;
+        // Load Persistent State
+        const savedState = storage.getItem(`quiz_state_${quizId}`);
+        if (savedState) {
+          const parsed = JSON.parse(savedState);
+          setAnswers(parsed.answers || {});
+          setCurrentQuestion(parsed.currentQuestion || 0);
+        }
+
+        if (res.data.existingAttempt) {
+          const { existingAttempt } = res.data;
           if (existingAttempt.status === 'submitted') {
             setQuizSubmitted(true);
           } else if (existingAttempt.status === 'started') {
-            // If attempt was started but session closed unexpectedly
-            console.log('Resuming active session...');
             setAttemptId(existingAttempt.id || existingAttempt._id);
-            setAnswers(JSON.parse(storage.getItem(`quiz_answers_${quizId}`) || '{}'));
             setQuizStarted(true);
             setTimeLeft(existingAttempt.timeRemaining || 0);
-            setTimeout(initializeFullscreen, 100);
+            initializeFullscreen();
           }
         }
-        runSecurityScan();
+        setSecurityStatus('ready');
       } catch (e) {
-        setNetworkError(true);
+        toast.error('Initialization Failed');
       } finally {
         setLoading(false);
       }
     };
     init();
+    return () => exitFullscreen();
+  }, [quizId]);
 
-    return () => {
-      if (isFullscreenActive.current) exitFullscreen();
-    };
-  }, [quizId, navigate, runSecurityScan, exitFullscreen, initializeFullscreen]);
-
-  // Security Monitoring & Hardware Back Button
+  // Security Monitoring
   useEffect(() => {
     if (!quizStarted || quizSubmitted || isBlocked) return;
 
-    let appBackHandle: any = null;
-
-    const setupListeners = async () => {
-      appBackHandle = await App.addListener('backButton', () => {
-        if (quizStarted && !quizSubmitted && !isBlocked) {
-          triggerViolation('System navigation blocked during assessment');
-        }
-      });
-    };
-
     const handleBlur = () => {
-      setTimeout(() => {
-        if (!document.hasFocus() && !isSecurityPaused.current && !isTransitioning.current) {
-          triggerViolation('Application lost focus or overlay detected');
-        }
-      }, 500);
+      if (!document.hasFocus() && !isSecurityPaused.current && !isTransitioning.current) {
+        triggerViolation('Focus lost to external app or notification');
+      }
     };
 
     const handleVisibility = () => {
       if (document.hidden && !isSecurityPaused.current && !isTransitioning.current) {
-        triggerViolation('Application minimized or tab switched');
+        triggerViolation('Screen minimized or tab switch');
       }
     };
 
-    const handleResize = () => {
-      if (isTransitioning.current || isSecurityPaused.current) return;
-
-      const currentW = window.innerWidth;
-      const currentH = window.innerHeight;
-
-      const hDiff = Math.abs(originalDimensions.current.height - currentH);
-      const wDiff = Math.abs(originalDimensions.current.width - currentW);
-
-      // Split screen usually changes both or significant height/width
-      // Ignore small shifts (keyboard is usually > 200px and handled by activeElement check)
-      if ((hDiff > 120 || wDiff > 80) && !isTransitioning.current) {
-        const isTyping = ['INPUT', 'TEXTAREA'].includes(document.activeElement?.tagName || '');
-        if (!isTyping) {
-          triggerViolation('Split-screen or unauthorized layout change detected');
-        }
-      }
-    };
-
-    setupListeners();
     window.addEventListener('blur', handleBlur, true);
     window.addEventListener('visibilitychange', handleVisibility, true);
-    window.addEventListener('resize', handleResize, true);
-
-    const overlayCheck = setInterval(() => {
-      if (isTransitioning.current) return;
-
-      const isTyping = ['INPUT', 'TEXTAREA'].includes(document.activeElement?.tagName || '');
-      const hasFocus = document.hasFocus();
-      const isVisible = !document.hidden;
-
-      const currentW = window.innerWidth;
-      const currentH = window.innerHeight;
-      const hDiff = Math.abs(originalDimensions.current.height - currentH);
-      const wDiff = Math.abs(originalDimensions.current.width - currentW);
-      const isSplitScreen = (hDiff > 120 || wDiff > 80) && !isTyping;
-
-      const isViolating = !hasFocus || !isVisible || isSplitScreen;
-
-      if (isViolating && !isSecurityPaused.current) {
-        let reason = 'Unauthorized action detected';
-        if (isSplitScreen) reason = 'Continuous Split-screen mode detected';
-        else if (!isVisible) reason = 'Application minimized';
-        else if (!hasFocus) reason = 'Focus lost to another application';
-
-        triggerViolation(reason);
-      }
-
-      // Continuous Violation Enforcement
-      if (isViolating && isSecurityPaused.current) {
-        if (!persistentViolationTimer.current) {
-          persistentViolationTimer.current = Date.now();
-        } else if (Date.now() - persistentViolationTimer.current > 8000) {
-          // Escalate if they haven't fixed it in 8 seconds
-          isSecurityPaused.current = false; // Allow trigger
-          persistentViolationTimer.current = null;
-          triggerViolation('Persistent security violation - Failure to restore secure environment');
-        }
-      } else {
-        persistentViolationTimer.current = null;
-      }
-
-    }, 2000);
-
     return () => {
-      if (appBackHandle) appBackHandle.remove();
       window.removeEventListener('blur', handleBlur, true);
       window.removeEventListener('visibilitychange', handleVisibility, true);
-      window.removeEventListener('resize', handleResize, true);
-      clearInterval(overlayCheck);
-      if (persistentViolationTimer.current) persistentViolationTimer.current = null;
     };
   }, [quizStarted, quizSubmitted, isBlocked, triggerViolation]);
 
-  // Start Quiz Handler
   const handleStartQuiz = async () => {
     try {
       setIsStarting(true);
@@ -483,37 +279,29 @@ export default function StudentSecureQuiz() {
         setAttemptId(attempt.id || attempt._id);
         setQuizStarted(true);
         setTimeLeft(attempt.timeRemaining || (quiz?.duration || 30) * 60);
-        await initializeFullscreen();
-        toast.success('🔒 SESSION ACTIVE');
+        initializeFullscreen();
       }
     } catch (e) {
-      toast.error('Initialization Failed');
+      toast.error('Session Init Failed');
     } finally {
       setIsStarting(false);
     }
   };
 
-  // Submit Quiz Handler
   const handleSubmitQuiz = async (auto = false, reason = '') => {
     if (submitting) return;
-    if (!auto && !showSubmitConfirm) {
-      setShowSubmitConfirm(true);
-      return;
-    }
-
     setSubmitting(true);
-    setShowSubmitConfirm(false);
     try {
       const arr = Object.entries(answers).map(([questionId, studentAnswer]) => ({ questionId, studentAnswer }));
       const res = await studentAuthAPI.submitQuizAttempt(attemptId, arr, auto, reason);
       if (res.data?.success) {
         setSubmissionResult(res.data.results);
         setQuizSubmitted(true);
-        storage.removeItem(`quiz_answers_${quizId}`);
-        await exitFullscreen();
+        storage.removeItem(`quiz_state_${quizId}`);
+        exitFullscreen();
       }
     } catch (e) {
-      toast.error('Submission Failed');
+      toast.error('Sync Error: Retrying...');
     } finally {
       setSubmitting(false);
     }
@@ -534,451 +322,245 @@ export default function StudentSecureQuiz() {
     return () => clearInterval(t);
   }, [quizStarted, quizSubmitted, isBlocked]);
 
-  // 1. Loading State
+  // 1. Loading
   if (loading) return (
-    <div className="h-screen flex flex-col items-center justify-center bg-[#020617] text-white gap-6 select-none">
-      <motion.div
-        animate={{ rotate: 360 }}
-        transition={{ repeat: Infinity, duration: 2, ease: "linear" }}
-        className="w-16 h-16 border-4 border-violet-500/20 border-t-violet-500 rounded-full shadow-[0_0_30px_rgba(139,92,246,0.3)]"
-      />
-      <div className="text-center space-y-2">
-        <h2 className="text-xl font-bold tracking-[0.4em] uppercase opacity-80">Authenticating</h2>
-        <p className="text-[10px] font-black tracking-widest text-violet-400 animate-pulse uppercase">Setting Up Session</p>
-      </div>
+    <div className="h-screen flex flex-col items-center justify-center bg-white text-slate-800 gap-4">
+      <Loader2 className="h-10 w-10 text-indigo-600 animate-spin" />
+      <p className="text-xs font-bold tracking-widest text-slate-400 uppercase">Verifying Environment</p>
     </div>
   );
 
-  // 2. Pre-Quiz Security Scanner View
+  // 2. Pre-Quiz Entry
   if (!quizStarted && !quizSubmitted) return (
-    <div className="min-h-screen bg-[#020617] flex items-center justify-center p-4 text-white overflow-hidden relative select-none">
-      <div className="absolute inset-0 bg-violet-500/5 [mask-image:radial-gradient(ellipse_at_center,black_30%,transparent_70%)]" />
-
-      <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} className="max-w-xl w-full space-y-6 relative z-10 p-2">
-        <div className="text-center space-y-3">
-          <div className="w-16 h-16 bg-slate-900 rounded-3xl flex items-center justify-center mx-auto border border-slate-800 shadow-xl mb-2">
-            <Lock className="w-8 h-8 text-violet-500" />
+    <div className="min-h-screen bg-[#F8FAFC] flex items-center justify-center p-6 text-slate-900">
+      <div className="max-w-md w-full space-y-8">
+        <div className="text-center space-y-2">
+          <Badge className="bg-indigo-50 text-indigo-600 border-indigo-100 uppercase text-[10px] py-1 px-3 mb-4">Secure Evaluation</Badge>
+          <h1 className="text-3xl font-bold tracking-tight text-slate-900">{quiz?.title}</h1>
+          <div className="grid grid-cols-3 gap-2 mt-6">
+            <div className="bg-white p-3 rounded-2xl border border-slate-100 shadow-sm">
+              <p className="text-[10px] font-bold text-slate-400 uppercase">Duration</p>
+              <p className="text-sm font-bold">{quiz?.duration}m</p>
+            </div>
+            <div className="bg-white p-3 rounded-2xl border border-slate-100 shadow-sm">
+              <p className="text-[10px] font-bold text-slate-400 uppercase">Items</p>
+              <p className="text-sm font-bold">{quiz?.questionCount}</p>
+            </div>
+            <div className="bg-white p-3 rounded-2xl border border-slate-100 shadow-sm">
+              <p className="text-[10px] font-bold text-slate-400 uppercase">Marks</p>
+              <p className="text-sm font-bold">{quiz?.totalMarks}</p>
+            </div>
           </div>
-          <h1 className="text-2xl sm:text-3xl font-black tracking-tight uppercase leading-tight">{quiz?.title}</h1>
-          <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Time: {quiz?.duration} Mins • Total Marks: {quiz?.totalMarks}</p>
         </div>
 
-        <Card className="bg-slate-900/60 border-slate-800 backdrop-blur-xl overflow-hidden shadow-2xl">
-          <CardHeader className="border-b border-slate-800 bg-slate-900/40">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Scan className="w-4 h-4 text-violet-400" />
-                <CardTitle className="text-xs font-black uppercase tracking-widest text-white">Assessment Readiness</CardTitle>
-              </div>
-              <Badge variant="outline" className="text-[8px] border-violet-500/30 text-violet-400 bg-violet-500/5 uppercase font-black">Ready</Badge>
+        <Card className="border-slate-100 shadow-xl shadow-slate-200/50 rounded-3xl overflow-hidden mt-8">
+          <CardHeader className="bg-slate-50 border-b border-slate-100 p-6">
+            <div className="flex items-center gap-2">
+              <Shield className="w-5 h-5 text-indigo-600" />
+              <CardTitle className="text-sm font-bold">Proctored Session Requirements</CardTitle>
             </div>
           </CardHeader>
-          <CardContent className="pt-6 space-y-6">
-            <div className="grid grid-cols-1 gap-2.5">
-              {securityLogs.map((log) => (
-                <motion.div
-                  key={log.id}
-                  initial={{ x: -20, opacity: 0 }}
-                  animate={{ x: 0, opacity: 1 }}
-                  className="flex items-center justify-between p-3 rounded-2xl bg-slate-950/40 border border-slate-800/50"
-                >
-                  <div className="flex items-center gap-3">
-                    {log.status === 'ok' ? <ShieldCheck className="w-4 h-4 text-emerald-500" /> :
-                      log.status === 'fail' ? <ShieldAlert className="w-4 h-4 text-rose-500" /> :
-                        <Loader2 className="w-4 h-4 text-violet-500 animate-spin" />}
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-300">{log.label}</span>
-                  </div>
-                  <Badge className={cn(
-                    "text-[8px] font-black uppercase tracking-widest px-2.5 py-0.5",
-                    log.status === 'ok' ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20" :
-                      log.status === 'fail' ? "bg-rose-500/10 text-rose-500 border-rose-500/20" : "bg-violet-500/10 text-violet-500 border-violet-500/20"
-                  )}>
-                    {log.status === 'ok' ? 'PASSED' : log.status === 'fail' ? 'FAILED' : 'SCAN'}
-                  </Badge>
-                </motion.div>
+          <CardContent className="p-6 space-y-6">
+            <ul className="space-y-4">
+              {[
+                { icon: ShieldCheck, text: "Do not exit the application" },
+                { icon: EyeOff, text: "Disable notifications to avoid focus loss" },
+                { icon: Info, text: "Three violations will end the session" }
+              ].map((item, i) => (
+                <li key={i} className="flex items-center gap-3 text-sm font-semibold text-slate-600">
+                  <item.icon className="w-4 h-4 text-teal-500" />
+                  {item.text}
+                </li>
               ))}
-            </div>
-
-            <div className="bg-rose-500/5 border border-rose-500/10 p-4 rounded-2xl flex gap-3 items-start">
-              <ShieldAlert className="w-4 h-4 text-rose-500 shrink-0 mt-0.5" />
-              <div className="space-y-1">
-                <p className="text-[10px] font-black uppercase text-rose-400 tracking-widest">Assessment Guidelines</p>
-                <p className="text-[10px] leading-relaxed text-slate-400 font-medium">Do not exit the app or switch tabs. Ensure notifications are turned off to avoid accidental disqualification.</p>
-              </div>
-            </div>
+            </ul>
 
             <Button
               onClick={handleStartQuiz}
-              disabled={securityStatus !== 'ready' || isStarting}
-              className="w-full h-14 bg-violet-600 hover:bg-violet-700 text-white rounded-2xl font-black uppercase tracking-widest shadow-xl transition-all active:scale-[0.98]"
+              disabled={isStarting}
+              className="w-full h-14 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl font-bold shadow-lg shadow-indigo-100 transition-all active:scale-[0.98]"
             >
-              {isStarting ? <Loader2 className="w-5 h-5 animate-spin" /> : (
-                <span className="flex items-center gap-2">
-                  <Lock className="w-4 h-4" /> START QUIZ NOW
-                </span>
-              )}
+              {isStarting ? <Loader2 className="w-5 h-5 animate-spin" /> : "Start Secure Session"}
             </Button>
           </CardContent>
         </Card>
-      </motion.div>
+      </div>
     </div>
   );
 
-  // 3. Quiz Review / Results View
+  // 3. Quiz Complete
   if (quizSubmitted) return (
-    <div className="min-h-screen bg-[#020617] flex items-center justify-center p-6 text-white select-none">
-      <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="max-w-2xl w-full space-y-8">
-        <div className="text-center space-y-4">
-          <div className={cn(
-            "w-20 h-20 rounded-3xl flex items-center justify-center mx-auto shadow-2xl mb-6",
-            submissionResult?.isBlocked ? "bg-rose-500/20 border border-rose-500" : "bg-violet-600 border border-violet-500"
-          )}>
-            {submissionResult?.isBlocked ? <ShieldAlert className="w-10 h-10 text-rose-500" /> : <Trophy className="w-10 h-10 text-white" />}
-          </div>
-          <h2 className="text-4xl font-black tracking-tighter uppercase leading-none">
-            {submissionResult?.isBlocked ? "ASSESSMENT VOID" : "ASSESSMENT SUBMITTED"}
-          </h2>
-          <p className="text-xs font-bold uppercase tracking-widest text-slate-400">
-            {submissionResult?.isBlocked ? "Assessment environment violation detected" : "Your responses have been successfully recorded."}
-          </p>
+    <div className="min-h-screen bg-[#F8FAFC] flex flex-col items-center justify-center p-6 text-slate-900">
+      <div className="max-w-xl w-full text-center space-y-8">
+        <div className="w-20 h-20 bg-teal-500 rounded-[2rem] flex items-center justify-center mx-auto shadow-xl shadow-teal-100 mb-4">
+          <CheckCircle2 className="w-10 h-10 text-white" />
+        </div>
+        <div>
+          <h2 className="text-3xl font-bold tracking-tight text-slate-900">Assessment Submitted</h2>
+          <p className="text-slate-500 font-medium mt-2">Your responses have been synchronized with the faculty portal.</p>
         </div>
 
-        <Card className="bg-slate-900/60 border-slate-800 backdrop-blur-xl overflow-hidden p-6 space-y-6 shadow-2xl">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="bg-slate-950/60 p-5 rounded-2xl border border-slate-800 space-y-1">
-              <p className="text-[10px] font-black uppercase text-violet-400 tracking-widest">Final Score</p>
-              <p className="text-3xl font-black text-white">{submissionResult?.score || 0} <span className="text-xs opacity-40 font-bold">/ {submissionResult?.totalMarks}</span></p>
-            </div>
-            <div className="bg-slate-950/60 p-5 rounded-2xl border border-slate-800 space-y-1">
-              <p className="text-[10px] font-black uppercase text-emerald-400 tracking-widest">Accuracy</p>
-              <p className="text-3xl font-black text-white">{submissionResult?.percentage || 0}%</p>
-            </div>
+        <div className="grid grid-cols-2 gap-4">
+          <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
+            <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Final Score</p>
+            <p className="text-3xl font-bold text-slate-900">{submissionResult?.score || 0} <span className="text-sm font-medium opacity-40">/ {submissionResult?.totalMarks}</span></p>
           </div>
+          <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
+            <p className="text-xs font-bold text-indigo-400 uppercase tracking-widest mb-1">Percentage</p>
+            <p className="text-3xl font-bold text-indigo-600">{submissionResult?.percentage || 0}%</p>
+          </div>
+        </div>
 
-          {!submissionResult?.isBlocked && (
-            <Button
-              onClick={() => setShowDetailedReview(p => !p)}
-              variant="outline"
-              className="w-full border-white/10 hover:bg-white/5 h-12 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2"
-            >
-              <Activity className="w-4 h-4" /> {showDetailedReview ? 'HIDE DETAILS' : 'VIEW DETAILED ANALYSIS'}
-            </Button>
-          )}
-
-          <AnimatePresence>
-            {showDetailedReview && (
-              <motion.div
-                initial={{ height: 0, opacity: 0 }}
-                animate={{ height: 'auto', opacity: 1 }}
-                exit={{ height: 0, opacity: 0 }}
-                className="space-y-4 pt-4 border-t border-white/5 overflow-hidden"
-              >
-                {submissionResult?.breakdown?.map((item: any, idx: number) => (
-                  <div key={idx} className="bg-[#1a1a35]/50 p-4 rounded-xl border border-white/5 space-y-3">
-                    <div className="flex items-center justify-between">
-                      <Badge variant="outline" className="text-[8px] font-black p-0 border-none opacity-40">Q. {idx + 1}</Badge>
-                      {item.isCorrect ? <CheckCircle2 className="w-4 h-4 text-emerald-500" /> : <ShieldAlert className="w-4 h-4 text-rose-500" />}
-                    </div>
-                    <div className="text-xs font-bold leading-relaxed">
-                      <FormattedText text={item.question} />
-                    </div>
-                    <div className="space-y-2">
-                      <div className={cn("p-2 rounded-lg text-[10px] font-bold", item.isCorrect ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20" : "bg-rose-500/10 text-rose-400 border border-rose-500/20")}>
-                        <span className="opacity-60 uppercase mr-1">Your Answer:</span> <span className="normal-case">{item.studentAnswer || '[EMPTY]'}</span>
-                      </div>
-                      {!item.isCorrect && (
-                        <div className="p-2 rounded-lg text-[10px] font-bold bg-white/5 text-white/80 border border-white/10">
-                          <span className="opacity-60 uppercase mr-1 text-primary">Correct:</span> <span className="normal-case">{item.correctAnswer}</span>
-                        </div>
-                      )}
-                      {item.explanation && (
-                        <div className="mt-3 bg-primary/5 p-3 rounded-xl border border-primary/10 flex gap-2">
-                          <Target className="w-3.5 h-3.5 text-primary shrink-0 mt-0.5" />
-                          <div className="text-[10px] leading-relaxed text-muted-foreground">
-                            <FormattedText text={item.explanation} />
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-          <Button
-            onClick={() => navigate('/student/dashboard')}
-            className="w-full h-14 gradient-secondary rounded-2xl font-black uppercase tracking-widest"
-          >
-            RETURN TO DASHBOARD
-          </Button>
-        </Card>
-      </motion.div>
+        <Button
+          onClick={() => navigate('/student/dashboard')}
+          className="w-full h-14 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl font-bold shadow-lg"
+        >
+          Return to Dashboard
+        </Button>
+      </div>
     </div>
   );
 
-  // 4. Main Quiz Interface
+  // 4. Main Interface
   const currentQ = quiz?.questions[currentQuestion];
+  const formatTime = (seconds: number) => {
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    return `${m}:${s.toString().padStart(2, '0')}`;
+  };
 
   return (
-    <div className="h-screen w-full bg-[#020617] text-white flex flex-col items-center overflow-hidden font-sans select-none">
-      {/* 📍 Exam Header */}
-      <MemoizedQuizHeader
-        title={quiz?.title}
-        timeLeft={timeLeft}
-        progress={((currentQuestion + 1) / (quiz?.questionCount || 1)) * 100}
-        currentQ={currentQuestion + 1}
-        totalQ={quiz?.questionCount}
-        marks={currentQ?.marks}
-      />
+    <div className="min-h-screen w-full bg-white flex flex-col text-slate-900 overflow-hidden select-none">
+      {/* 📍 Header */}
+      <div className="p-6 border-b border-slate-50 flex items-center justify-between bg-white relative z-20">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center font-bold text-slate-900 border border-slate-100">
+            {currentQuestion + 1}
+          </div>
+          <div>
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none mb-1">Assessment In Progress</p>
+            <h1 className="text-sm font-bold text-slate-900 leading-none truncate max-w-[150px]">{quiz?.title}</h1>
+          </div>
+        </div>
 
-      <main className="flex-1 w-full max-w-4xl mx-auto px-4 sm:px-6 py-6 sm:py-8 overflow-y-auto overflow-x-hidden scroll-smooth pb-24">
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={currentQuestion}
-            initial={{ opacity: 0, x: 10 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -10 }}
-            transition={{ duration: 0.2, ease: 'easeOut' }}
-            className="space-y-12 transform-gpu"
-          >
-            {/* Question Text */}
-            <div className="space-y-4">
-              <div className="flex items-center gap-3">
-                <Badge variant="outline" className="px-3 py-1 rounded-full border-primary/50 text-[10px] font-black uppercase tracking-widest text-primary">
-                  Marks: {currentQ?.marks}
-                </Badge>
-                {answers[currentQ!._id] && (
-                  <Badge className="bg-emerald-500/20 text-emerald-500 border-none text-[8px] font-black uppercase">Logged</Badge>
-                )}
-              </div>
-              <div className="text-xl sm:text-2xl font-extrabold tracking-tight leading-relaxed">
-                <FormattedText text={currentQ?.question || ''} isQuestion={true} />
-              </div>
+        <div className={cn(
+          "px-4 py-2 rounded-2xl font-bold text-sm tabular-nums flex items-center gap-2",
+          timeLeft < 60 ? "bg-red-50 text-red-600 animate-pulse" : "bg-indigo-50 text-indigo-600"
+        )}>
+          <Clock className="w-4 h-4" /> {formatTime(timeLeft)}
+        </div>
+      </div>
+
+      <Progress value={((currentQuestion + 1) / (quiz?.questionCount || 1)) * 100} className="h-1 bg-slate-50 rounded-none shadow-none z-20" />
+
+      {/* 📝 Content */}
+      <main className="flex-1 overflow-y-auto px-6 py-8 pb-32 max-w-2xl mx-auto w-full">
+        <div className="space-y-8">
+          <div className="space-y-4">
+            <Badge className="bg-teal-50 text-teal-600 border-none font-bold text-[10px] px-2 py-0.5 rounded-lg">{currentQ?.marks} Marks</Badge>
+            <div className="text-xl sm:text-2xl font-bold text-slate-900 leading-relaxed">
+              <FormattedText text={currentQ?.question || ''} isQuestion={true} />
             </div>
+          </div>
 
-            {/* Answer Region */}
-            <div className="space-y-4">
-              {currentQ?.type === 'mcq' && currentQ.options && (
-                <div className="grid grid-cols-1 gap-4">
-                  {currentQ.options.map((option, idx) => {
-                    const isSelected = answers[currentQ._id] === option;
-                    return (
-                      <motion.button
-                        key={idx}
-                        whileTap={{ scale: 0.99 }}
-                        onClick={() => {
-                          if (answers[currentQ!._id] === option) return;
-                          setAnswers(prev => ({ ...prev, [currentQ!._id]: option }));
-                        }}
-                        className={cn(
-                          "relative w-full p-5 rounded-2xl text-left border transition-all duration-300 group overflow-hidden",
-                          isSelected
-                            ? "bg-violet-600/20 border-violet-500 shadow-xl"
-                            : "bg-slate-900 border-slate-800 hover:border-slate-700"
-                        )}
-                      >
-                        <div className="flex items-center gap-4 relative z-10">
-                          <div className={cn(
-                            "w-8 h-8 rounded-xl flex items-center justify-center font-black text-xs transition-colors",
-                            isSelected ? "bg-violet-500 text-white" : "bg-slate-800 text-slate-400 group-hover:bg-slate-700"
-                          )}>
-                            {String.fromCharCode(65 + idx)}
-                          </div>
-                          <span className={cn("font-bold text-sm tracking-wide whitespace-pre-wrap normal-case", isSelected ? "text-white" : "text-slate-300")}>
-                            {option}
-                          </span>
-                        </div>
-                        {isSelected && (
-                          <motion.div layoutId="mcq-active" className="absolute inset-x-0 bottom-0 h-1 bg-violet-500" />
-                        )}
-                      </motion.button>
-                    );
-                  })}
-                </div>
-              )}
+          <div className="space-y-3 pt-6">
+            {currentQ?.type === 'mcq' && currentQ.options?.map((option, idx) => {
+              const isSelected = answers[currentQ._id] === option;
+              return (
+                <button
+                  key={idx}
+                  onClick={() => setAnswers(p => ({ ...p, [currentQ._id]: option }))}
+                  className={cn(
+                    "w-full p-5 rounded-3xl text-left border-2 transition-all flex items-center gap-4 group",
+                    isSelected
+                      ? "border-indigo-600 bg-indigo-50 shadow-md shadow-indigo-100"
+                      : "border-slate-100 bg-white hover:border-slate-200"
+                  )}
+                >
+                  <div className={cn(
+                    "w-8 h-8 rounded-xl flex items-center justify-center font-bold text-sm",
+                    isSelected ? "bg-indigo-600 text-white" : "bg-slate-50 text-slate-400"
+                  )}>
+                    {String.fromCharCode(65 + idx)}
+                  </div>
+                  <span className={cn("font-bold text-base leading-snug", isSelected ? "text-indigo-900" : "text-slate-600")}>{option}</span>
+                </button>
+              );
+            })}
 
-              {(currentQ?.type === 'short-answer' || currentQ?.type === 'truefalse') && (
-                <Textarea
-                  value={answers[currentQ._id] || ''}
-                  onChange={(e) => setAnswers(prev => ({ ...prev, [currentQ._id]: e.target.value }))}
-                  placeholder="Type your answer here..."
-                  className="min-h-[200px] bg-slate-900 border border-slate-800 focus:border-violet-500/50 rounded-3xl p-6 font-bold text-lg leading-relaxed placeholder:opacity-20 text-white shadow-inner transition-colors select-text"
-                />
-              )}
-            </div>
-          </motion.div>
-        </AnimatePresence>
+            {currentQ?.type === 'short-answer' && (
+              <Textarea
+                placeholder="Type your response here..."
+                className="min-h-[150px] rounded-3xl p-6 border-slate-100 bg-slate-50 focus:bg-white focus:ring-indigo-100 font-bold text-lg"
+                value={answers[currentQ._id] || ''}
+                onChange={(e) => setAnswers(p => ({ ...p, [currentQ._id]: e.target.value }))}
+              />
+            )}
+          </div>
+        </div>
       </main>
 
-      {/* 🧭 Quiz Navigation */}
-      <footer className="w-full bg-[#020617]/95 backdrop-blur-3xl border-t border-slate-800/50 p-4 pb-safe z-40 shrink-0">
-        <div className="max-w-4xl mx-auto flex items-center justify-between gap-3">
-          <Button
-            onClick={() => {
-              isTransitioning.current = true;
-              setCurrentQuestion(p => Math.max(0, p - 1));
-              setTimeout(() => {
-                isTransitioning.current = false;
-                initializeFullscreen(); // Re-assert lock after DOM update
-              }, 600);
-            }}
-            disabled={currentQuestion === 0}
-            variant="ghost"
-            className="flex-1 h-12 rounded-2xl hover:bg-slate-900 text-slate-400 font-black uppercase text-[10px] tracking-widest gap-2 disabled:opacity-20 transition-all active:scale-95"
-          >
-            <ChevronLeft className="w-4 h-4" /> PREVIOUS
-          </Button>
+      {/* 🎮 Controls */}
+      <div className="fixed bottom-0 left-0 right-0 p-6 bg-white/80 backdrop-blur-xl border-t border-slate-50 flex items-center justify-between gap-4 z-30">
+        <Button
+          variant="ghost"
+          disabled={currentQuestion === 0}
+          onClick={() => setCurrentQuestion(p => p - 1)}
+          className="h-14 px-6 rounded-2xl font-bold text-slate-500 hover:text-indigo-600 hover:bg-slate-50"
+        >
+          <ArrowLeft className="w-5 h-5 mr-2" /> Back
+        </Button>
 
-          {currentQuestion === (quiz?.questionCount || 1) - 1 ? (
-            <Button
-              onClick={() => setShowSubmitConfirm(true)}
-              disabled={submitting}
-              className="flex-[2] h-12 bg-violet-600 hover:bg-violet-700 text-white rounded-2xl font-black uppercase text-[10px] tracking-[0.3em] shadow-[0_0_25px_rgba(139,92,246,0.3)] active:scale-95 transition-all"
-            >
-              {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : "SUBMIT QUIZ"}
-            </Button>
-          ) : (
-            <Button
-              onClick={() => {
-                isTransitioning.current = true;
-                setCurrentQuestion(p => Math.min((quiz?.questionCount || 1) - 1, p + 1));
-                setTimeout(() => {
-                  isTransitioning.current = false;
-                  initializeFullscreen(); // Re-assert lock after DOM update
-                }, 600);
-              }}
-              className="flex-[2] h-12 bg-slate-800 hover:bg-slate-700 text-white border border-slate-700 rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all active:scale-95"
-            >
-              NEXT QUESTION <ChevronRight className="w-4 h-4" />
-            </Button>
-          )}
+        <div className="flex-1 flex justify-center">
+          <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">{currentQuestion + 1} of {quiz?.questionCount}</p>
         </div>
-      </footer>
 
-      {/* 📝 Submit Confirmation Modal */}
-      <AnimatePresence>
-        {showSubmitConfirm && (
-          <motion.div
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[110] bg-black/95 backdrop-blur-xl flex items-center justify-center p-6"
+        {currentQuestion === (quiz?.questionCount || 1) - 1 ? (
+          <Button
+            onClick={() => setShowSubmitConfirm(true)}
+            disabled={submitting}
+            className="h-14 px-8 bg-teal-600 hover:bg-teal-700 text-white rounded-2xl font-bold shadow-lg shadow-teal-100"
           >
-            <motion.div
-              initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }}
-              className="max-w-md w-full bg-slate-900 border border-slate-800 rounded-[2.5rem] p-8 text-center space-y-6 shadow-2xl"
-            >
-              <div className="w-20 h-20 bg-violet-600/10 rounded-3xl flex items-center justify-center mx-auto border border-violet-500/20">
-                <CheckCircle className="w-10 h-10 text-violet-500" />
-              </div>
-              <div className="space-y-2">
-                <h3 className="text-2xl font-black uppercase tracking-tight text-white">Final Submission</h3>
-                <p className="text-sm text-slate-400 font-medium">Are you sure you want to end this session? You will not be able to change your answers after this.</p>
-              </div>
-              <div className="flex flex-col gap-3">
-                <Button
-                  onClick={() => handleSubmitQuiz(false)}
-                  className="w-full h-14 bg-violet-600 hover:bg-violet-700 text-white rounded-2xl font-black uppercase tracking-widest shadow-xl"
-                >
-                  YES, SUBMIT NOW
-                </Button>
-                <Button
-                  onClick={() => setShowSubmitConfirm(false)}
-                  variant="ghost"
-                  className="w-full h-12 rounded-xl font-bold uppercase text-[10px] tracking-widest text-slate-500 hover:text-white"
-                >
-                  CANCEL & GO BACK
-                </Button>
-              </div>
-            </motion.div>
-          </motion.div>
+            Finish Exam
+          </Button>
+        ) : (
+          <Button
+            onClick={() => setCurrentQuestion(p => p + 1)}
+            className="h-14 px-8 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl font-bold shadow-lg shadow-indigo-100"
+          >
+            Next <ArrowRight className="w-5 h-5 ml-2" />
+          </Button>
         )}
-      </AnimatePresence>
+      </div>
 
-      {/* 🚫 Warning Modal */}
-      <AnimatePresence>
-        {showWarningModal && (
-          <motion.div
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[100] bg-black/90 backdrop-blur-2xl flex items-center justify-center p-6"
-          >
-            <motion.div
-              initial={{ scale: 0.8, y: 20 }} animate={{ scale: 1, y: 0 }}
-              className="max-w-md w-full bg-slate-900 border border-rose-500/30 rounded-[2.5rem] p-10 text-center space-y-8 shadow-2xl"
-            >
-              <div className="w-20 h-20 bg-rose-600 rounded-[1.5rem] flex items-center justify-center mx-auto shadow-xl">
-                <ShieldAlert className="w-10 h-10 text-white" />
-              </div>
-              <div className="space-y-4">
-                <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-foreground/40 px-2">Question Breakdown</h3>
-                <p className="text-xl font-bold text-white leading-tight">VIOLATION RECORDED: <span className="text-rose-400 block mt-2 text-sm uppercase">{lastViolation}</span></p>
-                <div className="flex justify-center gap-2 pt-2">
-                  {[...Array(3)].map((_, i) => (
-                    <div key={i} className={cn("w-12 h-1.5 rounded-full transition-all duration-300", i < warningCount ? "bg-rose-500" : "bg-slate-800")} />
-                  ))}
-                </div>
-                <p className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-500 pt-4">WARNING {warningCount} OF 3. FINAL STRIKE RESULTS IN FAILURE.</p>
-              </div>
-              <Button
-                onClick={() => { setShowWarningModal(false); isSecurityPaused.current = false; initializeFullscreen(); }}
-                className="w-full h-14 bg-rose-600 hover:bg-rose-700 text-white rounded-2xl font-black uppercase tracking-widest shadow-lg"
-              >
-                I ACKNOWLEDGE & AGREE
-              </Button>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {/* Modals */}
+      <Dialog open={showWarningModal} onOpenChange={(o) => { if (!o) { isSecurityPaused.current = false; setShowWarningModal(false); } }}>
+        <DialogContent className="rounded-3xl p-8 max-w-md w-[90vw] border-none shadow-2xl">
+          <div className="text-center space-y-4">
+            <div className="w-16 h-16 bg-red-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
+              <AlertTriangle className="w-10 h-10 text-red-600" />
+            </div>
+            <h2 className="text-xl font-bold text-red-600">Security Compromised</h2>
+            <p className="text-slate-500 font-medium leading-relaxed">
+              Violation: <span className="text-red-600 font-bold">"{lastViolation}"</span>. Please return to the secure environment immediately.
+            </p>
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Strike {warningCount} of 3</p>
+            <Button onClick={() => { isSecurityPaused.current = false; setShowWarningModal(false); }} className="w-full h-12 bg-slate-900 text-white rounded-xl font-bold">I Understand</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showSubmitConfirm} onOpenChange={setShowSubmitConfirm}>
+        <DialogContent className="rounded-3xl p-8 max-w-md w-[90vw] border-none shadow-2xl">
+          <div className="text-center space-y-4">
+            <h2 className="text-xl font-bold">Ready to finish?</h2>
+            <p className="text-slate-500 font-medium leading-relaxed">You have responded to {Object.keys(answers).length} of {quiz?.questionCount} items.</p>
+            <div className="flex gap-3 pt-4">
+              <Button variant="ghost" onClick={() => setShowSubmitConfirm(false)} className="flex-1 h-12 font-bold">Review</Button>
+              <Button onClick={() => handleSubmitQuiz()} disabled={submitting} className="flex-1 h-12 bg-teal-600 text-white rounded-xl font-bold">Submit Final</Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
-
-// 📍 QUIZ HEADER COMPONENT (Memoized for performance)
-const MemoizedQuizHeader = memo(function QuizHeader({ title, timeLeft, progress, currentQ, totalQ, marks }: any) {
-  const mins = Math.floor(timeLeft / 60);
-  const secs = timeLeft % 60;
-
-  return (
-    <header className="w-full pt-4 pb-4 px-4 sm:px-6 bg-[#020617]/80 backdrop-blur-md border-b border-slate-800/60 sticky top-0 z-50 shrink-0 pt-safe">
-      <div className="max-w-4xl mx-auto space-y-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-slate-900 flex items-center justify-center border border-slate-800 shadow-lg">
-              <ShieldCheck className="w-5 h-5 text-violet-500" />
-            </div>
-            <div>
-              <h1 className="text-[10px] font-black tracking-[0.2em] uppercase text-slate-500 leading-none mb-1">In Progress</h1>
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-bold text-white uppercase truncate max-w-[120px] sm:max-w-[200px]">{title}</span>
-                <Badge className="bg-emerald-500/10 text-emerald-500 text-[7px] font-black uppercase px-1.5 border-none">Live</Badge>
-              </div>
-            </div>
-          </div>
-
-          <div className={cn(
-            "flex items-center gap-3 bg-slate-900 border px-3 py-2 rounded-2xl transition-all duration-300 shadow-sm",
-            timeLeft < 300 ? "border-rose-500/50 bg-rose-500/5 animate-pulse" : "border-slate-800"
-          )}>
-            <Clock className={cn("w-4 h-4", timeLeft < 300 ? "text-rose-500" : "text-violet-400")} />
-            <span className={cn("text-lg font-black tracking-tight font-mono", timeLeft < 300 ? "text-rose-500" : "text-white")}>
-              {String(mins).padStart(2, '0')}:{String(secs).padStart(2, '0')}
-            </span>
-          </div>
-        </div>
-
-        <div className="space-y-1.5">
-          <div className="flex justify-between items-end px-1">
-            <p className="text-[8px] font-black uppercase tracking-widest text-violet-400">Progress: {Math.round(progress)}%</p>
-            <p className="text-[8px] font-black uppercase tracking-widest text-slate-500">Item: {currentQ} / {totalQ}</p>
-          </div>
-          <div className="h-1 w-full bg-slate-900 rounded-full overflow-hidden">
-            <motion.div
-              initial={{ width: 0 }}
-              animate={{ width: `${progress}%` }}
-              className="h-full bg-violet-600 shadow-[0_0_10px_rgba(139,92,246,0.3)] transition-all duration-500"
-            />
-          </div>
-        </div>
-      </div>
-    </header>
-  );
-});
