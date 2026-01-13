@@ -137,6 +137,7 @@ export default function StudentSecureQuiz() {
   const isFullscreenActive = useRef(false);
   const isSecurityPaused = useRef(false);
   const isTransitioning = useRef(false);
+  const [activeTab, setActiveTab] = useState<'question' | 'all'>('question');
 
   // Persistence: Auto-Save to LocalStorage
   useEffect(() => {
@@ -407,22 +408,51 @@ export default function StudentSecureQuiz() {
           <p className="text-slate-500 font-medium mt-2 leading-relaxed">Your responses have been synchronized with the faculty portal.</p>
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
-          <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm flex flex-col justify-center items-center">
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Final Score</p>
-            <p className="text-3xl font-bold text-slate-900">{submissionResult?.score || 0} <span className="text-sm font-medium opacity-40">/ {submissionResult?.totalMarks}</span></p>
+        <div className="bg-slate-50 p-6 rounded-3xl border border-slate-100 mb-8 overflow-hidden">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="p-2 bg-indigo-100 rounded-xl">
+              <Activity className="w-4 h-4 text-indigo-600" />
+            </div>
+            <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Detailed Performance Report</p>
           </div>
-          <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm flex flex-col justify-center items-center">
-            <p className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest mb-1">Percentage</p>
-            <p className="text-3xl font-bold text-indigo-600">{submissionResult?.percentage || 0}%</p>
+
+          <div className="space-y-4 max-h-[40vh] overflow-y-auto pr-2 custom-scrollbar">
+            {submissionResult?.detailedResults?.map((item: any, idx: number) => (
+              <div key={idx} className="p-5 bg-white border border-slate-100 rounded-2xl shadow-sm">
+                <div className="flex items-start justify-between gap-4 mb-3">
+                  <div className="flex-1">
+                    <span className="text-[9px] font-bold text-slate-300 uppercase tracking-tight block mb-1">Item {idx + 1}</span>
+                    <p className="text-sm font-bold text-slate-800 leading-snug">{item.question}</p>
+                  </div>
+                  <div className={cn(
+                    "p-1.5 rounded-lg shrink-0",
+                    item.isCorrect ? "bg-teal-50 text-teal-600" : "bg-red-50 text-red-600"
+                  )}>
+                    {item.isCorrect ? <CheckCircle2 className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />}
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3 mt-4">
+                  <div className="p-3 bg-slate-50 rounded-xl border border-slate-100/50">
+                    <p className="text-[8px] font-black text-slate-400 uppercase mb-1">Your Response</p>
+                    <p className={cn("text-xs font-bold", item.isCorrect ? "text-teal-600" : "text-red-500")}>{item.studentAnswer || "No Choice"}</p>
+                  </div>
+                  {!item.isCorrect && (
+                    <div className="p-3 bg-teal-50/30 rounded-xl border border-teal-100/30">
+                      <p className="text-[8px] font-black text-teal-500 uppercase mb-1">Validated Solution</p>
+                      <p className="text-xs font-bold text-teal-700">{item.correctAnswer}</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
           </div>
         </div>
 
         <Button
           onClick={() => navigate('/student/dashboard')}
-          className="w-full h-14 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl font-bold shadow-lg transition-transform active:scale-95"
+          className="w-full h-15 bg-slate-900 hover:bg-black text-white rounded-2xl font-black uppercase tracking-widest text-xs shadow-xl transition-all active:scale-95 py-6"
         >
-          Return to Dashboard
+          Deauthorize Session
         </Button>
       </div>
     </div>
@@ -517,6 +547,35 @@ export default function StudentSecureQuiz() {
                 onChange={(e) => setAnswers(p => ({ ...p, [currentQ._id]: e.target.value }))}
               />
             )}
+          </div>
+
+          {/* 🧩 Quick Navigation Matrix */}
+          <div className="pt-12 pb-8 border-t border-slate-50">
+            <div className="flex items-center justify-between mb-6">
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Question Repository</p>
+              <Badge variant="outline" className="text-[9px] font-bold border-slate-200 text-slate-400">{Object.keys(answers).length} / {quiz?.questionCount} Answered</Badge>
+            </div>
+            <div className="grid grid-cols-5 sm:grid-cols-10 gap-2">
+              {quiz?.questions.map((_, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => {
+                    setCurrentQuestion(idx);
+                    document.querySelector('main')?.scrollTo({ top: 0, behavior: 'smooth' });
+                  }}
+                  className={cn(
+                    "h-10 rounded-xl font-bold text-xs transition-all active:scale-90 border-2",
+                    currentQuestion === idx
+                      ? "bg-indigo-600 border-indigo-600 text-white shadow-lg shadow-indigo-100 scale-110 z-10"
+                      : answers[_._id]
+                        ? "bg-teal-50 border-teal-100 text-teal-600"
+                        : "bg-white border-slate-100 text-slate-400 hover:border-indigo-100"
+                  )}
+                >
+                  {idx + 1}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
       </main>
