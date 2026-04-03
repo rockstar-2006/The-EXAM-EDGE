@@ -39,3 +39,16 @@ Thumbs.db
 
 # Landing Page
 landing-page/
+
+# Credentials & Service Accounts
+*.json
+!package.json
+!composer.json
+!tsconfig.json
+!package-lock.json
+!capacitor.config.json
+!vercel.json
+!appsettings.json
+!bundle-config.json
+!firebase.json
+.env*
