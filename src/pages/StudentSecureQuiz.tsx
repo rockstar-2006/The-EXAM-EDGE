@@ -368,7 +368,25 @@ export default function StudentSecureQuiz() {
       }, 1000);
     }
     
+    // 📱 Native App State Listener (Capacitor)
+    const appStateListener = App.addListener('appStateChange', ({ isActive }) => {
+      console.log('App state changed. Is active?', isActive);
+      if (!isActive) {
+        handleBlur();
+      } else {
+        handleFocus();
+      }
+    });
+
+    window.addEventListener('blur', handleBlur, true);
+    window.addEventListener('visibilitychange', handleVisibility, true);
+    window.addEventListener('focus', handleFocus, true);
+    window.addEventListener('keydown', preventSecurityBreach);
+    window.addEventListener('contextmenu', preventContextMenu);
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
     return () => {
+      appStateListener.then(l => l.remove());
       window.removeEventListener('blur', handleBlur, true);
       window.removeEventListener('visibilitychange', handleVisibility, true);
       window.removeEventListener('focus', handleFocus, true);
@@ -632,19 +650,25 @@ export default function StudentSecureQuiz() {
           </div>
         </div>
 
-        <div className={cn(
-          "px-3 sm:px-4 py-2 rounded-xl sm:rounded-2xl font-bold text-xs tabular-nums flex items-center gap-1.5 sm:gap-2 shrink-0 transition-colors",
-          timeLeft < 60 ? "bg-red-50 text-red-600 animate-pulse border border-red-100" : "bg-indigo-50 text-indigo-600 border border-indigo-100"
-        )}>
-          <Clock className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> {formatTime(timeLeft)}
+        <div className="flex flex-col items-end gap-1 shrink-0">
+          <div className={cn(
+            "px-3 sm:px-4 py-2 rounded-xl sm:rounded-2xl font-bold text-xs tabular-nums flex items-center gap-1.5 sm:gap-2 transition-colors",
+            timeLeft < 60 ? "bg-red-50 text-red-600 animate-pulse border border-red-100" : "bg-indigo-50 text-indigo-600 border border-indigo-100"
+          )}>
+            <Clock className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> {formatTime(timeLeft)}
+          </div>
+          <div className="flex items-center gap-1.5 px-2.5 py-1 bg-red-50 border border-red-100/50 rounded-lg">
+             <ShieldAlert className="w-3 h-3 text-red-500" />
+             <span className="text-[9px] font-black text-red-600 tabular-nums uppercase tracking-tight">{remainingEscapeTime}S SAFETY BUFFER</span>
+          </div>
         </div>
       </div>
 
       <Progress value={((currentQuestion + 1) / (quiz?.questionCount || 1)) * 100} className="h-1 bg-slate-50 rounded-none shadow-none z-20 shrink-0" />
 
-      {/* 📝 Content - Strictly Scrollable Area */}
-      <main className="flex-1 overflow-y-auto scroll-smooth bg-white">
-        <div className="px-4 sm:px-6 py-6 pb-40 max-w-2xl mx-auto w-full flex flex-col min-h-full">
+      {/* 📝 Content - Strictly Scrollable Area - Amazon-like Pro Fit */}
+      <main className="flex-1 overflow-y-auto scroll-smooth bg-white h-0 touch-pan-y" id="quiz-viewport" style={{ WebkitOverflowScrolling: 'touch' }}>
+        <div className="px-4 sm:px-6 py-6 pb-48 max-w-2xl mx-auto w-full flex flex-col min-h-full">
           <div className="flex-1 space-y-6 sm:space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-300">
             <div className="space-y-3 sm:space-y-4">
               <Badge className="bg-teal-50 text-teal-600 border-none font-black text-[8px] sm:text-[9px] px-2.5 py-1 rounded-lg uppercase tracking-wider">{currentQ?.marks} Marks</Badge>
@@ -711,26 +735,26 @@ export default function StudentSecureQuiz() {
         </Button>
 
         <div className="flex-1 flex justify-center">
-          <p className="text-[10px] font-black text-slate-200 uppercase tracking-[0.2em]">{currentQuestion + 1} OF {quiz?.questionCount}</p>
+          <p className="text-[10px] font-black text-slate-300 uppercase tracking-[0.2em]">{currentQuestion + 1} OF {quiz?.questions?.length || 0}</p>
         </div>
 
-        {currentQuestion === (quiz?.questionCount || 1) - 1 ? (
+        {currentQuestion === (quiz?.questions?.length || 1) - 1 ? (
           <Button
             onClick={() => setShowSubmitConfirm(true)}
             disabled={submitting}
-            className="h-12 sm:h-14 px-5 sm:px-8 bg-teal-600 hover:bg-teal-700 text-white rounded-xl sm:rounded-2xl font-bold shadow-lg shadow-teal-100 transition-all active:scale-95"
+            className="h-12 sm:h-14 px-6 sm:px-10 bg-indigo-600 hover:bg-slate-900 text-white rounded-xl sm:rounded-2xl font-black shadow-lg shadow-indigo-100 transition-all active:scale-95 leading-none overflow-hidden"
           >
-            Submit Paper
+            FINISH EXAM
           </Button>
         ) : (
           <Button
             onClick={() => {
               setCurrentQuestion(p => p + 1);
-              document.querySelector('main')?.scrollTo({ top: 0, behavior: 'smooth' });
+              document.getElementById('quiz-viewport')?.scrollTo({ top: 0, behavior: 'smooth' });
             }}
-            className="h-12 sm:h-14 px-5 sm:px-8 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl sm:rounded-2xl font-bold shadow-lg shadow-indigo-100 transition-all active:scale-95"
+            className="h-12 sm:h-14 px-6 sm:px-10 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl sm:rounded-2xl font-black shadow-lg shadow-indigo-100 transition-all active:scale-95 flex items-center gap-2"
           >
-            Next <ArrowRight className="w-4 h-4 ml-0 sm:ml-2" />
+            NEXT <ArrowRight className="w-4 h-4" />
           </Button>
         )}
       </div>

@@ -190,24 +190,24 @@ const QuizCard = memo(({ quiz, onStart, onDelete, onViewResults }: { quiz: Quiz;
               {isInProgress && <Badge className="bg-amber-100 text-amber-700 border-amber-200 text-[9px] font-black px-2.5 py-0.5 rounded-lg uppercase tracking-wider">In Progress</Badge>}
             </div>
             <p className="text-sm font-semibold text-slate-500 leading-relaxed max-w-2xl">{quiz.description || 'Academic Assessment'}</p>
-            <div className="flex flex-wrap items-center gap-5 text-slate-400 pt-2 border-t border-slate-50 mt-4">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-lg bg-slate-50 flex items-center justify-center border border-slate-100">
-                  <Clock className="w-4 h-4 text-slate-400" />
+            <div className="flex flex-wrap items-center gap-3 sm:gap-5 text-slate-400 pt-3 border-t border-slate-50 mt-4">
+              <div className="flex items-center gap-2 bg-slate-50/50 pr-3 py-1 rounded-xl border border-slate-100/50">
+                <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-white flex items-center justify-center shadow-sm">
+                  <Clock className="w-3.5 h-3.5 text-indigo-500" />
                 </div>
-                <span className="text-xs font-bold text-slate-600 uppercase tracking-tight">{quiz.duration} Mins</span>
+                <span className="text-[10px] sm:text-xs font-black text-slate-600 uppercase tracking-tight">{quiz.duration}m</span>
               </div>
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-lg bg-slate-50 flex items-center justify-center border border-slate-100">
-                  <Layers className="w-4 h-4 text-slate-400" />
+              <div className="flex items-center gap-2 bg-slate-50/50 pr-3 py-1 rounded-xl border border-slate-100/50">
+                <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-white flex items-center justify-center shadow-sm">
+                  <Layers className="w-3.5 h-3.5 text-teal-500" />
                 </div>
-                <span className="text-xs font-bold text-slate-600 uppercase tracking-tight">{quiz.questionCount} Questions</span>
+                <span className="text-[10px] sm:text-xs font-black text-slate-600 uppercase tracking-tight">{quiz.questionCount} Qs</span>
               </div>
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-lg bg-slate-50 flex items-center justify-center border border-slate-100">
-                  <Trophy className="w-4 h-4 text-slate-400" />
+              <div className="flex items-center gap-2 bg-slate-50/50 pr-3 py-1 rounded-xl border border-slate-100/50">
+                <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-white flex items-center justify-center shadow-sm">
+                  <Trophy className="w-3.5 h-3.5 text-amber-500" />
                 </div>
-                <span className="text-xs font-bold text-slate-600 uppercase tracking-tight">{quiz.totalMarks} Points</span>
+                <span className="text-[10px] sm:text-xs font-black text-slate-600 uppercase tracking-tight">{quiz.totalMarks} Pts</span>
               </div>
             </div>
           </div>
@@ -367,15 +367,24 @@ const StudentDashboard = () => {
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              onClick={fetchQuizzes} 
+              disabled={loading}
+              className="rounded-2xl w-10 h-10 sm:w-12 sm:h-12 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50/50 border border-transparent hover:border-indigo-100 transition-all"
+            >
+              <RefreshCw className={cn("h-4 w-4 sm:h-5 sm:w-5", loading && "animate-spin")} />
+            </Button>
             <Link to="/student/settings">
-              <Button variant="ghost" size="icon" className="rounded-2xl w-12 h-12 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50/50 border border-transparent hover:border-indigo-100 transition-all">
-                <Settings className="h-5 w-5" />
+              <Button variant="ghost" size="icon" className="rounded-2xl w-10 h-10 sm:w-12 sm:h-12 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50/50 border border-transparent hover:border-indigo-100 transition-all">
+                <Settings className="h-4 w-4 sm:h-5 sm:w-5" />
               </Button>
             </Link>
-            <div className="h-6 w-px bg-slate-100 mx-2" />
-            <Button variant="ghost" onClick={handleLogout} className="text-slate-400 hover:text-red-600 hover:bg-red-50/50 border border-transparent hover:border-red-100 h-12 px-5 rounded-2xl font-bold text-xs uppercase tracking-widest transition-all">
-              <LogOut className="h-5 w-5 mr-2" /> Exit
+            <div className="h-6 w-px bg-slate-100 mx-1 sm:mx-2" />
+            <Button variant="ghost" onClick={handleLogout} className="text-slate-400 hover:text-red-600 hover:bg-red-50/50 border border-transparent hover:border-red-100 h-10 sm:h-12 px-3 sm:px-5 rounded-2xl font-black text-[10px] sm:text-xs uppercase tracking-widest transition-all">
+              <LogOut className="h-4 w-4 sm:h-5 sm:w-5 mr-1.5 sm:mr-2" /> <span className="hidden sm:inline">Exit</span>
             </Button>
           </div>
         </div>
