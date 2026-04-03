@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -21,10 +21,18 @@ const StudentAppLogin = () => {
     password: ''
   });
 
+  useEffect(() => {
+    const token = storage.getItem('studentToken');
+    const data = storage.getItem('studentData');
+    if (token && data) {
+      navigate('/student/dashboard', { replace: true });
+    }
+  }, [navigate]);
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!loginData.email || !loginData.password) {
-      toast.error('Identity and Security Key are required');
+      toast.error('Email and Password are required');
       return;
     }
 
@@ -33,10 +41,10 @@ const StudentAppLogin = () => {
       const response = await studentAuthAPI.login({ email: loginData.email, password: loginData.password });
       storage.setItem('studentToken', response.data.token);
       storage.setItem('studentData', JSON.stringify(response.data.student));
-      toast.success('System Access Granted');
+      toast.success('Login Successful');
       navigate('/student/dashboard');
     } catch (error: any) {
-      toast.error(error.response?.data?.message || 'Identity verification failed');
+      toast.error(error.response?.data?.message || 'Invalid email or password');
     } finally {
       setIsLoading(false);
     }
@@ -51,10 +59,10 @@ const StudentAppLogin = () => {
     setIsLoading(true);
     try {
       await studentAuthAPI.forgotPassword(forgotEmail);
-      toast.success('Recovery link transmitted');
+      toast.success('Recovery link sent');
       setShowForgot(false);
     } catch (error: any) {
-      toast.error(error.response?.data?.message || 'Transmission failed');
+      toast.error(error.response?.data?.message || 'Failed to send recovery link');
     } finally {
       setIsLoading(false);
     }
@@ -78,16 +86,16 @@ const StudentAppLogin = () => {
             <GraduationCap className="w-10 h-10 text-indigo-600" />
           </div>
           <h1 className="text-3xl font-black text-slate-900 tracking-tight leading-none mb-2">Student Portal</h1>
-          <p className="text-slate-400 font-bold text-[10px] uppercase tracking-[0.3em]">Institutional Single Sign-On</p>
+          <p className="text-slate-400 font-bold text-[10px] uppercase tracking-[0.3em]">Student Login</p>
         </motion.div>
 
         <Card className="border-slate-100/80 shadow-2xl shadow-slate-200/50 bg-white/90 backdrop-blur-xl rounded-[2.5rem] overflow-hidden border-2 animate-in zoom-in-95 duration-500">
           <CardHeader className="p-10 pb-4">
             <CardTitle className="text-xl font-bold text-slate-800 tracking-tight">
-              {showForgot ? 'Account Recovery' : 'Authorize Identity'}
+              {showForgot ? 'Account Recovery' : 'Sign In'}
             </CardTitle>
             <CardDescription className="text-slate-500 font-semibold text-xs mt-1">
-              {showForgot ? 'Enter your institutional email address' : 'Enter your credentials to access the terminal'}
+              {showForgot ? 'Enter your institutional email address' : 'Enter your credentials to access the portal'}
             </CardDescription>
           </CardHeader>
 
@@ -117,7 +125,7 @@ const StudentAppLogin = () => {
                     </div>
                   </div>
                   <Button type="submit" disabled={isLoading} className="w-full h-14 bg-indigo-600 hover:bg-indigo-700 text-white shadow-xl shadow-indigo-100 rounded-2xl font-bold transition-all uppercase tracking-widest text-xs">
-                    {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Initialise Recovery'}
+                    {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Send Recovery Link'}
                   </Button>
                   <Button
                     type="button"
@@ -125,7 +133,7 @@ const StudentAppLogin = () => {
                     onClick={() => setShowForgot(false)}
                     className="w-full text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-indigo-600 transition-colors"
                   >
-                    Return to Portal
+                    Return to Login
                   </Button>
                 </motion.form>
               ) : (
@@ -139,7 +147,7 @@ const StudentAppLogin = () => {
                 >
                   <div className="space-y-6">
                     <div className="space-y-3">
-                      <Label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Email Terminal</Label>
+                      <Label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Email Address</Label>
                       <div className="relative group">
                         <Mail className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300 group-focus-within:text-indigo-500 transition-colors" />
                         <Input
@@ -155,20 +163,20 @@ const StudentAppLogin = () => {
 
                     <div className="space-y-3">
                       <div className="flex items-center justify-between">
-                        <Label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Access Key</Label>
+                        <Label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Password</Label>
                         <button
                           type="button"
                           onClick={() => setShowForgot(true)}
                           className="text-[10px] font-black text-indigo-600 hover:underline uppercase tracking-tighter"
                         >
-                          Request Key Reset
+                          Forgot Password?
                         </button>
                       </div>
                       <div className="relative group">
                         <Lock className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300 group-focus-within:text-indigo-500 transition-colors" />
                         <Input
                           type={showPassword ? 'text' : 'password'}
-                          placeholder="Your USN is the initial key"
+                          placeholder="Your USN is the initial password"
                           className="h-14 pl-14 pr-14 bg-slate-50/80 border-slate-100 rounded-2xl focus:bg-white focus:ring-4 focus:ring-indigo-50 transition-all font-bold text-slate-700 tracking-wide"
                           value={loginData.password}
                           onChange={(e) => setLoginData({ ...loginData, password: e.target.value })}
@@ -195,7 +203,7 @@ const StudentAppLogin = () => {
                         <Loader2 className="w-6 h-6 animate-spin" />
                       ) : (
                         <span className="flex items-center justify-center gap-3">
-                          Verify Terminal
+                          Login
                           <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                         </span>
                       )}
@@ -218,9 +226,9 @@ const StudentAppLogin = () => {
             <Info className="w-6 h-6 text-indigo-600" />
           </div>
           <div className="min-w-0">
-            <p className="text-[11px] font-black text-slate-900 uppercase tracking-widest mb-1">Authorization Guide</p>
+            <p className="text-[11px] font-black text-slate-900 uppercase tracking-widest mb-1">Login Guide</p>
             <p className="text-[10px] text-slate-500 leading-relaxed font-semibold">
-              If this is your first session, employ your <span className="text-indigo-600 font-black">University Serial Number (USN)</span> as the initial security key.
+              If this is your first time, use your <span className="text-indigo-600 font-black">University Serial Number (USN)</span> as the initial password.
             </p>
           </div>
         </motion.div>
@@ -230,7 +238,7 @@ const StudentAppLogin = () => {
           <div className="h-px w-10 bg-slate-100" />
           <div className="flex items-center gap-2.5 text-slate-300">
             <Shield className="w-3.5 h-3.5" />
-            <span className="text-[9px] font-black uppercase tracking-[0.3em]">Institutional Secure Layer</span>
+            <span className="text-[9px] font-black uppercase tracking-[0.3em]">Secure Student Portal</span>
           </div>
           <div className="h-px w-10 bg-slate-100" />
         </div>

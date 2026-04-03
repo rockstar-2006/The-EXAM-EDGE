@@ -130,6 +130,8 @@ export default function StudentSecureQuiz() {
   const [lastViolation, setLastViolation] = useState('');
   const [isBlocked, setIsBlocked] = useState(false);
   const [securityStatus, setSecurityStatus] = useState<'scanning' | 'ready' | 'failed'>('scanning');
+  const [remainingEscapeTime, setRemainingEscapeTime] = useState(30);
+  const [isOutsideApp, setIsOutsideApp] = useState(false);
 
   // Security Refs
   const lastViolationTime = useRef<number>(0);
@@ -151,6 +153,12 @@ export default function StudentSecureQuiz() {
 
   // Fullscreen Helpers
   const exitFullscreen = useCallback(async () => {
+    try {
+      if (document.fullscreenElement) {
+        await document.exitFullscreen();
+      }
+    } catch (e) { console.error('Exit fullscreen error', e); }
+
     if (!Capacitor.isNativePlatform()) return;
     try {
       await StatusBar.show();
@@ -162,9 +170,18 @@ export default function StudentSecureQuiz() {
   }, []);
 
   const initializeFullscreen = useCallback(async () => {
-    if (!Capacitor.isNativePlatform()) return;
     try {
       isTransitioning.current = true;
+      if (!document.fullscreenElement) {
+        await document.documentElement.requestFullscreen().catch(() => {});
+      }
+    } catch (e) { console.error('Fullscreen error', e); }
+
+    if (!Capacitor.isNativePlatform()) {
+      setTimeout(() => { isTransitioning.current = false; }, 1000);
+      return;
+    }
+    try {
       // Strict: Hide everything
       await StatusBar.hide();
       if (Capacitor.getPlatform() === 'android') {
@@ -257,28 +274,111 @@ export default function StudentSecureQuiz() {
   }, [quizId]);
 
   // Security Monitoring
+  const focusTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
   useEffect(() => {
     if (!quizStarted || quizSubmitted || isBlocked) return;
 
+    const handleFocusLoss = (reason: string) => {
+      if (isSecurityPaused.current || isTransitioning.current || isBlocked) return;
+      setIsOutsideApp(true);
+      toast.error('SURVEILLANCE ALERT', { 
+        description: 'You have left the secure environment. Return immediately.',
+        duration: 30000,
+        position: 'top-center'
+      });
+    };
+
+    const handleFocusGain = () => {
+      if (isOutsideApp) {
+        setIsOutsideApp(false);
+        setWarningCount(prev => {
+          const next = prev + 1;
+          setLastViolation('Loss of Focus / Screen Switching');
+          if (next >= 3) {
+            setIsBlocked(true);
+            handleSubmitQuiz(true, 'Maximum Violations Reached');
+            return 3;
+          }
+          setShowWarningModal(true);
+          return next;
+        });
+        toast.success('Focus restored. Warning issued.', { position: 'top-center' });
+      }
+    };
+
     const handleBlur = () => {
-      if (!document.hasFocus() && !isSecurityPaused.current && !isTransitioning.current) {
-        triggerViolation('Focus lost to external app or notification');
+      if (!document.hasFocus()) {
+        handleFocusLoss('Focus lost to external app or notification for >10s');
       }
     };
 
     const handleVisibility = () => {
-      if (document.hidden && !isSecurityPaused.current && !isTransitioning.current) {
-        triggerViolation('Screen minimized or tab switch');
+      if (document.hidden) {
+        handleFocusLoss('Screen minimized or tab switch for >10s');
+      } else {
+        handleFocusGain();
       }
+    };
+    
+    const handleFocus = () => handleFocusGain();
+
+    const preventSecurityBreach = (e: KeyboardEvent) => {
+      // Prevent F12, Ctrl+Shift+I, Ctrl+Shift+J, Ctrl+U
+      if (
+        e.key === 'F12' ||
+        (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'J' || e.key === 'C')) ||
+        (e.ctrlKey && e.key === 'u')
+      ) {
+        e.preventDefault();
+        triggerViolation('Developer tools shortcut detected');
+      }
+    };
+
+    const preventContextMenu = (e: MouseEvent) => {
+      e.preventDefault();
     };
 
     window.addEventListener('blur', handleBlur, true);
     window.addEventListener('visibilitychange', handleVisibility, true);
+    window.addEventListener('focus', handleFocus, true);
+    window.addEventListener('keydown', preventSecurityBreach);
+    window.addEventListener('contextmenu', preventContextMenu);
+    
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (quizStarted && !quizSubmitted && !isBlocked) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    let interval: NodeJS.Timeout;
+    if (isOutsideApp && !isBlocked && !quizSubmitted) {
+      interval = setInterval(() => {
+        setRemainingEscapeTime(prev => {
+          if (prev <= 1) {
+            setIsBlocked(true);
+            handleSubmitQuiz(true, 'Total Escape Time Exceeded (30s)');
+            clearInterval(interval);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    }
+    
     return () => {
       window.removeEventListener('blur', handleBlur, true);
       window.removeEventListener('visibilitychange', handleVisibility, true);
+      window.removeEventListener('focus', handleFocus, true);
+      window.removeEventListener('keydown', preventSecurityBreach);
+      window.removeEventListener('contextmenu', preventContextMenu);
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      if (interval) clearInterval(interval);
+      if (focusTimeoutRef.current) clearTimeout(focusTimeoutRef.current);
     };
-  }, [quizStarted, quizSubmitted, isBlocked, triggerViolation]);
+  }, [quizStarted, quizSubmitted, isBlocked, triggerViolation, isOutsideApp]);
 
   const handleStartQuiz = async () => {
     try {
@@ -336,7 +436,7 @@ export default function StudentSecureQuiz() {
   if (loading) return (
     <div className="h-screen flex flex-col items-center justify-center bg-white text-slate-800 gap-4">
       <Loader2 className="h-10 w-10 text-indigo-600 animate-spin" />
-      <p className="text-xs font-bold tracking-widest text-slate-400 uppercase">Verifying Environment</p>
+      <p className="text-xs font-bold tracking-widest text-slate-400 uppercase">Loading Quiz</p>
     </div>
   );
 
@@ -345,7 +445,7 @@ export default function StudentSecureQuiz() {
     <div className="min-h-screen bg-[#F8FAFC] flex items-center justify-center p-6 text-slate-900">
       <div className="max-w-md w-full space-y-8">
         <div className="text-center space-y-2">
-          <Badge className="bg-indigo-50 text-indigo-600 border-indigo-100 uppercase text-[10px] py-1 px-3 mb-4 font-bold">Secure Evaluation</Badge>
+          <Badge className="bg-indigo-50 text-indigo-600 border-indigo-100 uppercase text-[10px] py-1 px-3 mb-4 font-bold">Assessment</Badge>
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 leading-tight">{quiz?.title}</h1>
           <div className="grid grid-cols-3 gap-2 mt-6">
             <div className="bg-white p-3 rounded-2xl border border-slate-100 shadow-sm text-center">
@@ -353,11 +453,11 @@ export default function StudentSecureQuiz() {
               <p className="text-sm font-bold text-slate-800">{quiz?.duration}m</p>
             </div>
             <div className="bg-white p-3 rounded-2xl border border-slate-100 shadow-sm text-center">
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Items</p>
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Questions</p>
               <p className="text-sm font-bold text-slate-800">{quiz?.questionCount}</p>
             </div>
             <div className="bg-white p-3 rounded-2xl border border-slate-100 shadow-sm text-center">
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Marks</p>
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Points</p>
               <p className="text-sm font-bold text-slate-800">{quiz?.totalMarks}</p>
             </div>
           </div>
@@ -366,16 +466,16 @@ export default function StudentSecureQuiz() {
         <Card className="border-slate-100 shadow-xl shadow-slate-200/50 rounded-3xl overflow-hidden mt-8 bg-white/70 backdrop-blur-sm">
           <CardHeader className="bg-slate-50/50 border-b border-slate-100 p-6">
             <div className="flex items-center gap-2 text-indigo-600">
-              <Shield className="w-5 h-5" />
-              <CardTitle className="text-sm font-bold uppercase tracking-tight">Proctored Session</CardTitle>
-            </div>
+               <Shield className="w-5 h-5" />
+              <CardTitle className="text-sm font-bold uppercase tracking-tight">Secure Quiz</CardTitle>
+             </div>
           </CardHeader>
           <CardContent className="p-6 space-y-6">
             <ul className="space-y-4">
               {[
-                { icon: Shield, text: "Interface lockout will be active" },
-                { icon: EyeOff, text: "Disable notifications to avoid focus loss" },
-                { icon: Info, text: "Three violations will end the session" }
+                { icon: Shield, text: "Stay within the exam interface" },
+                { icon: EyeOff, text: "Disable notifications to prevent focus loss" },
+                { icon: Info, text: "Three safety violations will end your session" }
               ].map((item, i) => (
                 <li key={i} className="flex items-center gap-3 text-xs font-semibold text-slate-600">
                   <div className="w-6 h-6 rounded-lg bg-teal-50 flex items-center justify-center">
@@ -391,7 +491,7 @@ export default function StudentSecureQuiz() {
               disabled={isStarting}
               className="w-full h-14 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl font-bold shadow-lg shadow-indigo-100 transition-all active:scale-[0.98]"
             >
-              {isStarting ? <Loader2 className="w-5 h-5 animate-spin" /> : "Start Secure Session"}
+              {isStarting ? <Loader2 className="w-5 h-5 animate-spin" /> : "Start Quiz"}
             </Button>
           </CardContent>
         </Card>
@@ -416,7 +516,7 @@ export default function StudentSecureQuiz() {
             <div className="p-2 bg-indigo-100 rounded-xl">
               <Activity className="w-4 h-4 text-indigo-600" />
             </div>
-            <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Detailed Performance Report</p>
+            <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Exam Summary Report</p>
           </div>
 
           <div className="space-y-4 max-h-[40vh] overflow-y-auto pr-2 custom-scrollbar">
@@ -424,7 +524,7 @@ export default function StudentSecureQuiz() {
               <div key={idx} className="p-5 bg-white border border-slate-100 rounded-2xl shadow-sm">
                 <div className="flex items-start justify-between gap-4 mb-3">
                   <div className="flex-1">
-                    <span className="text-[9px] font-bold text-slate-300 uppercase tracking-tight block mb-1">Item {idx + 1}</span>
+                    <span className="text-[9px] font-bold text-slate-300 uppercase tracking-tight block mb-1">Question {idx + 1}</span>
                     <p className="text-sm font-bold text-slate-800 leading-snug">{item.question}</p>
                   </div>
                   <div className={cn(
@@ -436,12 +536,12 @@ export default function StudentSecureQuiz() {
                 </div>
                 <div className="grid grid-cols-2 gap-3 mt-4">
                   <div className="p-3 bg-slate-50 rounded-xl border border-slate-100/50">
-                    <p className="text-[8px] font-black text-slate-400 uppercase mb-1">Your Response</p>
+                    <p className="text-[8px] font-black text-slate-400 uppercase mb-1">Your Choice</p>
                     <p className={cn("text-xs font-bold", item.isCorrect ? "text-teal-600" : "text-red-500")}>{item.studentAnswer || "No Choice"}</p>
                   </div>
                   {!item.isCorrect && (
                     <div className="p-3 bg-teal-50/30 rounded-xl border border-teal-100/30">
-                      <p className="text-[8px] font-black text-teal-500 uppercase mb-1">Validated Solution</p>
+                      <p className="text-[8px] font-black text-teal-500 uppercase mb-1">Correct Answer</p>
                       <p className="text-xs font-bold text-teal-700">{item.correctAnswer}</p>
                     </div>
                   )}
@@ -455,7 +555,7 @@ export default function StudentSecureQuiz() {
           onClick={() => navigate('/student/dashboard')}
           className="w-full h-15 bg-slate-900 hover:bg-black text-white rounded-2xl font-black uppercase tracking-widest text-xs shadow-xl transition-all active:scale-95 py-6"
         >
-          Deauthorize Session
+          Return to Dashboard
         </Button>
       </div>
     </div>
@@ -484,7 +584,38 @@ export default function StudentSecureQuiz() {
   };
 
   return (
-    <div className="h-screen w-full bg-white flex flex-col text-slate-900 overflow-hidden select-none">
+    <div className={cn(
+      "h-screen w-full bg-white flex flex-col text-slate-900 overflow-hidden select-none relative",
+      isOutsideApp && "filter blur-xl grayscale pointer-events-none"
+    )}>
+      <style>{`
+        @media print {
+          body { display: none !important; }
+        }
+        * {
+          -webkit-touch-callout: none;
+          -webkit-user-select: none;
+          -khtml-user-select: none;
+          -moz-user-select: none;
+          -ms-user-select: none;
+          user-select: none;
+        }
+      `}</style>
+
+      {isOutsideApp && (
+        <div className="fixed inset-0 z-[100] bg-black/90 flex flex-col items-center justify-center p-6 text-center animate-in fade-in duration-300">
+           <div className="w-24 h-24 bg-red-600 rounded-full flex items-center justify-center mb-8 animate-pulse shadow-[0_0_50px_rgba(220,38,38,0.5)]">
+             <ShieldAlert className="w-12 h-12 text-white" />
+           </div>
+           <h2 className="text-3xl font-black text-white tracking-tight mb-2 uppercase">Violation in Progress</h2>
+           <p className="text-red-400 font-bold text-sm mb-10 max-w-xs">RETURN TO THE APP IMMEDIATELY. YOUR SESSION WILL BE TERMINATED IN:</p>
+           <div className="text-7xl font-black text-white tabular-nums tracking-tighter mb-4">
+             {remainingEscapeTime}S
+           </div>
+           <p className="text-white/40 text-[10px] font-bold uppercase tracking-widest">Strike Warning {warningCount + 1} of 3</p>
+        </div>
+      )}
+
       {/* 📍 Header */}
       <div className="p-4 sm:p-6 border-b border-slate-100 flex items-center justify-between bg-white relative z-20 shrink-0">
         <div className="flex items-center gap-3 min-w-0">
@@ -492,8 +623,12 @@ export default function StudentSecureQuiz() {
             {currentQuestion + 1}
           </div>
           <div className="min-w-0">
-            <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest leading-none mb-1">Active Session</p>
+            <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest leading-none mb-1">Current Session</p>
             <h1 className="text-xs sm:text-sm font-bold text-slate-900 leading-none truncate max-w-[120px] sm:max-w-none">{quiz?.title}</h1>
+          </div>
+          <div className="flex items-center gap-2 px-2.5 py-1.5 bg-red-50 rounded-lg border border-red-100">
+            <div className="w-1.5 h-1.5 rounded-full bg-red-600 animate-pulse" />
+            <span className="text-[10px] font-black text-red-600 uppercase tracking-tight">Live Surveillance Mode</span>
           </div>
         </div>
 
@@ -512,7 +647,7 @@ export default function StudentSecureQuiz() {
         <div className="px-4 sm:px-6 py-6 pb-40 max-w-2xl mx-auto w-full flex flex-col min-h-full">
           <div className="flex-1 space-y-6 sm:space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-300">
             <div className="space-y-3 sm:space-y-4">
-              <Badge className="bg-teal-50 text-teal-600 border-none font-black text-[8px] sm:text-[9px] px-2.5 py-1 rounded-lg uppercase tracking-wider">{currentQ?.marks} Marks Allocated</Badge>
+              <Badge className="bg-teal-50 text-teal-600 border-none font-black text-[8px] sm:text-[9px] px-2.5 py-1 rounded-lg uppercase tracking-wider">{currentQ?.marks} Marks</Badge>
               <div className="text-base sm:text-2xl font-black text-slate-900 leading-tight tracking-tight">
                 <FormattedText text={currentQ?.question || ''} isQuestion={true} />
               </div>
@@ -545,9 +680,9 @@ export default function StudentSecureQuiz() {
 
               {currentQ?.type === 'short-answer' && (
                 <div className="space-y-2">
-                  <Label className="text-[10px] font-black text-slate-300 uppercase tracking-widest pl-1">Response Console</Label>
+                  <Label className="text-[10px] font-black text-slate-300 uppercase tracking-widest pl-1">Your Answer</Label>
                   <Textarea
-                    placeholder="Input detailed response here..."
+                    placeholder="Type your response here..."
                     className="min-h-[200px] sm:min-h-[250px] rounded-2xl sm:rounded-[2rem] p-6 sm:p-8 border-slate-100 bg-[#FBFDFF] focus:bg-white focus:ring-8 focus:ring-indigo-50/50 font-bold text-sm sm:text-lg transition-all resize-none shadow-inner"
                     value={answers[currentQ._id] || ''}
                     onChange={(e) => setAnswers(p => ({ ...p, [currentQ._id]: e.target.value }))}
@@ -556,37 +691,7 @@ export default function StudentSecureQuiz() {
               )}
             </div>
 
-            {/* 🧩 Quick Navigation Matrix */}
-            <div className="pt-12 pb-4 border-t border-slate-50 mt-12">
-              <div className="flex items-center justify-between mb-6">
-                <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest">Question Repository</p>
-                <div className="flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-teal-400" />
-                  <p className="text-[10px] font-bold text-teal-600 uppercase tracking-tight">{Object.keys(answers).length} / {quiz?.questionCount} Synchronized</p>
-                </div>
-              </div>
-              <div className="grid grid-cols-5 sm:grid-cols-10 gap-3">
-                {quiz?.questions.map((_, idx) => (
-                  <button
-                    key={idx}
-                    onClick={() => {
-                      setCurrentQuestion(idx);
-                      document.querySelector('main')?.scrollTo({ top: 0, behavior: 'smooth' });
-                    }}
-                    className={cn(
-                      "h-10 sm:h-12 rounded-xl sm:rounded-2xl font-black text-[10px] sm:text-xs transition-all active:scale-90 border-2",
-                      currentQuestion === idx
-                        ? "bg-indigo-600 border-indigo-600 text-white shadow-lg shadow-indigo-100 scale-110"
-                        : answers[_?._id]
-                          ? "bg-teal-50 border-teal-50 text-teal-600"
-                          : "bg-white border-slate-50 text-slate-200 hover:border-slate-100"
-                    )}
-                  >
-                    {idx + 1}
-                  </button>
-                ))}
-              </div>
-            </div>
+            {/* Enforcement of Linear Flow: Navigator Removed */}
           </div>
         </div>
       </main>
@@ -615,7 +720,7 @@ export default function StudentSecureQuiz() {
             disabled={submitting}
             className="h-12 sm:h-14 px-5 sm:px-8 bg-teal-600 hover:bg-teal-700 text-white rounded-xl sm:rounded-2xl font-bold shadow-lg shadow-teal-100 transition-all active:scale-95"
           >
-            Submit Exam
+            Submit Paper
           </Button>
         ) : (
           <Button
@@ -635,11 +740,11 @@ export default function StudentSecureQuiz() {
         <DialogContent className="rounded-3xl p-8 max-w-sm w-[90vw] border-none shadow-2xl animate-in zoom-in-95 duration-200">
           <div className="text-center space-y-4">
             <div className="w-16 h-16 bg-red-50 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-red-100">
-              <AlertTriangle className="w-10 h-10 text-red-600" />
+              <ShieldAlert className="w-10 h-10 text-red-600" />
             </div>
-            <h2 className="text-xl font-bold text-red-600 tracking-tight">Security Violation</h2>
+            <h2 className="text-xl font-bold text-red-600 tracking-tight">Safety Alert</h2>
             <p className="text-slate-500 font-medium leading-relaxed text-sm">
-              Detected: <span className="text-red-600 font-bold block mt-1">"{lastViolation}"</span>. Please restore the secure environment.
+              Notice: <span className="text-red-600 font-bold block mt-1">"{lastViolation}"</span>. Please return to your exam paper.
             </p>
             <div className="pt-2">
               <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-4">Strike {warningCount} of 3</p>
@@ -655,9 +760,9 @@ export default function StudentSecureQuiz() {
             <div className="w-16 h-16 bg-indigo-50 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-indigo-100">
               <CheckCircle2 className="w-10 h-10 text-indigo-600" />
             </div>
-            <h2 className="text-xl font-bold text-slate-900 tracking-tight">Confirm Submission</h2>
+            <h2 className="text-xl font-bold text-slate-900 tracking-tight">Submit Exam?</h2>
             <p className="text-slate-500 font-medium leading-relaxed text-sm">
-              You have completed <span className="text-indigo-600 font-bold">{Object.keys(answers).length}</span> out of <span className="font-bold">{quiz?.questionCount}</span> items. Ready to sync final responses?
+              You have answered <span className="text-indigo-600 font-bold">{Object.keys(answers).length}</span> out of <span className="font-bold">{quiz?.questionCount}</span> questions. Ready to submit?
             </p>
             <div className="flex gap-3 pt-4">
               <Button variant="ghost" onClick={() => setShowSubmitConfirm(false)} className="flex-1 h-12 font-bold text-slate-500 rounded-xl">Review</Button>

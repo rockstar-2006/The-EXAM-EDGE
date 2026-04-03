@@ -76,7 +76,7 @@ const EmptyState = memo(({ icon: Icon, message, onRetry }: any) => (
         onClick={onRetry}
         className="h-12 px-8 font-bold text-xs rounded-2xl bg-white border-slate-200 text-indigo-600 hover:bg-indigo-50 hover:border-indigo-100 transition-all uppercase tracking-widest shadow-sm"
       >
-        Sync Repository
+        Refresh Quizzes
       </Button>
     )}
   </div>
@@ -94,7 +94,7 @@ const QuizResultsModal = memo(({ isOpen, onClose, result, loading }: any) => {
               "font-bold uppercase text-[9px] tracking-[0.1em] px-2.5 py-1 rounded-lg border-none",
               result?.status === 'blocked' ? "bg-red-500 text-white" : "bg-teal-500 text-white"
             )}>
-              {result?.status === 'blocked' ? 'Assessment Restricted' : 'Evaluation Summary'}
+              {result?.status === 'blocked' ? 'Quiz Blocked' : 'Quiz Results'}
             </Badge>
           </div>
           <DialogTitle className="text-2xl font-bold text-slate-900 tracking-tight">
@@ -106,7 +106,7 @@ const QuizResultsModal = memo(({ isOpen, onClose, result, loading }: any) => {
           {loading ? (
             <div className="py-24 flex flex-col items-center justify-center gap-4">
               <Loader2 className="h-12 w-12 text-indigo-600 animate-spin" />
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] animate-pulse">Retrieving Analytics...</p>
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] animate-pulse">Loading Your Results...</p>
             </div>
           ) : (
             <div className="space-y-8 pb-10">
@@ -127,9 +127,9 @@ const QuizResultsModal = memo(({ isOpen, onClose, result, loading }: any) => {
                     <div className="p-2 bg-red-50 rounded-xl">
                       <AlertTriangle className="h-4 w-4 text-red-600" />
                     </div>
-                    <p className="text-[10px] font-bold uppercase tracking-[0.15em]">Integrity Compromise Detected</p>
+                    <p className="text-[10px] font-bold uppercase tracking-[0.15em]">Security Alert</p>
                   </div>
-                  <p className="text-sm font-bold italic leading-relaxed pl-1">{result?.reason || 'Academic integrity violation recorded.'}</p>
+                  <p className="text-sm font-bold italic leading-relaxed pl-1">{result?.reason || 'A rule violation was recorded during this session.'}</p>
                 </div>
               )}
 
@@ -139,7 +139,7 @@ const QuizResultsModal = memo(({ isOpen, onClose, result, loading }: any) => {
                   <div key={idx} className="p-6 rounded-[2rem] border border-slate-50 bg-[#FBFDFF] hover:border-slate-200 transition-colors">
                     <div className="flex items-start justify-between gap-6 mb-4">
                       <div className="flex-1 min-w-0">
-                        <span className="text-[10px] font-bold text-slate-400 mb-1.5 block uppercase tracking-wider">Item {idx + 1}</span>
+                        <span className="text-[10px] font-bold text-slate-400 mb-1.5 block uppercase tracking-wider">Question {idx + 1}</span>
                         <p className="text-sm sm:text-base font-bold text-slate-800 leading-snug break-words">{ans.question}</p>
                       </div>
                       <div className={cn(
@@ -159,7 +159,7 @@ const QuizResultsModal = memo(({ isOpen, onClose, result, loading }: any) => {
                       </div>
                       {!ans.isCorrect && (
                         <div className="flex flex-col gap-1.5 bg-teal-50/50 p-3.5 rounded-2xl border border-teal-100/50 shadow-sm">
-                          <span className="text-[9px] font-black text-teal-600/50 uppercase tracking-widest">Correct Solution</span>
+                          <span className="text-[9px] font-black text-teal-600/50 uppercase tracking-widest">Correct Answer</span>
                           <span className="text-xs font-bold text-teal-700 leading-tight">{ans.correctAnswer}</span>
                         </div>
                       )}
@@ -189,7 +189,7 @@ const QuizCard = memo(({ quiz, onStart, onDelete, onViewResults }: { quiz: Quiz;
               <h3 className="text-xl font-bold text-slate-900 leading-tight">{quiz.title}</h3>
               {isInProgress && <Badge className="bg-amber-100 text-amber-700 border-amber-200 text-[9px] font-black px-2.5 py-0.5 rounded-lg uppercase tracking-wider">In Progress</Badge>}
             </div>
-            <p className="text-sm font-semibold text-slate-500 leading-relaxed max-w-2xl">{quiz.description || 'Institutional Assessment Resource'}</p>
+            <p className="text-sm font-semibold text-slate-500 leading-relaxed max-w-2xl">{quiz.description || 'Academic Assessment'}</p>
             <div className="flex flex-wrap items-center gap-5 text-slate-400 pt-2 border-t border-slate-50 mt-4">
               <div className="flex items-center gap-2">
                 <div className="w-8 h-8 rounded-lg bg-slate-50 flex items-center justify-center border border-slate-100">
@@ -201,13 +201,13 @@ const QuizCard = memo(({ quiz, onStart, onDelete, onViewResults }: { quiz: Quiz;
                 <div className="w-8 h-8 rounded-lg bg-slate-50 flex items-center justify-center border border-slate-100">
                   <Layers className="w-4 h-4 text-slate-400" />
                 </div>
-                <span className="text-xs font-bold text-slate-600 uppercase tracking-tight">{quiz.questionCount} Items</span>
+                <span className="text-xs font-bold text-slate-600 uppercase tracking-tight">{quiz.questionCount} Questions</span>
               </div>
               <div className="flex items-center gap-2">
                 <div className="w-8 h-8 rounded-lg bg-slate-50 flex items-center justify-center border border-slate-100">
                   <Trophy className="w-4 h-4 text-slate-400" />
                 </div>
-                <span className="text-xs font-bold text-slate-600 uppercase tracking-tight">{quiz.totalMarks} Marks</span>
+                <span className="text-xs font-bold text-slate-600 uppercase tracking-tight">{quiz.totalMarks} Points</span>
               </div>
             </div>
           </div>
@@ -224,7 +224,7 @@ const QuizCard = memo(({ quiz, onStart, onDelete, onViewResults }: { quiz: Quiz;
                   className="h-14 px-8 rounded-2xl border-indigo-100 font-bold text-xs text-indigo-600 hover:bg-indigo-50 hover:border-indigo-200 transition-all uppercase tracking-widest shadow-sm bg-white border"
                   variant="ghost"
                 >
-                  Analysis
+                  Results
                 </Button>
               </div>
             ) : isDisqualified ? (
@@ -244,7 +244,7 @@ const QuizCard = memo(({ quiz, onStart, onDelete, onViewResults }: { quiz: Quiz;
                   isInProgress ? "bg-amber-500 hover:bg-amber-600 text-white shadow-amber-100" : "bg-indigo-600 hover:bg-indigo-700 text-white shadow-indigo-100"
                 )}
               >
-                {isInProgress ? 'Resume Attempt' : 'Start Exam'}
+                {isInProgress ? 'Resume Quiz' : 'Start Quiz'}
                 <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
               </Button>
             )}
@@ -328,7 +328,7 @@ const StudentDashboard = () => {
   const handleLogout = () => {
     storage.removeItem('studentToken');
     storage.removeItem('studentData');
-    toast.info('Session deauthorized');
+    toast.info('Logged Out Successfully');
     navigate('/student/login');
   };
 
@@ -344,8 +344,8 @@ const StudentDashboard = () => {
           <GraduationCap className="h-10 w-10 text-indigo-600" />
         </div>
         <div className="text-center space-y-2">
-          <p className="text-[11px] font-black text-slate-900 uppercase tracking-[0.35em] animate-in fade-in zoom-in duration-500">Initializing Terminal</p>
-          <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest animate-pulse">Synchronizing Assessment Hub</p>
+          <p className="text-[11px] font-black text-slate-900 uppercase tracking-[0.35em] animate-in fade-in zoom-in duration-500">Loading Dashboard</p>
+          <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest animate-pulse">Fetching your quizzes</p>
         </div>
         <Loader2 className="h-5 w-5 text-indigo-400 animate-spin absolute bottom-20" />
       </div>
@@ -362,7 +362,7 @@ const StudentDashboard = () => {
               <GraduationCap className="h-7 w-7 text-white" />
             </div>
             <div>
-              <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] leading-none mb-1.5 opacity-70">Internal Terminal</p>
+              <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] leading-none mb-1.5 opacity-70">Student Account</p>
               <h1 className="text-xl font-bold text-slate-900 leading-none tracking-tight">Dashboard</h1>
             </div>
           </div>
@@ -389,9 +389,9 @@ const StudentDashboard = () => {
                 <User className="h-8 w-8 sm:h-10 sm:h-10 text-slate-300 group-hover:text-indigo-400 transition-colors" />
               </div>
               <div className="min-w-0">
-                <h2 className="text-xl sm:text-3xl font-black text-slate-900 tracking-tight mb-1 sm:mb-2 leading-tight truncate">{studentData?.name || 'Verified Student Account'}</h2>
+                <h2 className="text-xl sm:text-3xl font-black text-slate-900 tracking-tight mb-1 sm:mb-2 leading-tight truncate">{studentData?.name || 'Student Account'}</h2>
                 <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-                  <Badge variant="outline" className="text-[9px] font-black text-slate-500 border-slate-200 px-2 py-0.5 sm:px-3 sm:py-1 rounded-lg uppercase tracking-wider bg-white">USR: {studentData?.usn || 'Terminal'}</Badge>
+                  <Badge variant="outline" className="text-[9px] font-black text-slate-500 border-slate-200 px-2 py-0.5 sm:px-3 sm:py-1 rounded-lg uppercase tracking-wider bg-white">ID: {studentData?.usn || 'N/A'}</Badge>
                   <div className="flex items-center gap-2 text-[9px] font-black text-teal-600 uppercase tracking-[0.2em] bg-teal-50/50 px-2 py-0.5 sm:px-3 sm:py-1 rounded-lg border border-teal-100">
                     <div className="w-1.5 h-1.5 rounded-full bg-teal-500 animate-pulse" />
                     Live
@@ -402,10 +402,10 @@ const StudentDashboard = () => {
 
             <div className="flex gap-4 sm:gap-6 border-t sm:border-t-0 sm:border-l border-slate-50 pt-6 sm:pt-0 sm:pl-10 shrink-0">
               <div className="space-y-1">
-                <p className="text-[9px] sm:text-[10px] font-black text-slate-300 uppercase tracking-widest">Repository</p>
+                <p className="text-[9px] sm:text-[10px] font-black text-slate-300 uppercase tracking-widest">Available</p>
                 <div className="flex items-baseline gap-1.5">
                   <p className="text-2xl sm:text-3xl font-black text-slate-900">{availableQuizzes.length}</p>
-                  <span className="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-tighter">Tasks</span>
+                  <span className="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-tighter">Quizzes</span>
                 </div>
               </div>
               <div className="w-px h-10 sm:h-12 bg-slate-50 mx-1 sm:mx-2" />
@@ -439,7 +439,7 @@ const StudentDashboard = () => {
                     value="disqualified"
                     className="flex-1 px-3 sm:px-6 py-3 rounded-xl data-[state=active]:bg-white data-[state=active]:text-red-600 data-[state=active]:shadow-sm text-slate-400 font-bold text-[10px] sm:text-[11px] uppercase tracking-wider transition-all"
                   >
-                    Restricted
+                    Blocked
                   </TabsTrigger>
                 </TabsList>
               </div>
@@ -455,7 +455,7 @@ const StudentDashboard = () => {
                 >
                   <TabsContent value="available" className="mt-0 space-y-6 outline-none">
                     {availableQuizzes.length === 0 ? (
-                      <EmptyState icon={Search} message="Zero assessments found in repository." onRetry={fetchQuizzes} />
+                      <EmptyState icon={Search} message="No quizzes available." onRetry={fetchQuizzes} />
                     ) : (
                       availableQuizzes.map((quiz) => (
                         <QuizCard key={quiz.id || quiz._id} quiz={quiz} onStart={handleStartQuiz} onDelete={() => { }} onViewResults={handleViewResults} />
@@ -465,7 +465,7 @@ const StudentDashboard = () => {
 
                   <TabsContent value="completed" className="mt-0 space-y-6 outline-none">
                     {completedQuizzes.length === 0 ? (
-                      <EmptyState icon={CheckCircle2} message="No completed records detected." />
+                      <EmptyState icon={CheckCircle2} message="No completed quizzes." />
                     ) : (
                       completedQuizzes.map((quiz) => (
                         <QuizCard key={quiz.id || quiz._id} quiz={quiz} onStart={handleStartQuiz} onDelete={() => { }} onViewResults={handleViewResults} />
@@ -475,7 +475,7 @@ const StudentDashboard = () => {
 
                   <TabsContent value="disqualified" className="mt-0 space-y-6 outline-none">
                     {disqualifiedQuizzes.length === 0 ? (
-                      <EmptyState icon={Shield} message="Excellent Performance: Zero integrity alerts noted." />
+                      <EmptyState icon={Shield} message="No blocked quizzes." />
                     ) : (
                       disqualifiedQuizzes.map((quiz) => (
                         <QuizCard key={quiz.id || quiz._id} quiz={quiz} onStart={handleStartQuiz} onDelete={() => { }} onViewResults={handleViewResults} />
