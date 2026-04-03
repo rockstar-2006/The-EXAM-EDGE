@@ -120,6 +120,8 @@ export function LoginCard() {
     show: { opacity: 1, y: 0 }
   };
 
+  const [activeTab, setActiveTab] = useState('login');
+
   return (
     <motion.div
       initial={{ opacity: 0, scale: 0.95, y: 20 }}
@@ -160,18 +162,20 @@ export function LoginCard() {
         <CardContent className="px-8 pb-8">
           <div className="w-full space-y-8">
             {!showForgot && (
-              <Tabs defaultValue="login" className="w-full">
+              <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
                 <TabsList className="grid w-full grid-cols-2 mb-8 bg-muted/50 p-1 rounded-xl">
                   <TabsTrigger value="login" className="rounded-lg data-[state=active]:shadow-md font-bold text-xs uppercase tracking-wider">Sign In</TabsTrigger>
                   <TabsTrigger value="register" className="rounded-lg data-[state=active]:shadow-md font-bold text-xs uppercase tracking-wider">Join Us</TabsTrigger>
                 </TabsList>
 
                 <AnimatePresence mode="wait">
+                  {activeTab === 'login' && (
                   <TabsContent value="login" key="login">
                     <motion.form
                       variants={formVariants}
                       initial="hidden"
                       animate="show"
+                      exit={{ opacity: 0, x: -20 }}
                       onSubmit={handleLogin}
                       className="space-y-4"
                     >
@@ -255,7 +259,9 @@ export function LoginCard() {
                       </motion.div>
                     </motion.form>
                   </TabsContent>
+                  )}
 
+                  {activeTab === 'register' && (
                   <TabsContent value="register" key="register">
                     <motion.form
                       variants={formVariants}
@@ -333,6 +339,7 @@ export function LoginCard() {
                       </motion.div>
                     </motion.form>
                   </TabsContent>
+                  )}
                 </AnimatePresence>
               </Tabs>
             )}

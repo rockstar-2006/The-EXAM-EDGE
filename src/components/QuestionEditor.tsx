@@ -183,7 +183,7 @@ export function QuestionEditor({
           {/* Form / Content */}
           <AnimatePresence mode="wait">
             {isEditing ? (
-              <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95 }} className="space-y-6">
+              <motion.div key="editing" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95 }} className="space-y-6">
                 <div className="space-y-1.5">
                   <Label className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/60 ml-1">Question Matrix</Label>
                   <Textarea
@@ -251,7 +251,7 @@ export function QuestionEditor({
                 </div>
               </motion.div>
             ) : (
-              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
+              <motion.div key="viewing" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-6">
                 <div className="text-xl font-black tracking-tight group-hover:text-primary transition-colors">
                   <FormattedText text={question.question} isQuestion={true} />
                 </div>

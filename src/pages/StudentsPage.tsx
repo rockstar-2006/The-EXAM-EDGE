@@ -403,8 +403,10 @@ export default function StudentsPage() {
                       <AnimatePresence mode="wait">
                         {uploading ? (
                           <motion.div
+                            key="uploading"
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
                             className="space-y-4"
                           >
                             <div className="w-16 h-16 border-4 border-primary/20 border-t-primary rounded-full animate-spin mx-auto" />
@@ -413,8 +415,10 @@ export default function StudentsPage() {
                           </motion.div>
                         ) : (
                           <motion.div
+                            key="ready"
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
                             className="space-y-4"
                           >
                             <div className="w-16 h-16 rounded-2xl bg-muted group-hover:bg-primary/10 transition-colors flex items-center justify-center mx-auto mb-4">
