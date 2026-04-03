@@ -8,8 +8,10 @@ import { toast } from 'sonner';
 import { Lock, Mail, Shield, Eye, EyeOff, GraduationCap, ChevronRight, Loader2, Info } from 'lucide-react';
 import { studentAuthAPI, storage } from '@/services/api';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useStudentAuth } from '../context/StudentAuthContext';
 
 const StudentAppLogin = () => {
+  const { updateStudentData } = useStudentAuth();
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -39,8 +41,9 @@ const StudentAppLogin = () => {
     setIsLoading(true);
     try {
       const response = await studentAuthAPI.login({ email: loginData.email, password: loginData.password });
-      storage.setItem('studentToken', response.data.token);
-      storage.setItem('studentData', JSON.stringify(response.data.student));
+      // The studentAuthAPI.login already sets the items in storage, 
+      // but we update the context for reactive state updates.
+      updateStudentData(response.data.student, response.data.token);
       toast.success('Login Successful');
       navigate('/student/dashboard');
     } catch (error: any) {

@@ -25,6 +25,7 @@ import StudentSecureQuiz from "./pages/StudentSecureQuiz";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { DashboardLayout } from "./components/DashboardLayout";
 import UpdateManager from "./components/UpdateManager";
+import { StudentAuthProvider } from "./context/StudentAuthContext";
 
 const queryClient = new QueryClient();
 
@@ -44,45 +45,47 @@ const App = () => {
     return (
         <QueryClientProvider client={queryClient}>
             <TooltipProvider>
-                {loading && <LoadingScreen />}
-                <UpdateManager />
-                <Toaster />
-                <Sonner position="top-center" />
+                <StudentAuthProvider>
+                    {loading && <LoadingScreen />}
+                    <UpdateManager />
+                    <Toaster />
+                    <Sonner position="top-center" />
 
-                <Router>
-                    <Routes>
-                        {/* Faculty Routes */}
-                        <Route path="/login" element={<LoginPage />} />
-                        <Route path="/reset-password/:token" element={<ResetPasswordPage type="teacher" />} />
+                    <Router>
+                        <Routes>
+                            {/* Faculty Routes */}
+                            <Route path="/login" element={<LoginPage />} />
+                            <Route path="/reset-password/:token" element={<ResetPasswordPage type="teacher" />} />
 
-                        <Route element={<ProtectedRoute role="teacher" />}>
-                            <Route element={<DashboardLayout />}>
-                                <Route path="/dashboard" element={<DashboardPage />} />
-                                <Route path="/students" element={<StudentsPage />} />
-                                <Route path="/create-quiz" element={<CreateQuizPage />} />
-                                <Route path="/results" element={<ResultsPage />} />
-                                <Route path="/quiz/:quizId/results" element={<QuizResultsPage />} />
-                                <Route path="/bookmarks" element={<BookmarksPage />} />
-                                <Route path="/settings" element={<SettingsPage type="teacher" />} />
+                            <Route element={<ProtectedRoute role="teacher" />}>
+                                <Route element={<DashboardLayout />}>
+                                    <Route path="/dashboard" element={<DashboardPage />} />
+                                    <Route path="/students" element={<StudentsPage />} />
+                                    <Route path="/create-quiz" element={<CreateQuizPage />} />
+                                    <Route path="/results" element={<ResultsPage />} />
+                                    <Route path="/quiz/:quizId/results" element={<QuizResultsPage />} />
+                                    <Route path="/bookmarks" element={<BookmarksPage />} />
+                                    <Route path="/settings" element={<SettingsPage type="teacher" />} />
+                                </Route>
                             </Route>
-                        </Route>
 
-                        {/* Student Routes */}
-                        <Route path="/student/login" element={<StudentAppLogin />} />
-                        <Route path="/student/reset-password/:token" element={<ResetPasswordPage type="student" />} />
-                        <Route path="/quiz/share/:token" element={<StudentQuizPage />} />
+                            {/* Student Routes */}
+                            <Route path="/student/login" element={<StudentAppLogin />} />
+                            <Route path="/student/reset-password/:token" element={<ResetPasswordPage type="student" />} />
+                            <Route path="/quiz/share/:token" element={<StudentQuizPage />} />
 
-                        <Route element={<ProtectedRoute role="student" />}>
-                            <Route path="/student/dashboard" element={<StudentDashboard />} />
-                            <Route path="/student/quiz/:quizId" element={<StudentSecureQuiz />} />
-                            <Route path="/student/settings" element={<SettingsPage type="student" />} />
-                        </Route>
+                            <Route element={<ProtectedRoute role="student" />}>
+                                <Route path="/student/dashboard" element={<StudentDashboard />} />
+                                <Route path="/student/quiz/:quizId" element={<StudentSecureQuiz />} />
+                                <Route path="/student/settings" element={<SettingsPage type="student" />} />
+                            </Route>
 
-                        {/* General Routes */}
-                        <Route path="/" element={<Navigate to={isMobile ? "/student/login" : "/login"} replace />} />
-                        <Route path="*" element={<NotFound />} />
-                    </Routes>
-                </Router>
+                            {/* General Routes */}
+                            <Route path="/" element={<Navigate to={isMobile ? "/student/login" : "/login"} replace />} />
+                            <Route path="*" element={<NotFound />} />
+                        </Routes>
+                    </Router>
+                </StudentAuthProvider>
             </TooltipProvider>
         </QueryClientProvider>
     );

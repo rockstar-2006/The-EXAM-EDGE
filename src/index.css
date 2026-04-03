@@ -103,11 +103,13 @@ All colors MUST be HSL.
   html,
   body,
   #root {
-    height: 100dvh;
+    height: auto;
+    min-height: 100dvh;
     width: 100vw;
     margin: 0;
     padding: 0;
-    overflow: hidden;
+    overflow-x: hidden;
+    overflow-y: scroll !important;
     background: canvas;
   }
 

@@ -144,6 +144,9 @@ export default function StudentQuizPage() {
   const lastViolationTime = useRef<number>(0);
   const isSecurityPaused = useRef(false);
   const isTransitioning = useRef(false);
+  const escapeTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const isOutsideAppRef = useRef(false);
+  const warningCountRef = useRef(0);
 
   useEffect(() => {
     fetchQuizData();
@@ -155,30 +158,65 @@ export default function StudentQuizPage() {
     if (now - lastViolationTime.current < 3000) return;
     lastViolationTime.current = now;
 
-    setWarningCount(prev => {
-      const next = prev + 1;
-      setLastViolation(reason);
-      toast.error(`SECURITY ALERT [${next}/3]`, { description: reason, position: 'top-center' });
+    const next = warningCountRef.current + 1;
+    warningCountRef.current = next;
+    setWarningCount(next);
+    setLastViolation(reason);
+    toast.error(`SECURITY ALERT [${next}/3]`, { description: reason, position: 'top-center' });
 
-      if (next >= 3) {
-        setIsBlocked(true);
-        handleSubmitQuiz(true, `Strikes Exceeded: ${reason}`);
-        return 3;
-      }
+    if (next >= 3) {
+      setIsBlocked(true);
+      handleSubmitQuiz(true, `Strikes Exceeded: ${reason}`);
+    } else {
       isSecurityPaused.current = true;
       setShowWarningModal(true);
-      return next;
-    });
+    }
   }, [isBlocked, attemptId]);
 
   // Security Monitoring
   const focusTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Keep refs in sync with state
+  useEffect(() => { isOutsideAppRef.current = isOutsideApp; }, [isOutsideApp]);
+
+  // 🔒 30-Second Escape Buffer Timer — runs independently when outside app
+  useEffect(() => {
+    if (!quizStarted || quizSubmitted || isBlocked) return;
+
+    if (isOutsideApp) {
+      escapeTimerRef.current = setInterval(() => {
+        setRemainingEscapeTime(prev => {
+          if (prev <= 1) {
+            setIsBlocked(true);
+            handleSubmitQuiz(true, 'Total Escape Time Exceeded (30s)');
+            if (escapeTimerRef.current) clearInterval(escapeTimerRef.current);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    } else {
+      if (escapeTimerRef.current) {
+        clearInterval(escapeTimerRef.current);
+        escapeTimerRef.current = null;
+      }
+      setRemainingEscapeTime(30);
+    }
+
+    return () => {
+      if (escapeTimerRef.current) {
+        clearInterval(escapeTimerRef.current);
+        escapeTimerRef.current = null;
+      }
+    };
+  }, [isOutsideApp, quizStarted, quizSubmitted, isBlocked]);
 
   useEffect(() => {
     if (!quizStarted || quizSubmitted || isBlocked) return;
 
     const handleFocusLoss = (reason: string) => {
       if (isSecurityPaused.current || isTransitioning.current || isBlocked) return;
+      if (isOutsideAppRef.current) return; // Already flagged
       setIsOutsideApp(true);
       toast.error('URGENT SAFETY ALERT', { 
         description: 'You have left the secure exam interface. Return immediately.',
@@ -188,32 +226,35 @@ export default function StudentQuizPage() {
     };
 
     const handleFocusGain = () => {
-      if (isOutsideApp) {
-        setIsOutsideApp(false);
-        setWarningCount(prev => {
-          const next = prev + 1;
-          setLastViolation('Loss of Focus / Application Switch');
-          if (next >= 3) {
-            setIsBlocked(true);
-            handleSubmitQuiz(true, 'Maximum Violations Reached');
-            return 3;
-          }
-          setShowWarningModal(true);
-          return next;
-        });
-        toast.success('Focus restored. Safety warning issued.', { position: 'top-center' });
+      if (!isOutsideAppRef.current) return; // Not flagged
+      if (isSecurityPaused.current) return; // Already handling
+      setIsOutsideApp(false);
+
+      // Issue a strike on return
+      const next = warningCountRef.current + 1;
+      warningCountRef.current = next;
+      setWarningCount(next);
+      setLastViolation('Loss of Focus / Application Switch');
+      
+      if (next >= 3) {
+        setIsBlocked(true);
+        handleSubmitQuiz(true, 'Maximum Violations Reached');
+      } else {
+        isSecurityPaused.current = true;
+        setShowWarningModal(true);
       }
+      toast.success(`Focus restored. Strike ${next} of 3 issued.`, { position: 'top-center' });
     };
 
     const handleBlur = () => {
       if (!document.hasFocus()) {
-        handleFocusLoss('Focus lost to external app or notification for >10s');
+        handleFocusLoss('Focus lost to external app or notification');
       }
     };
 
     const handleVisibility = () => {
       if (document.hidden) {
-        handleFocusLoss('Screen minimized or tab switch for >10s');
+        handleFocusLoss('Screen minimized or tab switch');
       } else {
         handleFocusGain();
       }
@@ -224,27 +265,11 @@ export default function StudentQuizPage() {
     window.addEventListener('blur', handleBlur, true);
     window.addEventListener('visibilitychange', handleVisibility, true);
     window.addEventListener('focus', handleFocus, true);
-    
-    let interval: NodeJS.Timeout;
-    if (isOutsideApp && !isBlocked && !quizSubmitted) {
-      interval = setInterval(() => {
-        setRemainingEscapeTime(prev => {
-          if (prev <= 1) {
-            setIsBlocked(true);
-            handleSubmitQuiz(true, 'Total Escape Time Exceeded (30s)');
-            clearInterval(interval);
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
-    }
 
     return () => {
       window.removeEventListener('blur', handleBlur, true);
       window.removeEventListener('visibilitychange', handleVisibility, true);
       window.removeEventListener('focus', handleFocus, true);
-      if (interval) clearInterval(interval);
       if (focusTimeoutRef.current) clearTimeout(focusTimeoutRef.current);
     };
   }, [quizStarted, quizSubmitted, isBlocked, triggerViolation]);

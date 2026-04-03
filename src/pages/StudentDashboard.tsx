@@ -1,369 +1,346 @@
-import { useState, useEffect, useCallback, memo } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
-import { toast } from 'sonner';
-import {
-  Search,
-  RefreshCw,
-  LogOut,
-  Trophy,
-  Clock,
-  CheckCircle,
-  AlertTriangle,
-  PlayCircle,
-  Clock3,
-  BookOpen,
-  User,
-  Activity,
-  Layers,
-  FileText,
-  BadgeCheck,
+import React, { useState, useEffect, memo, useCallback } from 'react';
+import { 
+  Search, 
+  GraduationCap, 
+  Settings, 
+  LogOut, 
+  RefreshCw, 
+  User, 
+  BadgeCheck, 
+  Clock, 
+  SearchX, 
+  Shield, 
+  CheckCircle2, 
+  AlertCircle,
   ChevronRight,
-  GraduationCap,
-  EyeOff,
-  CheckCircle2,
-  XCircle,
-  Settings,
-  ArrowRight,
-  Loader2,
-  Shield
+  TrendingUp,
+  MapPin,
+  Calendar,
+  Lock,
+  Timer
 } from 'lucide-react';
-import { studentAuthAPI, storage } from '@/services/api';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { useNavigate, Link } from 'react-router-dom';
+import { useStudentAuth } from '../context/StudentAuthContext';
+import { studentAuthAPI } from '../services/api';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import {
+import { toast } from 'sonner';
+import { cn } from '@/lib/utils';
+import { 
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
+  DialogFooter
 } from "@/components/ui/dialog";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { cn } from '@/lib/utils';
-import { motion, AnimatePresence } from 'framer-motion';
 
-// --- TYPES ---
+// --- Types ---
 interface Quiz {
   id?: string;
   _id?: string;
   title: string;
   description?: string;
+  category?: string;
+  subject?: string;
   duration: number;
-  totalMarks: number;
-  questionCount: number;
-  createdAt: string;
+  totalQuestions?: number;
+  questionCount?: number;
+  status?: string;
+  result?: {
+    score: number;
+    totalQuestions: number;
+    percentage: number;
+    isPassed: boolean;
+  };
   attemptStatus?: 'not_started' | 'started' | 'submitted';
-  score?: number;
-  reason?: string;
-  isScheduled?: boolean;
-  startDate?: string;
-  endDate?: string;
-  startTime?: string;
-  endTime?: string;
 }
 
-// --- SUBCOMPONENTS ---
+// Helper to safely get quiz field values regardless of backend naming
+const getQuizQuestionCount = (q: Quiz) => q.totalQuestions || q.questionCount || 0;
+const getQuizCategory = (q: Quiz) => q.category || q.subject || 'General';
+const getQuizDescription = (q: Quiz) => q.description || '';
 
-const EmptyState = memo(({ icon: Icon, message, onRetry }: any) => (
-  <div className="py-16 text-center bg-white rounded-[2.5rem] border border-slate-100 px-6 shadow-sm">
-    <div className="w-16 h-16 bg-slate-50 rounded-3xl flex items-center justify-center mx-auto mb-6 border border-slate-100">
-      {Icon ? <Icon className="w-8 h-8 text-slate-300" /> : <div className="w-8 h-8 bg-slate-200 rounded-full" />}
+// --- Components ---
+
+const EmptyState = ({ icon: Icon, message, onRetry }: { icon: any, message: string, onRetry?: () => void }) => (
+  <div className="flex flex-col items-center justify-center py-20 px-6 bg-slate-50/50 rounded-[2.5rem] border-2 border-dashed border-slate-200 animate-in fade-in zoom-in duration-700">
+    <div className="w-20 h-20 rounded-3xl bg-white flex items-center justify-center shadow-sm border border-slate-100 mb-6">
+      <Icon className="h-10 w-10 text-slate-200" />
     </div>
-    <p className="text-slate-500 font-semibold text-sm leading-relaxed max-w-xs mx-auto mb-8 uppercase tracking-wide">{message}</p>
+    <p className="text-slate-400 font-bold text-sm uppercase tracking-widest mb-6">{message}</p>
     {onRetry && (
-      <Button
-        variant="outline"
-        onClick={onRetry}
-        className="h-12 px-8 font-bold text-xs rounded-2xl bg-white border-slate-200 text-indigo-600 hover:bg-indigo-50 hover:border-indigo-100 transition-all uppercase tracking-widest shadow-sm"
+      <Button 
+        onClick={onRetry} 
+        variant="outline" 
+        className="rounded-2xl border-slate-200 px-8 py-6 font-black text-xs uppercase tracking-widest hover:bg-slate-900 hover:text-white transition-all shadow-sm"
       >
-        Refresh Quizzes
+        Refresh List
       </Button>
     )}
   </div>
-));
+);
 
-const QuizResultsModal = memo(({ isOpen, onClose, result, loading }: any) => {
-  if (!result && !loading) return null;
+const QuizCard = ({ quiz, onStart, onDelete, onViewResults }: { 
+  quiz: Quiz, 
+  onStart: (id: string) => void, 
+  onDelete: (id: string) => void,
+  onViewResults: (id: string) => void
+}) => {
+  const isCompleted = quiz.status === 'completed' || quiz.attemptStatus === 'submitted' || !!quiz.result;
+  const isDisqualified = quiz.status === 'disqualified';
+  const id = quiz.id || quiz._id || '';
+
+  return (
+    <div className={cn(
+      "group relative bg-white rounded-[2rem] border border-slate-100 p-6 sm:p-8 transition-all duration-500 hover:shadow-2xl hover:shadow-indigo-100/50 hover:border-indigo-100 active:scale-[0.98]",
+      isDisqualified && "opacity-80 grayscale-[0.5]"
+    )}>
+      <div className="flex flex-col sm:flex-row justify-between gap-6">
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-3 mb-4">
+            <div className={cn(
+              "p-2.5 rounded-xl border transition-colors",
+              isCompleted ? "bg-teal-50 border-teal-100 text-teal-600" : 
+              isDisqualified ? "bg-red-50 border-red-100 text-red-600" : 
+              "bg-indigo-50 border-indigo-100 text-indigo-600"
+            )}>
+              {isCompleted ? <BadgeCheck className="h-5 w-5" /> : 
+               isDisqualified ? <Shield className="h-5 w-5" /> : 
+               <Clock className="h-5 w-5" />}
+            </div>
+            <Badge variant="secondary" className="bg-indigo-50/50 text-indigo-600 hover:bg-indigo-100/50 border-indigo-100 font-black text-[9px] uppercase tracking-wider px-3 py-1 rounded-lg">
+              {getQuizCategory(quiz)}
+            </Badge>
+          </div>
+          
+          <h3 className="text-xl sm:text-2xl font-black text-slate-900 mb-3 tracking-tight group-hover:text-indigo-600 transition-colors">{quiz.title}</h3>
+          {getQuizDescription(quiz) && (
+            <p className="text-slate-400 text-xs sm:text-sm leading-relaxed mb-6 font-medium line-clamp-2">{getQuizDescription(quiz)}</p>
+          )}
+          
+          <div className="flex flex-wrap items-center gap-4 sm:gap-6 pt-6 border-t border-slate-50">
+            <div className="flex items-center gap-2">
+              <Timer className="h-4 w-4 text-slate-300" />
+              <span className="text-[11px] font-bold text-slate-500">{quiz.duration} Mins</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <BadgeCheck className="h-4 w-4 text-slate-300" />
+              <span className="text-[11px] font-bold text-slate-500">{getQuizQuestionCount(quiz)} Questions</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="shrink-0 flex flex-col sm:justify-center">
+          {isCompleted ? (
+            <Button 
+              onClick={() => onViewResults(id)}
+              className="bg-indigo-600 hover:bg-indigo-700 text-white border-none rounded-2xl h-14 sm:h-16 px-8 font-black text-xs uppercase tracking-[0.15em] shadow-lg shadow-indigo-100 transition-all hover:-translate-y-1"
+            >
+              Results <ChevronRight className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform" />
+            </Button>
+          ) : isDisqualified ? (
+            <Button disabled className="bg-slate-100 text-slate-400 border-none rounded-2xl h-14 sm:h-16 px-8 font-black text-xs uppercase tracking-widest">
+              Blocked <Lock className="ml-2 h-4 w-4" />
+            </Button>
+          ) : (
+            <Button 
+              onClick={() => onStart(id)}
+              className="bg-slate-900 hover:bg-indigo-600 text-white border-none rounded-2xl h-14 sm:h-16 px-8 font-black text-xs uppercase tracking-[0.15em] shadow-lg shadow-slate-200 transition-all hover:scale-105 active:scale-95"
+            >
+              Start Quiz <ChevronRight className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform" />
+            </Button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const QuizResultsModal = ({ isOpen, onClose, result, loading }: { isOpen: boolean, onClose: () => void, result: any, loading: boolean }) => {
+  if (loading) return null;
+  
+  // Normalize result data across different API response shapes
+  const detailedResults = result?.detailedResults || result?.results || result?.answers || [];
+  const score = result?.score ?? result?.totalMarks ?? null;
+  const total = result?.totalQuestions ?? result?.maxMarks ?? result?.total ?? null;
+  const percentage = result?.percentage ?? (score !== null && total ? Math.round((score / total) * 100) : null);
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl w-[95vw] h-[85vh] p-0 overflow-hidden bg-white border-none shadow-2xl rounded-[2.5rem] animate-in zoom-in-95 duration-200">
-        <DialogHeader className="p-8 pb-4 border-b border-slate-50 bg-slate-50/30 backdrop-blur-sm">
-          <div className="flex items-center gap-3 mb-2">
-            <Badge className={cn(
-              "font-bold uppercase text-[9px] tracking-[0.1em] px-2.5 py-1 rounded-lg border-none",
-              result?.status === 'blocked' ? "bg-red-500 text-white" : "bg-teal-500 text-white"
-            )}>
-              {result?.status === 'blocked' ? 'Quiz Blocked' : 'Quiz Results'}
-            </Badge>
+      <DialogContent className="max-w-md bg-white rounded-[2.5rem] border-none shadow-2xl p-0 overflow-hidden max-h-[90vh] flex flex-col">
+        <div className="bg-indigo-600 p-10 flex flex-col items-center text-center shrink-0">
+          <div className="w-20 h-20 rounded-full bg-white/20 flex items-center justify-center mb-6 animate-pulse">
+            <CheckCircle2 className="h-10 w-10 text-white" />
           </div>
-          <DialogTitle className="text-2xl font-bold text-slate-900 tracking-tight">
-            {result?.quizTitle}
-          </DialogTitle>
-        </DialogHeader>
+          <h2 className="text-2xl font-black text-white mb-2 tracking-tight uppercase tracking-widest">Quiz Completed</h2>
+          <p className="text-white/70 text-xs font-bold uppercase tracking-[0.2em]">Detailed Performance Summary</p>
+        </div>
 
-        <ScrollArea className="flex-1 px-8 py-6">
-          {loading ? (
-            <div className="py-24 flex flex-col items-center justify-center gap-4">
-              <Loader2 className="h-12 w-12 text-indigo-600 animate-spin" />
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] animate-pulse">Loading Your Results...</p>
+        <div className="p-10 space-y-8 overflow-y-auto flex-1" style={{ WebkitOverflowScrolling: 'touch' }}>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="bg-slate-50 p-6 rounded-3xl border border-slate-100 text-center">
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Score</p>
+              <h4 className="text-3xl font-black text-slate-900">{score ?? '—'}{total ? `/${total}` : ''}</h4>
             </div>
-          ) : (
-            <div className="space-y-8 pb-10">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="bg-[#FBFDFF] p-6 rounded-[2rem] border border-slate-100 shadow-sm flex flex-col justify-center items-center">
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Final Score</p>
-                  <p className="text-3xl font-bold text-slate-900">{result?.score} <span className="text-sm font-medium text-slate-300">/ {result?.maxMarks}</span></p>
-                </div>
-                <div className="bg-indigo-50/30 p-6 rounded-[2rem] border border-indigo-50 shadow-sm flex flex-col justify-center items-center">
-                  <p className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest mb-1">Accuracy</p>
-                  <p className="text-3xl font-bold text-indigo-600">{Math.round(result?.percentage)}%</p>
-                </div>
-              </div>
+            <div className="bg-slate-50 p-6 rounded-3xl border border-slate-100 text-center">
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Accuracy</p>
+              <h4 className="text-3xl font-black text-indigo-600">{percentage ?? '—'}%</h4>
+            </div>
+          </div>
 
-              {result?.status === 'blocked' && (
-                <div className="bg-red-50/50 border border-red-100 p-6 rounded-[2rem] text-red-700 animate-in slide-in-from-top-2 duration-300 shadow-sm">
-                  <div className="flex items-center gap-3 mb-2">
-                    <div className="p-2 bg-red-50 rounded-xl">
-                      <AlertTriangle className="h-4 w-4 text-red-600" />
+          <div className={cn(
+            "p-6 rounded-3xl flex items-center gap-4 border shadow-sm",
+            result?.isPassed 
+              ? "bg-teal-50 border-teal-100 text-teal-700" 
+              : "bg-red-50 border-red-100 text-red-700"
+          )}>
+            <div className={cn("w-12 h-12 rounded-2xl flex items-center justify-center shrink-0", result?.isPassed ? "bg-teal-500" : "bg-red-500")}>
+              {result?.isPassed ? <BadgeCheck className="h-6 w-6 text-white" /> : <Shield className="h-6 w-6 text-white" />}
+            </div>
+            <div>
+              <h4 className="font-black text-sm uppercase tracking-wider mb-0.5">{result?.isPassed ? 'Victory!' : 'Keep Going'}</h4>
+              <p className="text-xs font-bold opacity-70 leading-relaxed">
+                {result?.isPassed ? 'You have successfully passed this assessment.' : 'You didn\'t reach the passing threshold this time.'}
+              </p>
+            </div>
+          </div>
+
+          {/* Detailed Question Results */}
+          {Array.isArray(detailedResults) && detailedResults.length > 0 && (
+            <div className="space-y-4">
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Question Breakdown</p>
+              {detailedResults.map((item: any, idx: number) => (
+                <div key={idx} className="p-4 bg-slate-50 rounded-2xl border border-slate-100 text-left">
+                  <div className="flex items-start justify-between gap-3 mb-2">
+                    <div className="flex-1">
+                      <span className="text-[9px] font-bold text-slate-300 uppercase block mb-1">Q{idx + 1}</span>
+                      <p className="text-xs font-bold text-slate-800 leading-snug">{item.question || item.questionText || `Question ${idx + 1}`}</p>
                     </div>
-                    <p className="text-[10px] font-bold uppercase tracking-[0.15em]">Security Alert</p>
-                  </div>
-                  <p className="text-sm font-bold italic leading-relaxed pl-1">{result?.reason || 'A rule violation was recorded during this session.'}</p>
-                </div>
-              )}
-
-              <div className="space-y-4">
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.15em] pl-1">Review Session</p>
-                {result?.answers?.map((ans: any, idx: number) => (
-                  <div key={idx} className="p-6 rounded-[2rem] border border-slate-50 bg-[#FBFDFF] hover:border-slate-200 transition-colors">
-                    <div className="flex items-start justify-between gap-6 mb-4">
-                      <div className="flex-1 min-w-0">
-                        <span className="text-[10px] font-bold text-slate-400 mb-1.5 block uppercase tracking-wider">Question {idx + 1}</span>
-                        <p className="text-sm sm:text-base font-bold text-slate-800 leading-snug break-words">{ans.question}</p>
-                      </div>
-                      <div className={cn(
-                        "p-2.5 rounded-xl shrink-0 border",
-                        ans.isCorrect ? "bg-teal-50 text-teal-600 border-teal-100" : "bg-red-50 text-red-600 border-red-100"
-                      )}>
-                        {ans.isCorrect ? <CheckCircle2 className="h-5 w-5" /> : <XCircle className="h-5 w-5" />}
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4">
-                      <div className="flex flex-col gap-1.5 bg-white p-3.5 rounded-2xl border border-slate-100 shadow-sm">
-                        <span className="text-[9px] font-black text-slate-300 uppercase tracking-widest">Your Response</span>
-                        <span className={cn("text-xs font-bold leading-tight", ans.isCorrect ? "text-teal-600" : "text-red-500")}>
-                          {ans.studentAnswer || 'NO RESPONSE'}
-                        </span>
-                      </div>
-                      {!ans.isCorrect && (
-                        <div className="flex flex-col gap-1.5 bg-teal-50/50 p-3.5 rounded-2xl border border-teal-100/50 shadow-sm">
-                          <span className="text-[9px] font-black text-teal-600/50 uppercase tracking-widest">Correct Answer</span>
-                          <span className="text-xs font-bold text-teal-700 leading-tight">{ans.correctAnswer}</span>
-                        </div>
-                      )}
+                    <div className={cn("p-1 rounded-lg shrink-0", item.isCorrect ? "bg-teal-50 text-teal-600" : "bg-red-50 text-red-600")}>
+                      {item.isCorrect ? <CheckCircle2 className="w-3.5 h-3.5" /> : <AlertCircle className="w-3.5 h-3.5" />}
                     </div>
                   </div>
-                ))}
-              </div>
+                  <div className="grid grid-cols-2 gap-2 mt-3">
+                    <div className="p-2 bg-white rounded-xl border border-slate-100/50">
+                      <p className="text-[7px] font-black text-slate-400 uppercase mb-0.5">Your Choice</p>
+                      <p className={cn("text-[11px] font-bold", item.isCorrect ? "text-teal-600" : "text-red-500")}>{item.studentAnswer || item.yourAnswer || item.selected || "No Answer"}</p>
+                    </div>
+                    {!item.isCorrect && (
+                      <div className="p-2 bg-teal-50/30 rounded-xl border border-teal-100/30">
+                        <p className="text-[7px] font-black text-teal-500 uppercase mb-0.5">Correct</p>
+                        <p className="text-[11px] font-bold text-teal-700">{item.correctAnswer || item.correct || 'N/A'}</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
             </div>
           )}
-        </ScrollArea>
+
+          <Button onClick={onClose} className="w-full h-16 bg-slate-900 border-none rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-slate-800 transition-all shadow-lg">
+            Dismiss Results
+          </Button>
+        </div>
       </DialogContent>
     </Dialog>
   );
-});
-
-const QuizCard = memo(({ quiz, onStart, onDelete, onViewResults }: { quiz: Quiz; onStart: (id: string) => void; onDelete: (id: string) => void; onViewResults: (quiz: Quiz) => void; }) => {
-  const isCompleted = quiz.attemptStatus === 'submitted' && !(quiz.reason?.includes('Strike') || quiz.reason?.includes('Violation'));
-  const isDisqualified = !!(quiz.reason?.includes('Strike') || quiz.reason?.includes('Violation'));
-  const isInProgress = quiz.attemptStatus === 'started';
-
-  return (
-    <Card className="shadow-sm hover:shadow-xl hover:-translate-y-0.5 transition-all border-slate-100 bg-white rounded-[2rem] overflow-hidden group border-2 hover:border-indigo-100">
-      <CardContent className="p-6 sm:p-8">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-8">
-          <div className="flex-1 min-w-0 space-y-3">
-            <div className="flex flex-wrap items-center gap-3">
-              <h3 className="text-xl font-bold text-slate-900 leading-tight">{quiz.title}</h3>
-              {isInProgress && <Badge className="bg-amber-100 text-amber-700 border-amber-200 text-[9px] font-black px-2.5 py-0.5 rounded-lg uppercase tracking-wider">In Progress</Badge>}
-            </div>
-            <p className="text-sm font-semibold text-slate-500 leading-relaxed max-w-2xl">{quiz.description || 'Academic Assessment'}</p>
-            <div className="flex flex-wrap items-center gap-3 sm:gap-5 text-slate-400 pt-3 border-t border-slate-50 mt-4">
-              <div className="flex items-center gap-2 bg-slate-50/50 pr-3 py-1 rounded-xl border border-slate-100/50">
-                <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-white flex items-center justify-center shadow-sm">
-                  <Clock className="w-3.5 h-3.5 text-indigo-500" />
-                </div>
-                <span className="text-[10px] sm:text-xs font-black text-slate-600 uppercase tracking-tight">{quiz.duration}m</span>
-              </div>
-              <div className="flex items-center gap-2 bg-slate-50/50 pr-3 py-1 rounded-xl border border-slate-100/50">
-                <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-white flex items-center justify-center shadow-sm">
-                  <Layers className="w-3.5 h-3.5 text-teal-500" />
-                </div>
-                <span className="text-[10px] sm:text-xs font-black text-slate-600 uppercase tracking-tight">{quiz.questionCount} Qs</span>
-              </div>
-              <div className="flex items-center gap-2 bg-slate-50/50 pr-3 py-1 rounded-xl border border-slate-100/50">
-                <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-white flex items-center justify-center shadow-sm">
-                  <Trophy className="w-3.5 h-3.5 text-amber-500" />
-                </div>
-                <span className="text-[10px] sm:text-xs font-black text-slate-600 uppercase tracking-tight">{quiz.totalMarks} Pts</span>
-              </div>
-            </div>
-          </div>
-
-          <div className="flex flex-col sm:flex-row items-center gap-4 sm:w-auto w-full pt-4 sm:pt-0 shrink-0 border-t sm:border-t-0 sm:border-l border-slate-50 sm:pl-8">
-            {isCompleted ? (
-              <div className="flex items-center gap-4 w-full sm:w-auto">
-                <div className="bg-teal-50/50 border border-teal-100 px-6 py-3 rounded-2xl flex flex-col items-center min-w-[100px] shadow-sm">
-                  <span className="text-[9px] font-black text-teal-600 uppercase tracking-[0.1em] mb-1">Final Score</span>
-                  <span className="text-2xl font-black text-teal-700 leading-none">{quiz.score}</span>
-                </div>
-                <Button
-                  onClick={() => onViewResults(quiz)}
-                  className="h-14 px-8 rounded-2xl border-indigo-100 font-bold text-xs text-indigo-600 hover:bg-indigo-50 hover:border-indigo-200 transition-all uppercase tracking-widest shadow-sm bg-white border"
-                  variant="ghost"
-                >
-                  Results
-                </Button>
-              </div>
-            ) : isDisqualified ? (
-              <div className="flex items-center gap-4 w-full sm:w-auto text-red-600 bg-red-50/50 p-4 rounded-2xl border border-red-100 shadow-sm">
-                <AlertTriangle className="w-6 h-6 flex-shrink-0 text-red-500" />
-                <div className="flex-1 min-w-0 pr-4">
-                  <span className="text-[9px] font-black uppercase tracking-widest block mb-0.5">Attempt Blocked</span>
-                  <span className="text-[10px] font-bold opacity-80 leading-snug line-clamp-1">{quiz.reason}</span>
-                </div>
-                <Button onClick={() => onViewResults(quiz)} variant="outline" size="sm" className="h-10 text-red-600 hover:bg-red-100 font-bold px-4 rounded-xl border-red-200 bg-white">Report</Button>
-              </div>
-            ) : (
-              <Button
-                onClick={() => onStart(quiz.id || quiz._id || '')}
-                className={cn(
-                  "h-14 sm:px-12 px-6 rounded-2xl font-bold text-sm w-full sm:w-auto transition-all shadow-lg active:scale-95 uppercase tracking-widest",
-                  isInProgress ? "bg-amber-500 hover:bg-amber-600 text-white shadow-amber-100" : "bg-indigo-600 hover:bg-indigo-700 text-white shadow-indigo-100"
-                )}
-              >
-                {isInProgress ? 'Resume Quiz' : 'Start Quiz'}
-                <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
-              </Button>
-            )}
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  );
-});
+};
 
 const StudentDashboard = () => {
   const navigate = useNavigate();
+  const { logout, studentData } = useStudentAuth();
+  const [activeTab, setActiveTab] = useState('available');
   const [quizzes, setQuizzes] = useState<Quiz[]>([]);
   const [loading, setLoading] = useState(true);
-  const [studentData, setStudentData] = useState<any>(null);
-  const [activeTab, setActiveTab] = useState('available');
-  const [selectedResult, setSelectedResult] = useState<any>(null);
   const [resultsModalOpen, setResultsModalOpen] = useState(false);
+  const [selectedResult, setSelectedResult] = useState<any>(null);
   const [resultsLoading, setResultsLoading] = useState(false);
 
   const fetchQuizzes = useCallback(async () => {
-    setLoading(true);
     try {
-      const response = await studentAuthAPI.getAvailableQuizzes();
-      setQuizzes(Array.isArray(response.data.quizzes) ? response.data.quizzes : []);
-    } catch (error) {
-      toast.error('Sync failed: Check your connection');
+      setLoading(true);
+      const res = await studentAuthAPI.getAvailableQuizzes();
+      const quizList = res?.data?.data || res?.data?.quizzes || [];
+      if (res?.data?.success && Array.isArray(quizList)) {
+        setQuizzes(quizList);
+      } else {
+        setQuizzes([]);
+      }
+    } catch (e) {
+      console.error('Failed to fetch quizzes:', e);
+      toast.error('Network Error: Unable to fetch quizzes.');
+      setQuizzes([]);
     } finally {
       setLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    const initDashboard = async () => {
-      try {
-        const data = storage.getItem('studentData');
-        if (!data) {
-          navigate('/student/login');
-          return;
-        }
+    fetchQuizzes();
+  }, [fetchQuizzes]);
 
-        const parsed = JSON.parse(data);
-        if (parsed) {
-          setStudentData(parsed);
-          await fetchQuizzes();
-        } else {
-          navigate('/student/login');
-        }
-      } catch (err) {
-        navigate('/student/login');
-      }
-    };
-
-    initDashboard();
-  }, [navigate, fetchQuizzes]);
-
-  const handleStartQuiz = (quizId: string) => {
-    navigate(`/student/quiz/${quizId}`);
+  const handleStartQuiz = (id: string) => {
+    if (!id) return;
+    navigate(`/student/quiz/${id}`);
   };
 
-  const handleViewResults = async (quiz: Quiz) => {
-    setResultsModalOpen(true);
-    setResultsLoading(true);
+  const handleViewResults = async (id: string) => {
+    if (!id) return;
     try {
-      const response = await studentAuthAPI.getQuizResults(quiz.id || quiz._id || '');
-      const finalResult = {
-        ...response.data.results,
-        quizTitle: quiz.title,
-        status: quiz.attemptStatus === 'submitted' && !(quiz.reason?.includes('Strike') || quiz.reason?.includes('Violation')) ? 'submitted' : 'blocked',
-        reason: quiz.reason
-      };
-      setSelectedResult(finalResult);
-    } catch (error) {
-      toast.error('Failed to retrieve analysis');
-      setResultsModalOpen(false);
+      setResultsLoading(true);
+      const res = await studentAuthAPI.getQuizResults(id);
+      if (res?.data?.success) {
+        setSelectedResult(res.data.data);
+        setResultsModalOpen(true);
+      }
+    } catch (e) {
+      toast.error('Failed to load results.');
     } finally {
       setResultsLoading(false);
     }
   };
 
   const handleLogout = () => {
-    storage.removeItem('studentToken');
-    storage.removeItem('studentData');
-    toast.info('Logged Out Successfully');
+    logout();
     navigate('/student/login');
+    toast.success('Logged out successfully.');
   };
 
-  const normalizedQuizzes = Array.isArray(quizzes) ? quizzes : [];
-  const availableQuizzes = normalizedQuizzes.filter(q => q && (q.attemptStatus === 'not_started' || !q.attemptStatus || q.attemptStatus === 'started'));
-  const completedQuizzes = normalizedQuizzes.filter(q => q && q.attemptStatus === 'submitted' && !(q.reason?.includes('Strike') || q.reason?.includes('Violation')));
-  const disqualifiedQuizzes = normalizedQuizzes.filter(q => q && !!(q.reason?.includes('Strike') || q.reason?.includes('Violation')));
-
-  if (loading) {
-    return (
-      <div className="h-screen w-full flex flex-col items-center justify-center bg-white gap-6">
-        <div className="w-20 h-20 bg-indigo-50 rounded-3xl flex items-center justify-center border border-indigo-100 shadow-sm animate-pulse">
-          <GraduationCap className="h-10 w-10 text-indigo-600" />
-        </div>
-        <div className="text-center space-y-2">
-          <p className="text-[11px] font-black text-slate-900 uppercase tracking-[0.35em] animate-in fade-in zoom-in duration-500">Loading Dashboard</p>
-          <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest animate-pulse">Fetching your quizzes</p>
-        </div>
-        <Loader2 className="h-5 w-5 text-indigo-400 animate-spin absolute bottom-20" />
-      </div>
-    );
-  }
+  const safeQuizzes = Array.isArray(quizzes) ? quizzes : [];
+  
+  const availableQuizzes = safeQuizzes.filter(q => 
+    q && 
+    q.status !== 'completed' && 
+    q.status !== 'disqualified' && 
+    q.attemptStatus !== 'submitted' &&
+    !q.result
+  );
+  
+  const completedQuizzes = safeQuizzes.filter(q => 
+    q && (
+      q.status === 'completed' || 
+      q.attemptStatus === 'submitted' ||
+      !!q.result
+    )
+  );
+  
+  const disqualifiedQuizzes = safeQuizzes.filter(q => 
+    q && (q.status === 'disqualified' || q.status === 'blocked')
+  );
 
   return (
-    <div className="min-h-screen w-full bg-[#FBFDFF] text-slate-900 flex flex-col">
-      {/* High-Performance Clean Header */}
-      <header className="sticky top-0 bg-white/95 backdrop-blur-xl border-b border-slate-100 z-40 shrink-0">
-        <div className="max-w-5xl mx-auto px-4 h-16 sm:h-20 flex items-center justify-between">
+    <div className="relative flex flex-col min-h-[100dvh] h-[100dvh] w-full bg-[#FBFDFF] text-slate-900 overflow-hidden">
+      {/* High-Performance Clean Header - Relative to ensure scroll is natural */}
+      <header className="relative bg-white border-b border-slate-100 z-40 pt-safe sm:pt-6">
+        <div className="max-w-5xl mx-auto px-6 h-16 sm:h-20 flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-2xl bg-indigo-600 flex items-center justify-center shadow-lg shadow-indigo-100 border border-indigo-500 transform transition-transform hover:scale-105 active:scale-95">
-              <GraduationCap className="h-7 w-7 text-white" />
+            <div className="w-11 h-11 rounded-2xl bg-indigo-600 flex items-center justify-center shadow-lg shadow-indigo-100 border border-indigo-500 transform transition-transform hover:scale-105 active:scale-95">
+              <GraduationCap className="h-6 w-6 text-white" />
             </div>
             <div>
-              <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] leading-none mb-1.5 opacity-70">Student Account</p>
-              <h1 className="text-xl font-bold text-slate-900 leading-none tracking-tight">Dashboard</h1>
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] leading-none mb-1.5 opacity-70">Student Portal</p>
+              <h1 className="text-xl font-black text-slate-900 leading-none tracking-tight">Dashboard</h1>
             </div>
           </div>
 
@@ -389,114 +366,114 @@ const StudentDashboard = () => {
           </div>
         </div>
       </header>
-      <div className="flex-1 overflow-y-auto overflow-x-hidden">
-        <main className="max-w-5xl mx-auto px-4 sm:px-6 py-6 sm:py-12 space-y-8 sm:space-y-12">
-          {/* Professional Header Banner */}
-          <section className="bg-white p-6 sm:p-10 rounded-3xl sm:rounded-[2.5rem] border border-slate-100 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-6 sm:gap-8 border-2 hover:border-indigo-100 transition-all animate-in slide-in-from-bottom-5 duration-700">
-            <div className="flex items-center gap-4 sm:gap-6">
-              <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl sm:rounded-[1.75rem] bg-slate-50 flex items-center justify-center border-4 border-white shadow-inner shrink-0 group hover:rotate-6 transition-transform">
-                <User className="h-8 w-8 sm:h-10 sm:h-10 text-slate-300 group-hover:text-indigo-400 transition-colors" />
-              </div>
-              <div className="min-w-0">
-                <h2 className="text-xl sm:text-3xl font-black text-slate-900 tracking-tight mb-1 sm:mb-2 leading-tight truncate">{studentData?.name || 'Student Account'}</h2>
-                <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-                  <Badge variant="outline" className="text-[9px] font-black text-slate-500 border-slate-200 px-2 py-0.5 sm:px-3 sm:py-1 rounded-lg uppercase tracking-wider bg-white">ID: {studentData?.usn || 'N/A'}</Badge>
-                  <div className="flex items-center gap-2 text-[9px] font-black text-teal-600 uppercase tracking-[0.2em] bg-teal-50/50 px-2 py-0.5 sm:px-3 sm:py-1 rounded-lg border border-teal-100">
-                    <div className="w-1.5 h-1.5 rounded-full bg-teal-500 animate-pulse" />
-                    Live
-                  </div>
+
+      <main className="flex-1 overflow-y-auto overscroll-y-contain touch-pan-y pb-24" style={{ WebkitOverflowScrolling: 'touch' }}>
+        <div className="max-w-5xl mx-auto px-5 sm:px-8 py-8 sm:py-14 space-y-10 sm:space-y-16">
+        {/* Professional Header Banner */}
+        <section className="bg-white p-6 sm:p-10 rounded-3xl sm:rounded-[2.5rem] border border-slate-100 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-6 sm:gap-8 border-2 hover:border-indigo-100 transition-all">
+          <div className="flex items-center gap-4 sm:gap-6">
+            <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl sm:rounded-[1.75rem] bg-slate-50 flex items-center justify-center border-4 border-white shadow-inner shrink-0 group hover:rotate-6 transition-transform">
+              <User className="h-8 w-8 sm:h-10 text-slate-300 group-hover:text-indigo-400 transition-colors" />
+            </div>
+            <div className="min-w-0">
+              <h2 className="text-xl sm:text-3xl font-black text-slate-900 tracking-tight mb-1 sm:mb-2 leading-tight truncate">
+                {(studentData && studentData.name) ? studentData.name : 'Student Account'}
+              </h2>
+              <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+                <Badge variant="outline" className="text-[9px] font-black text-slate-500 border-slate-200 px-2 py-0.5 sm:px-3 sm:py-1 rounded-lg uppercase tracking-wider bg-white">ID: {studentData?.usn || 'N/A'}</Badge>
+                <div className="flex items-center gap-2 text-[9px] font-black text-teal-600 uppercase tracking-[0.2em] bg-teal-50/50 px-2 py-0.5 sm:px-3 sm:py-1 rounded-lg border border-teal-100">
+                  <div className="w-1.5 h-1.5 rounded-full bg-teal-500 animate-pulse" />
+                  Live
                 </div>
               </div>
             </div>
+          </div>
 
-            <div className="flex gap-4 sm:gap-6 border-t sm:border-t-0 sm:border-l border-slate-50 pt-6 sm:pt-0 sm:pl-10 shrink-0">
-              <div className="space-y-1">
-                <p className="text-[9px] sm:text-[10px] font-black text-slate-300 uppercase tracking-widest">Available</p>
-                <div className="flex items-baseline gap-1.5">
-                  <p className="text-2xl sm:text-3xl font-black text-slate-900">{availableQuizzes.length}</p>
-                  <span className="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-tighter">Quizzes</span>
-                </div>
-              </div>
-              <div className="w-px h-10 sm:h-12 bg-slate-50 mx-1 sm:mx-2" />
-              <div className="space-y-1">
-                <p className="text-[9px] sm:text-[10px] font-black text-slate-300 uppercase tracking-widest">Completed</p>
-                <div className="flex items-baseline gap-1.5">
-                  <p className="text-2xl sm:text-3xl font-black text-indigo-600">{completedQuizzes.length}</p>
-                  <span className="text-[9px] sm:text-[10px] font-bold text-indigo-400 uppercase tracking-tighter">Done</span>
-                </div>
+          <div className="flex gap-4 sm:gap-6 border-t sm:border-t-0 sm:border-l border-slate-50 pt-6 sm:pt-0 sm:pl-10 shrink-0">
+            <div className="space-y-1">
+              <p className="text-[9px] sm:text-[10px] font-black text-slate-300 uppercase tracking-widest">Available</p>
+              <div className="flex items-baseline gap-1.5">
+                <p className="text-2xl sm:text-3xl font-black text-slate-900">{availableQuizzes.length}</p>
+                <span className="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-tighter">Quizzes</span>
               </div>
             </div>
-          </section>
-
-          <section className="space-y-6 animate-in fade-in duration-1000">
-            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-              <div className="sticky top-16 sm:top-20 bg-[#FBFDFF]/80 backdrop-blur-md z-30 -mx-4 px-4 pt-2">
-                <TabsList className="bg-slate-50/50 p-1 rounded-2xl border border-slate-100 w-full flex overflow-x-auto no-scrollbar">
-                  <TabsTrigger
-                    value="available"
-                    className="flex-1 px-3 sm:px-6 py-3 rounded-xl data-[state=active]:bg-white data-[state=active]:text-indigo-600 data-[state=active]:shadow-sm text-slate-400 font-bold text-[10px] sm:text-[11px] uppercase tracking-wider transition-all"
-                  >
-                    Available
-                  </TabsTrigger>
-                  <TabsTrigger
-                    value="completed"
-                    className="flex-1 px-3 sm:px-6 py-3 rounded-xl data-[state=active]:bg-white data-[state=active]:text-indigo-600 data-[state=active]:shadow-sm text-slate-400 font-bold text-[10px] sm:text-[11px] uppercase tracking-wider transition-all"
-                  >
-                    Completed
-                  </TabsTrigger>
-                  <TabsTrigger
-                    value="disqualified"
-                    className="flex-1 px-3 sm:px-6 py-3 rounded-xl data-[state=active]:bg-white data-[state=active]:text-red-600 data-[state=active]:shadow-sm text-slate-400 font-bold text-[10px] sm:text-[11px] uppercase tracking-wider transition-all"
-                  >
-                    Blocked
-                  </TabsTrigger>
-                </TabsList>
+            <div className="w-px h-10 sm:h-12 bg-slate-50 mx-1 sm:mx-2" />
+            <div className="space-y-1">
+              <p className="text-[9px] sm:text-[10px] font-black text-slate-300 uppercase tracking-widest">Completed</p>
+              <div className="flex items-baseline gap-1.5">
+                <p className="text-2xl sm:text-3xl font-black text-indigo-600">{completedQuizzes.length}</p>
+                <span className="text-[9px] sm:text-[10px] font-bold text-indigo-400 uppercase tracking-tighter">Done</span>
               </div>
+            </div>
+          </div>
+        </section>
 
-              <AnimatePresence mode="wait">
-                <motion.div
-                  key={activeTab}
-                  initial={{ opacity: 0, y: 15 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -10 }}
-                  transition={{ duration: 0.3, ease: 'easeOut' }}
-                  className="outline-none"
-                >
-                  <TabsContent value="available" className="mt-0 space-y-6 outline-none">
-                    {availableQuizzes.length === 0 ? (
-                      <EmptyState icon={Search} message="No quizzes available." onRetry={fetchQuizzes} />
-                    ) : (
-                      availableQuizzes.map((quiz) => (
-                        <QuizCard key={quiz.id || quiz._id} quiz={quiz} onStart={handleStartQuiz} onDelete={() => { }} onViewResults={handleViewResults} />
-                      ))
+        <section className="space-y-8">
+          <div className="w-full">
+            <div className="bg-[#FBFDFF] z-30 -mx-5 px-5 pt-4 pb-4 transition-all border-b border-indigo-50/50">
+              <div className="bg-slate-100/80 p-1.5 rounded-2xl border border-slate-200/50 w-full flex shadow-sm">
+                {[
+                  { id: 'available', label: 'Available', color: 'indigo' },
+                  { id: 'completed', label: 'Completed', color: 'blue' },
+                  { id: 'disqualified', label: 'Blocked', color: 'red' }
+                ].map((tab) => (
+                  <button
+                    key={tab.id}
+                    onClick={() => setActiveTab(tab.id)}
+                    className={cn(
+                      "flex-1 px-3 py-3 rounded-xl font-bold text-[10px] sm:text-[11px] uppercase tracking-wider transition-all",
+                      activeTab === tab.id 
+                        ? "bg-white shadow-md text-indigo-600 scale-105" 
+                        : "text-slate-400 hover:text-slate-600",
+                      activeTab === tab.id && tab.color === 'indigo' && "text-indigo-600",
+                      activeTab === tab.id && tab.color === 'blue' && "text-blue-600",
+                      activeTab === tab.id && tab.color === 'red' && "text-red-600"
                     )}
-                  </TabsContent>
+                  >
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            
+            <div className="mt-8 space-y-6">
+              {activeTab === 'available' && (
+                availableQuizzes.length === 0 ? (
+                  <EmptyState icon={Search} message="No available quizzes." onRetry={fetchQuizzes} />
+                ) : (
+                  availableQuizzes.map((quiz) => (
+                    quiz && <QuizCard key={quiz.id || quiz._id || Math.random().toString()} quiz={quiz} onStart={handleStartQuiz} onDelete={() => { }} onViewResults={handleViewResults} />
+                  ))
+                )
+              )}
 
-                  <TabsContent value="completed" className="mt-0 space-y-6 outline-none">
-                    {completedQuizzes.length === 0 ? (
-                      <EmptyState icon={CheckCircle2} message="No completed quizzes." />
-                    ) : (
-                      completedQuizzes.map((quiz) => (
-                        <QuizCard key={quiz.id || quiz._id} quiz={quiz} onStart={handleStartQuiz} onDelete={() => { }} onViewResults={handleViewResults} />
-                      ))
-                    )}
-                  </TabsContent>
+              {activeTab === 'completed' && (
+                completedQuizzes.length === 0 ? (
+                  <EmptyState icon={CheckCircle2} message="No completed quizzes." onRetry={fetchQuizzes} />
+                ) : (
+                  completedQuizzes.map((quiz) => (
+                    quiz && <QuizCard key={quiz.id || quiz._id || Math.random().toString()} quiz={quiz} onStart={handleStartQuiz} onDelete={() => { }} onViewResults={handleViewResults} />
+                  ))
+                )
+              )}
 
-                  <TabsContent value="disqualified" className="mt-0 space-y-6 outline-none">
-                    {disqualifiedQuizzes.length === 0 ? (
-                      <EmptyState icon={Shield} message="No blocked quizzes." />
-                    ) : (
-                      disqualifiedQuizzes.map((quiz) => (
-                        <QuizCard key={quiz.id || quiz._id} quiz={quiz} onStart={handleStartQuiz} onDelete={() => { }} onViewResults={handleViewResults} />
-                      ))
-                    )}
-                  </TabsContent>
-                </motion.div>
-              </AnimatePresence>
-            </Tabs>
-          </section>
-        </main>
-      </div>
+              {activeTab === 'disqualified' && (
+                disqualifiedQuizzes.length === 0 ? (
+                  <EmptyState icon={Shield} message="No blocked quizzes." onRetry={fetchQuizzes} />
+                ) : (
+                  disqualifiedQuizzes.map((quiz) => (
+                    quiz && <QuizCard key={quiz.id || quiz._id || Math.random().toString()} quiz={quiz} onStart={handleStartQuiz} onDelete={() => { }} onViewResults={handleViewResults} />
+                  ))
+                )
+              )}
+            </div>
+          </div>
+        </section>
+        
+        {/* 🔥 SPACER TO ENSURE BOTTOM VISIBILITY ON MOBILE */}
+        <div className="h-[200px] w-full" />
+        </div>
+      </main>
 
       <QuizResultsModal
         isOpen={resultsModalOpen}

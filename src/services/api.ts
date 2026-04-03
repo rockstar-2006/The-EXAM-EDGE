@@ -19,7 +19,18 @@ export default httpClient;
 
 // Add a request interceptor to include the auth token
 httpClient.interceptors.request.use((config) => {
-  const token = storage.getItem('teacherToken') || storage.getItem('studentToken') || storage.getItem('token');
+  // Use the correct token based on which API is being called
+  const url = config.url || '';
+  let token: string | null = null;
+
+  if (url.startsWith('/student')) {
+    // Student API calls should use the student token
+    token = storage.getItem('studentToken');
+  } else {
+    // Teacher/admin API calls use teacher token
+    token = storage.getItem('teacherToken') || storage.getItem('token');
+  }
+
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
