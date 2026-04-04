@@ -9,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useAuth } from '@/hooks/useAuth';
 import { validateEmail } from '@/utils/validators';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { teacherAuthAPI } from '@/services/api';
 import { toast } from 'sonner';
 
@@ -154,7 +154,7 @@ export function LoginCard() {
               FACULTY<span className="text-primary italic">QUEST</span>
             </CardTitle>
             <CardDescription className="font-bold text-xs uppercase tracking-[0.2em] text-muted-foreground/60">
-              Advanced Faculty Terminal
+              Faculty Access Portal
             </CardDescription>
           </div>
         </CardHeader>
@@ -168,9 +168,7 @@ export function LoginCard() {
                   <TabsTrigger value="register" className="rounded-lg data-[state=active]:shadow-md font-bold text-xs uppercase tracking-wider">Join Us</TabsTrigger>
                 </TabsList>
 
-                <AnimatePresence mode="wait">
-                  {activeTab === 'login' && (
-                  <TabsContent value="login" key="login">
+                <TabsContent value="login" key="login">
                     <motion.form
                       variants={formVariants}
                       initial="hidden"
@@ -190,7 +188,7 @@ export function LoginCard() {
 
                       <motion.div variants={itemVariants} className="space-y-2">
                         <Label htmlFor="login-email" className="text-xs font-bold uppercase tracking-wider text-muted-foreground/80">
-                          Identity (Email)
+                          Email Address
                         </Label>
                         <div className="group relative">
                           <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
@@ -208,7 +206,7 @@ export function LoginCard() {
 
                       <motion.div variants={itemVariants} className="space-y-2">
                         <Label htmlFor="login-password" className="text-xs font-bold uppercase tracking-wider text-muted-foreground/80">
-                          Security Key
+                          Password
                         </Label>
                         <div className="group relative">
                           <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
@@ -239,7 +237,7 @@ export function LoginCard() {
                             }}
                             className="text-[10px] font-black uppercase tracking-widest text-primary hover:text-primary/80 transition-colors"
                           >
-                            Forgot security key?
+                            Forgot password?
                           </button>
                         </div>
                       </motion.div>
@@ -250,18 +248,15 @@ export function LoginCard() {
                           className="w-full h-12 gradient-primary shadow-glow hover:scale-[1.02] active:scale-[0.98] transition-all font-black uppercase tracking-[0.1em]"
                           disabled={loading}
                         >
-                          {loading ? <span className="animate-pulse">Authorizing...</span> : (
+                          {loading ? <span className="animate-pulse">Logging in...</span> : (
                             <span className="flex items-center gap-2">
-                              Access Terminal <ArrowRight className="w-4 h-4" />
+                              Login <ArrowRight className="w-4 h-4" />
                             </span>
                           )}
                         </Button>
                       </motion.div>
                     </motion.form>
                   </TabsContent>
-                  )}
-
-                  {activeTab === 'register' && (
                   <TabsContent value="register" key="register">
                     <motion.form
                       variants={formVariants}
@@ -293,7 +288,7 @@ export function LoginCard() {
                       </motion.div>
 
                       <motion.div variants={itemVariants} className="space-y-2">
-                        <Label htmlFor="register-email" className="text-xs font-bold uppercase tracking-wider text-muted-foreground/80">Identity (Email)</Label>
+                        <Label htmlFor="register-email" className="text-xs font-bold uppercase tracking-wider text-muted-foreground/80">Email Address</Label>
                         <Input
                           id="register-email"
                           type="email"
@@ -306,7 +301,7 @@ export function LoginCard() {
                       </motion.div>
 
                       <motion.div variants={itemVariants} className="space-y-2">
-                        <Label htmlFor="register-password" className="text-xs font-bold uppercase tracking-wider text-muted-foreground/80">Security Key</Label>
+                        <Label htmlFor="register-password" className="text-xs font-bold uppercase tracking-wider text-muted-foreground/80">Password</Label>
                         <div className="group relative">
                           <Input
                             id="register-password"
@@ -334,13 +329,11 @@ export function LoginCard() {
                           className="w-full h-12 gradient-primary shadow-glow hover:scale-[1.02] active:scale-[0.98] transition-all font-black uppercase tracking-[0.1em]"
                           disabled={loading}
                         >
-                          {loading ? <span className="animate-pulse">Processing...</span> : 'Initialize Account'}
+                          {loading ? <span className="animate-pulse">Creating Account...</span> : 'Create Account'}
                         </Button>
                       </motion.div>
                     </motion.form>
                   </TabsContent>
-                  )}
-                </AnimatePresence>
               </Tabs>
             )}
 
@@ -352,8 +345,8 @@ export function LoginCard() {
                 className="space-y-4"
               >
                 <div className="space-y-2">
-                  <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground/80">Recover Access</Label>
-                  <p className="text-[10px] text-muted-foreground font-medium italic">Enter your academic email to receive a reset token.</p>
+                  <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground/80">Reset Password</Label>
+                  <p className="text-[10px] text-muted-foreground font-medium italic">Enter your academic email to receive a reset link.</p>
                   <div className="group relative">
                     <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input
@@ -367,7 +360,7 @@ export function LoginCard() {
                   </div>
                 </div>
                 <Button type="submit" className="w-full h-12 gradient-primary font-black uppercase tracking-wider shadow-glow" disabled={loading}>
-                  {loading ? 'Transmitting...' : 'Send Reset Token'}
+                  {loading ? 'Sending...' : 'Send Reset Link'}
                 </Button>
                 <Button
                   type="button"
@@ -388,7 +381,7 @@ export function LoginCard() {
         transition={{ delay: 1 }}
         className="text-center mt-6 text-[10px] uppercase font-bold tracking-[0.3em] text-muted-foreground/40"
       >
-        Encrypted Faculty Access • v1.0.5
+        Secure Faculty Access • v1.0.5
       </motion.p>
     </motion.div>
   );

@@ -23,7 +23,7 @@ httpClient.interceptors.request.use((config) => {
   const url = config.url || '';
   let token: string | null = null;
 
-  if (url.startsWith('/student')) {
+  if (url.match(/^\/student($|\/)/)) {
     // Student API calls should use the student token
     token = storage.getItem('studentToken');
   } else {
