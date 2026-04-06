@@ -278,10 +278,37 @@ const StudentDashboard = () => {
 
   useEffect(() => {
     fetchQuizzes();
+    
+    // Refresh quiz data when user returns to dashboard (after quiz or navigation)
+    const handleFocus = () => {
+      console.log('📱 Dashboard regained focus - refreshing quiz list');
+      fetchQuizzes();
+    };
+    
+    window.addEventListener('focus', handleFocus);
+    
+    // Auto-refresh every 10 seconds to catch new quizzes
+    const autoRefresh = setInterval(() => {
+      console.log('🔄 Auto-refreshing quiz list...');
+      fetchQuizzes();
+    }, 10000);
+    
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+      clearInterval(autoRefresh);
+    };
   }, [fetchQuizzes]);
 
   const handleStartQuiz = (id: string) => {
     if (!id) return;
+    // Cannot start if already blocked/disqualified
+    const quiz = safeQuizzes.find(q => (q.id || q._id) === id);
+    if (quiz && (quiz.status === 'disqualified' || quiz.status === 'blocked')) {
+      toast.error('🔒 This quiz has been blocked', { 
+        description: 'You cannot re-attempt this quiz due to violations.'
+      });
+      return;
+    }
     navigate(`/student/quiz/${id}`);
   };
 
@@ -308,25 +335,19 @@ const StudentDashboard = () => {
   };
 
   const safeQuizzes = Array.isArray(quizzes) ? quizzes : [];
+  console.log('📊 Quiz List Debug:', { total: safeQuizzes.length, statuses: safeQuizzes.map(q => ({ title: q.title, status: q.status, attemptStatus: q.attemptStatus })) });
   
+  // STRICT FILTERING: Only show quizzes with exact status
   const availableQuizzes = safeQuizzes.filter(q => 
-    q && 
-    q.status !== 'completed' && 
-    q.status !== 'disqualified' && 
-    q.attemptStatus !== 'submitted' &&
-    !q.result
+    q && q.status === 'available'  // ONLY available status - nothing else
   );
   
   const completedQuizzes = safeQuizzes.filter(q => 
-    q && (
-      q.status === 'completed' || 
-      q.attemptStatus === 'submitted' ||
-      !!q.result
-    )
+    q && q.status === 'completed'  // Only completed
   );
   
   const disqualifiedQuizzes = safeQuizzes.filter(q => 
-    q && (q.status === 'disqualified' || q.status === 'blocked')
+    q && (q.status === 'disqualified' || q.status === 'blocked' || q.status === 'active' || q.status === 'in-progress')
   );
 
   return (

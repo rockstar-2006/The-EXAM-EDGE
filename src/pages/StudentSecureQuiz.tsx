@@ -134,9 +134,11 @@ export default function StudentSecureQuiz() {
   const [remainingEscapeTime, setRemainingEscapeTime] = useState(30);
   const [isOutsideApp, setIsOutsideApp] = useState(false);
   const [isTampered, setIsTampered] = useState(false);
+  const [blurIntensity, setBlurIntensity] = useState(0);
+  const [navHidden, setNavHidden] = useState(false);
+  const [isDevicePortrait, setIsDevicePortrait] = useState(window.innerHeight > window.innerWidth);
 
   // Security Refs
-  const lastViolationTime = useRef<number>(0);
   const originalDimensions = useRef({ width: 0, height: 0 });
   const isFullscreenActive = useRef(false);
   const isSecurityPaused = useRef(false);
@@ -177,7 +179,31 @@ export default function StudentSecureQuiz() {
         if (NB?.show) await NB.show();
       }
     } catch (e) { }
+    
+    setNavHidden(false);
   }, []);
+
+  // Enhanced Navigation Hiding with Persistent Enforcement
+  const enforceNavigationHidden = useCallback(async () => {
+    if (!quizStarted || quizSubmitted || !Capacitor.isNativePlatform()) return;
+    
+    try {
+      console.log('🔒 Enforcing navigation hiding...');
+      await StatusBar.hide().catch(() => {});
+      setNavHidden(true);
+      
+      if (Capacitor.getPlatform() === 'android') {
+        // NavigationBar plugin methods are not implemented on Android
+        // Instead, the native MainActivity.java handles UI hiding via SYSTEM_UI_FLAG settings
+        console.log('✅ Android: Relying on native MainActivity.java for nav bar hiding');
+      } else if (Capacitor.getPlatform() === 'ios') {
+        // StatusBar.hide() is sufficient for iOS
+        console.log('✅ iOS navigation hiding applied');
+      }
+    } catch (e: any) {
+      console.warn('⚠️ Navigation hiding error:', e?.message || e);
+    }
+  }, [quizStarted, quizSubmitted]);
 
   const initializeFullscreen = useCallback(async () => {
     try {
@@ -195,55 +221,99 @@ export default function StudentSecureQuiz() {
       return;
     }
     
-    const enforceImmersive = async () => {
-      try {
-        await StatusBar.hide();
-        if (Capacitor.getPlatform() === 'android') {
-          const NB: any = NavigationBar;
-          if (NB?.setTransparency) await NB.setTransparency({ isTransparent: true });
-          if (NB?.hide) await NB.hide();
-        }
-      } catch (e) { }
-    };
-
-    enforceImmersive();
+    await enforceNavigationHidden();
     setTimeout(() => {
       isTransitioning.current = false;
     }, 1000);
-  }, []);
+  }, [enforceNavigationHidden]);
 
-  // 🛡️ Persistent Navigation Hardening Heartbeat
+  // 🛡️ Persistent Navigation Hardening Heartbeat - More Aggressive
   useEffect(() => {
     if (!quizStarted || quizSubmitted || isBlocked) return;
     
     const enforceImmersive = async () => {
       try {
-        await StatusBar.hide();
-        if (Capacitor.getPlatform() === 'android') {
-          const NB: any = NavigationBar;
-          if (NB?.hide) await NB.hide();
+        if (!Capacitor.isNativePlatform()) return;
+        
+        const platform = Capacitor.getPlatform();
+        
+        // Hide status bar (top) - this works reliably
+        await StatusBar.hide().catch(() => {});
+        
+        // Note: Navigation Bar hiding is handled by native MainActivity.java
+        // The NavigationBar plugin doesn't implement these methods on Android,
+        // so we rely on the native Java code to manage SYSTEM_UI_FLAG settings
+        
+        if (platform === 'android') {
+          console.log('🔄 Navigation enforcement: Relying on native Android hideSystemUI()');
+          // The MainActivity.java will continuously hide the nav bar every 500ms
+          // No need to call plugin methods here
+        } else if (platform === 'ios') {
+          // iOS StatusBar.hide() is sufficient
+          console.log('🔄 Navigation enforcement: iOS');
         }
-      } catch (e) {}
+        
+        setNavHidden(true);
+      } catch (e: any) {
+        console.error('❌ Navigation enforcement error:', e?.message || e);
+      }
     };
 
+    // Enforce immediately and then every 2 seconds (less frequently since native code handles it)
+    enforceImmersive();
     const interval = setInterval(enforceImmersive, 2000);
+    
     return () => clearInterval(interval);
   }, [quizStarted, quizSubmitted, isBlocked]);
+  
+  // Handle orientation changes
+  useEffect(() => {
+    const handleOrientationChange = () => {
+      setIsDevicePortrait(window.innerHeight > window.innerWidth);
+      enforceNavigationHidden(); // Re-enforce on orientation change
+    };
+    
+    window.addEventListener('orientationchange', handleOrientationChange);
+    window.addEventListener('resize', handleOrientationChange);
+    
+    return () => {
+      window.removeEventListener('orientationchange', handleOrientationChange);
+      window.removeEventListener('resize', handleOrientationChange);
+    };
+  }, [enforceNavigationHidden]);
 
   const triggerViolation = useCallback((reason: string) => {
     if (isTransitioning.current || isSecurityPaused.current || isBlocked) return;
-    const now = Date.now();
-    if (now - lastViolationTime.current < 3000) return;
-    lastViolationTime.current = now;
-
+    
     const next = warningCountRef.current + 1;
     warningCountRef.current = next;
     setWarningCount(next);
     setLastViolation(reason);
+    
+    // 🔒 Send violation to backend immediately (no throttle - audit trail)
+    if (attemptId) {
+      fetch(`/api/student/quiz/log-violation`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('studentToken')}`
+        },
+        body: JSON.stringify({
+          attemptId,
+          violationType: 'focus-loss',
+          reason
+        })
+      }).catch(err => console.error('Failed to log violation:', err));
+    }
+    
+    // Animate blur intensity
+    setBlurIntensity(10);
+    
     toast.error(`SECURITY ALERT [${next}/3]`, { description: reason, position: 'top-center' });
 
     if (next >= 3) {
       setIsBlocked(true);
+      setBlurIntensity(20); // Maximum blur when blocked
       handleSubmitQuiz(true, `Strikes Exceeded: ${reason}`);
     } else {
       isSecurityPaused.current = true;
@@ -266,7 +336,18 @@ export default function StudentSecureQuiz() {
         setQuiz({
           ...qD,
           _id: qD.id || qD._id,
-          questions: (qD.questions || []).map((q: any) => ({ ...q, _id: q.id || q._id }))
+          questions: (qD.questions || []).map((q: any) => ({
+            _id: q.id || q._id,
+            question: q.question || '',
+            type: q.type || 'mcq',
+            options: q.options || [],
+            marks: q.marks || 1,
+            difficulty: q.difficulty
+          }))
+        });
+        console.log('📚 Questions Loaded:', { 
+          count: (qD.questions || []).length, 
+          firstQ: (qD.questions || [])[0]?.question?.substring(0, 50) 
         });
 
         // Load Persistent State
@@ -279,14 +360,53 @@ export default function StudentSecureQuiz() {
 
         if (res.data.existingAttempt) {
           const { existingAttempt } = res.data;
-          if (existingAttempt.status === 'submitted') {
+          console.log('🔍 Debug: Existing Attempt Details', {
+            statusFromBackend: existingAttempt.status,
+            isBlockedFromBackend: existingAttempt.isBlocked,
+            isBlockedField: existingAttempt.isBlocked === true,
+            willSetBlocked: existingAttempt.status === 'blocked',
+            attemptId: existingAttempt.id,
+            startedAt: existingAttempt.startedAt,
+            submittedAt: existingAttempt.submittedAt
+          });
+          
+          // Log the exact condition check
+          const isExplicitlyBlocked = existingAttempt.status === 'blocked';
+          console.log('🔐 Blocking Logic Check:', {
+            value: existingAttempt.status,
+            isEqualToBlocked: isExplicitlyBlocked,
+            type: typeof existingAttempt.status
+          });
+          
+          // Only block if status is EXPLICITLY 'blocked' - new quizzes will have no attempt
+          if (isExplicitlyBlocked) {
+            console.warn('⚠️ BLOCKED QUIZ DETECTED - Setting isBlocked flag');
+            const violationReason = existingAttempt.violationReason || 'Security violations detected during previous attempt';
+            setIsBlocked(true);
+            toast.error('❌ Quiz Access Blocked', { 
+              description: `Reason: ${violationReason}. Contact your instructor to unblock this quiz.`,
+              duration: 7000 
+            });
+            // Show toast, but DON'T return - let them see the blocked message in UI
+            // This way they know exactly why it's blocked
+          } else if (existingAttempt.status === 'submitted') {
             setQuizSubmitted(true);
           } else if (existingAttempt.status === 'started') {
+            const resumeTime = existingAttempt.timeRemaining !== null && existingAttempt.timeRemaining !== undefined 
+              ? existingAttempt.timeRemaining 
+              : ((quiz?.duration || 30) * 60);
+            console.log('⏱️ Quiz Resumed - Timer:', { 
+              received: existingAttempt.timeRemaining,
+              final: resumeTime,
+              display: formatTime(resumeTime)
+            });
             setAttemptId(existingAttempt.id || existingAttempt._id);
             setQuizStarted(true);
-            setTimeLeft(existingAttempt.timeRemaining || 0);
+            setTimeLeft(resumeTime);
             initializeFullscreen();
           }
+        } else {
+          console.log('✅ New Quiz - No existing attempt found');
         }
         setSecurityStatus('ready');
       } catch (e) {
@@ -314,11 +434,15 @@ export default function StudentSecureQuiz() {
     if (!quizStarted || quizSubmitted || isBlocked) return;
 
     if (isOutsideApp) {
-      // Start the countdown
+      // Blur effect when outside app (gradual increase)
+      setBlurIntensity(15);
+      
+      // Start the countdown with visual feedback
       escapeTimerRef.current = setInterval(() => {
         setRemainingEscapeTime(prev => {
           if (prev <= 1) {
             setIsBlocked(true);
+            setBlurIntensity(25); // Maximum blur
             handleSubmitQuiz(true, 'Total Escape Time Exceeded (30s)');
             if (escapeTimerRef.current) clearInterval(escapeTimerRef.current);
             return 0;
@@ -327,11 +451,12 @@ export default function StudentSecureQuiz() {
         });
       }, 1000);
     } else {
-      // User returned — stop timer and reset buffer
+      // User returned — remove blur gradually and reset buffer
       if (escapeTimerRef.current) {
         clearInterval(escapeTimerRef.current);
         escapeTimerRef.current = null;
       }
+      setBlurIntensity(0); // Remove blur smoothly
       setRemainingEscapeTime(30);
     }
 
@@ -349,8 +474,12 @@ export default function StudentSecureQuiz() {
     const handleFocusLoss = (reason: string) => {
       if (isSecurityPaused.current || isTransitioning.current || isBlocked) return;
       if (isOutsideAppRef.current) return; // Already flagged
+      
+      console.log('🚨 VIOLATION DETECTED - Focus Loss:', reason);
+      
       setIsOutsideApp(true);
-      toast.error('SURVEILLANCE ALERT', { 
+      setBlurIntensity(12); // Start blur
+      toast.error('🚨 SURVEILLANCE ALERT', { 
         description: 'You have left the secure environment. Return immediately.',
         duration: 30000,
         position: 'top-center'
@@ -361,6 +490,8 @@ export default function StudentSecureQuiz() {
       if (!isOutsideAppRef.current) return; // Not flagged, ignore
       if (isSecurityPaused.current) return; // Already handling a violation
       setIsOutsideApp(false);
+      setBlurIntensity(0); // Remove blur immediately
+      setRemainingEscapeTime(30); // Reset escape timer
         
       // Issue a strike on return
       const next = warningCountRef.current + 1;
@@ -368,14 +499,31 @@ export default function StudentSecureQuiz() {
       setWarningCount(next);
       setLastViolation('Loss of Focus / Screen Switching');
       
+      // 🔒 Send violation to backend
+      if (attemptId) {
+        fetch(`/api/student/quiz/log-violation`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('studentToken')}`
+          },
+          body: JSON.stringify({
+            attemptId,
+            violationType: 'app-switch',
+            reason: 'Loss of Focus / Screen Switching'
+          })
+        }).catch(err => console.error('Failed to log violation:', err));
+      }
+      
       if (next >= 3) {
         setIsBlocked(true);
+        setBlurIntensity(20);
         handleSubmitQuiz(true, 'Maximum Strikes Reached (Limit: 3)');
       } else {
         isSecurityPaused.current = true;
         setShowWarningModal(true);
       }
-      toast.success(`Integrity restored. Strike ${next} of 3 issued.`);
+      toast.success(`✓ Integrity restored. Strike ${next} of 3 issued.`);
     };
 
     const handleBlur = () => {
@@ -386,7 +534,7 @@ export default function StudentSecureQuiz() {
 
     const handleVisibility = () => {
       if (document.hidden) {
-        handleFocusLoss('Screen minimized or tab switch');
+        handleFocusLoss('Screen minimized or tab switch detected');
       } else {
         handleFocusGain();
       }
@@ -427,7 +575,7 @@ export default function StudentSecureQuiz() {
       originalDimensions.current = { width: window.innerWidth, height: window.innerHeight };
     }
     
-    // 🔍 Tamper-Resistant Proctoring Loop (500ms Check)
+    // 🔍 Enhanced Tamper-Resistant Proctoring Loop with App Overlay Detection
     const monitorSecurity = () => {
        if (quizStarted && !quizSubmitted && !isBlocked && !isTransitioning.current) {
           if (!document.hasFocus()) {
@@ -436,10 +584,32 @@ export default function StudentSecureQuiz() {
              }
           }
           
-          if (window.innerHeight < (originalDimensions.current.height * 0.7)) {
-             if (!isOutsideAppRef.current) handleFocusLoss('Split-screen or unauthorized resizing detected');
+          // Detect split-screen or window resize that indicates overlay apps
+          const currentHeight = window.innerHeight;
+          const currentWidth = window.innerWidth;
+          const originalHeight = originalDimensions.current.height;
+          const originalWidth = originalDimensions.current.width;
+          
+          const isSplitScreen = currentHeight < (originalHeight * 0.7) || currentWidth < (originalWidth * 0.7);
+          
+          // If we were in split-screen but now back to normal → clear blur
+          if (!isSplitScreen && isOutsideAppRef.current) {
+             console.log('✅ Split-screen closed - clearing blur and violations', {
+                currentHeight,
+                currentWidth,
+                originalHeight,
+                originalWidth
+             });
+             setIsOutsideApp(false);
+             setBlurIntensity(0);
+             setRemainingEscapeTime(30);
+          } else if (isSplitScreen && !isOutsideAppRef.current && !isSecurityPaused.current) {
+             // Split-screen detected
+             console.warn('⚠️ Split-screen detected - triggering violation');
+             handleFocusLoss('Split-screen or floating app overlay detected');
           }
           
+          // Network security check
           const conn = (navigator as any).connection || (navigator as any).mozConnection || (navigator as any).webkitConnection;
           if (conn && (conn.type === 'vpn' || conn.rtt > 5000)) {
              setNetworkSecure(false);
@@ -501,11 +671,40 @@ export default function StudentSecureQuiz() {
         const attempt = res.data.attempt;
         setAttemptId(attempt.id || attempt._id);
         setQuizStarted(true);
-        setTimeLeft(attempt.timeRemaining || (quiz?.duration || 30) * 60);
+        const calculatedTime = attempt.timeRemaining || (quiz?.duration || 30) * 60;
+        console.log('⏱️ Quiz Started - Timer Debug:', {
+          attemptTimeRemaining: attempt.timeRemaining,
+          quizDuration: quiz?.duration,
+          calculatedTime
+        });
+        setTimeLeft(calculatedTime);
+        
+        // 🎯 IMMEDIATELY HIDE NAVIGATION BAR ON QUIZ START (before fullscreen)
+        if (Capacitor.isNativePlatform()) {
+          try {
+            await StatusBar.hide().catch(() => {});
+            console.log('✅ StatusBar.hide() called immediately on quiz start');
+          } catch (e) {
+            console.error('StatusBar.hide() error:', e);
+          }
+        }
+        
         initializeFullscreen();
+      } else {
+        console.error('❌ Start quiz failed:', res.data?.message);
+        toast.error('Failed to start quiz: ' + (res.data?.message || 'Unknown error'));
       }
-    } catch (e) {
-      toast.error('Session Init Failed');
+    } catch (e: any) {
+      console.error('❌ Start Quiz Error Details:', {
+        message: e.message,
+        response: e.response?.data,
+        status: e.response?.status,
+        fullError: e
+      });
+      
+      // Show specific error message
+      const errorMsg = e.response?.data?.message || e.message || 'Failed to start quiz';
+      toast.error('Error: ' + errorMsg);
     } finally {
       setIsStarting(false);
     }
@@ -516,16 +715,29 @@ export default function StudentSecureQuiz() {
     setSubmitting(true);
     try {
       const arr = Object.entries(answers).map(([questionId, studentAnswer]) => ({ questionId, studentAnswer }));
+      console.log('📤 Submitting quiz:', { attemptId, answerCount: arr.length, auto, reason });
+      
       const res = await studentAuthAPI.submitQuizAttempt(attemptId, arr, auto, reason);
+      
       if (res.data?.success) {
+        console.log('✅ Quiz submitted successfully:', res.data);
         setSubmissionResult(res.data.results);
         setQuizSubmitted(true);
         storage.removeItem(`quiz_state_${quizId}`);
         exitFullscreen();
+        toast.success('Quiz submitted successfully!');
+      } else {
+        console.error('❌ Submit failed - not successful:', res.data);
+        toast.error('Submission failed: ' + (res.data?.message || 'Unknown error'));
       }
-    } catch (e) {
-      console.error('Quiz submission error:', e);
-      toast.error('Sync Error: Please try again.');
+    } catch (e: any) {
+      console.error('❌ Quiz submission error:', {
+        message: e.message,
+        response: e.response?.data,
+        status: e.response?.status
+      });
+      const errorMsg = e.response?.data?.message || e.message || 'Please try again';
+      toast.error('❌ ' + errorMsg);
     } finally {
       setSubmitting(false);
     }
@@ -602,10 +814,15 @@ export default function StudentSecureQuiz() {
 
             <Button
               onClick={handleStartQuiz}
-              disabled={isStarting}
-              className="w-full h-14 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl font-bold shadow-lg shadow-indigo-100 transition-all active:scale-[0.98]"
+              disabled={isStarting || isBlocked}
+              className={cn(
+                "w-full h-14 text-white rounded-2xl font-bold shadow-lg transition-all active:scale-[0.98]",
+                isBlocked 
+                  ? "bg-slate-300 cursor-not-allowed opacity-60" 
+                  : "bg-indigo-600 hover:bg-indigo-700 shadow-indigo-100"
+              )}
             >
-              {isStarting ? <Loader2 className="w-5 h-5 animate-spin" /> : "Start Quiz"}
+              {isStarting ? <Loader2 className="w-5 h-5 animate-spin" /> : (isBlocked ? "Quiz Blocked - Violations Detected" : "Start Quiz")}
             </Button>
           </CardContent>
         </Card>
@@ -725,6 +942,69 @@ export default function StudentSecureQuiz() {
     );
   }
 
+  // Show blocked screen if quiz access is denied due to violations
+  if (isBlocked) {
+    return (
+      <div className="h-screen w-full bg-gradient-to-br from-red-50 via-white to-pink-50 flex flex-col items-center justify-center p-6 text-center">
+        <div className="max-w-md mx-auto space-y-6">
+          <div className="flex justify-center">
+            <div className="relative">
+              <div className="absolute inset-0 w-32 h-32 bg-red-600 rounded-full blur-2xl opacity-30" />
+              <div className="relative w-32 h-32 bg-red-600 rounded-full flex items-center justify-center shadow-2xl shadow-red-600/30">
+                <ShieldAlert className="w-16 h-16 text-white" />
+              </div>
+            </div>
+          </div>
+          
+          <div>
+            <h1 className="text-3xl font-black text-red-600 mb-2">⚠️ Quiz Access Blocked</h1>
+            <p className="text-slate-600 font-bold text-base leading-relaxed">
+              Your attempt to complete this quiz was terminated due to security violations. The quiz has been permanently blocked.
+            </p>
+          </div>
+
+          <div className="bg-red-50 border-2 border-red-200 rounded-2xl p-4 text-left space-y-2">
+            <p className="font-black text-sm text-red-600 uppercase tracking-wide">❌ Reason for Block:</p>
+            <p className="text-slate-700 font-bold">Multiple security violations detected during quiz attempt.</p>
+            <p className="text-sm text-slate-600 mt-3">Violations include:</p>
+            <ul className="list-disc list-inside space-y-1 text-sm text-slate-600 ml-2">
+              <li>Loss of focus (switching out of app)</li>
+              <li>Split-screen or floating window detection</li>
+              <li>Application overlay attempts</li>
+              <li>Exceeding 3 violations (autosubmit triggered)</li>
+            </ul>
+          </div>
+
+          <div className="bg-blue-50 border-2 border-blue-200 rounded-2xl p-4 text-left">
+            <p className="font-black text-sm text-blue-600 uppercase tracking-wide mb-2">📞 What To Do:</p>
+            <p className="text-slate-700 font-bold text-sm">Contact your instructor to:</p>
+            <ul className="list-disc list-inside space-y-1 text-sm text-slate-600 mt-2 ml-2">
+              <li>Review the violation details</li>
+              <li>Request quiz unblocking if violations were unintentional</li>
+              <li>Reschedule or retry the quiz with proper environment</li>
+            </ul>
+          </div>
+
+          <div className="pt-4 space-y-3">
+            <Button
+              onClick={() => navigate('/student/dashboard')}
+              className="w-full h-14 bg-slate-900 hover:bg-black text-white rounded-2xl font-black uppercase tracking-widest text-sm shadow-xl transition-all active:scale-95"
+            >
+              Return to Dashboard
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => window.location.href = 'mailto:support@faculty-quest.com'}
+              className="w-full h-12 border-2 border-slate-200 hover:bg-slate-50 text-slate-600 rounded-2xl font-bold uppercase tracking-widest text-xs"
+            >
+              Email Support
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   const formatTime = (seconds: number) => {
     if (!seconds || isNaN(seconds)) return "00:00";
     const m = Math.floor(seconds / 60);
@@ -732,11 +1012,31 @@ export default function StudentSecureQuiz() {
     return `${m}:${s.toString().padStart(2, '0')}`;
   };
 
+  const handleClickResetBlur = () => {
+    // ALWAYS try to clear blur on click - this fixes split-screen issues
+    if (blurIntensity > 0) {
+      console.log('✅ Click detected during blur - clearing blur immediately', { 
+        wasOutsideApp: isOutsideApp,
+        blurIntensity 
+      });
+      setBlurIntensity(0);
+      setIsOutsideApp(false); // Force clear the outside app flag
+      setRemainingEscapeTime(30); // Reset timer
+    }
+  };
+
   return (
     <div className={cn(
       "h-screen w-full bg-white flex flex-col text-slate-900 overflow-hidden select-none relative",
-      isOutsideApp && "filter blur-xl grayscale pointer-events-none"
-    )}>
+      blurIntensity > 0 && `blur-[${blurIntensity}px]`
+    )}
+    style={{
+      filter: blurIntensity > 0 ? `blur(${blurIntensity}px) grayscale(${blurIntensity}%)` : 'none',
+      pointerEvents: 'auto', // Always allow clicks so user can clear blur
+      transition: 'filter 0.3s ease-in-out',
+      cursor: blurIntensity > 0 ? 'not-allowed' : 'auto'
+    }}
+    onClick={handleClickResetBlur}>
       <style>{`
         @media print {
           body { display: none !important; }
@@ -751,22 +1051,63 @@ export default function StudentSecureQuiz() {
         }
       `}</style>
 
+      {/* Professional Blur Overlay with Warning */}
       {isOutsideApp && (
-        <div className="fixed inset-0 z-[100] bg-black/90 flex flex-col items-center justify-center p-6 text-center animate-in fade-in duration-300">
-           <div className="w-24 h-24 bg-red-600 rounded-full flex items-center justify-center mb-8 animate-pulse shadow-[0_0_50px_rgba(220,38,38,0.5)]">
-             <ShieldAlert className="w-12 h-12 text-white" />
-           </div>
-           <h2 className="text-3xl font-black text-white tracking-tight mb-2 uppercase">Violation in Progress</h2>
-           <p className="text-red-400 font-bold text-sm mb-10 max-w-xs">RETURN TO THE APP IMMEDIATELY. YOUR SESSION WILL BE TERMINATED IN:</p>
-           <div className="text-7xl font-black text-white tabular-nums tracking-tighter mb-4">
-             {remainingEscapeTime}S
-           </div>
-           <p className="text-white/40 text-[10px] font-bold uppercase tracking-widest">Strike Warning {warningCount + 1} of 3</p>
+        <div className="fixed inset-0 z-[100] bg-gradient-to-br from-black/95 via-red-900/90 to-black/95 flex flex-col items-center justify-center p-6 text-center animate-in fade-in duration-300">
+          {/* Animated Warning Icon */}
+          <div className="mb-8 relative">
+            <div className="absolute inset-0 w-24 h-24 bg-red-600 rounded-full blur-2xl opacity-50 animate-pulse" />
+            <div className="relative w-24 h-24 bg-red-600 rounded-full flex items-center justify-center shadow-2xl shadow-red-600/50 animate-bounce">
+              <ShieldAlert className="w-12 h-12 text-white" />
+            </div>
+          </div>
+          
+          {/* Warning Text */}
+          <h2 className="text-4xl font-black text-white tracking-tight mb-3 uppercase animate-in slide-in-from-top-4 duration-500">⚠️ SECURITY VIOLATION</h2>
+          <p className="text-red-200 font-bold text-base mb-12 max-w-sm leading-relaxed animate-in fade-in duration-700">
+            FOCUS LOSS DETECTED<br/>
+            <span className="text-white/70 text-sm">Return to application immediately or session will terminate</span>
+          </p>
+          
+          {/* Countdown Timer */}
+          <div className="mb-8 animate-in zoom-in duration-500">
+            <div className="text-8xl font-black text-white tabular-nums tracking-tighter drop-shadow-2xl font-mono">{remainingEscapeTime}s</div>
+            <p className="text-white/50 text-xs font-bold uppercase tracking-widest mt-4">Time Remaining</p>
+          </div>
+          
+          {/* Strike Warning */}
+          <div className="flex justify-center gap-1.5 mt-8">
+            {[1, 2, 3].map((i) => (
+              <div 
+                key={i}
+                className={cn(
+                  "w-2 h-2 rounded-full transition-all",
+                  i <= warningCount ? "bg-red-500 scale-125" : "bg-white/30"
+                )}
+              />
+            ))}
+          </div>
+          <p className="text-white/60 text-xs font-bold uppercase tracking-widest mt-6">Strike {warningCount} of 3</p>
         </div>
       )}
 
+
       {/* 📍 Header - Premium Two-Row Layout */}
       <div className="flex flex-col bg-white border-b border-slate-100 relative z-30 shrink-0 pt-12 sm:pt-10">
+        {/* CRITICAL WARNING BANNER - Only show when outside app */}
+        {isOutsideApp && (
+          <div className="px-6 py-3 bg-gradient-to-r from-red-600 via-red-600 to-red-700 border-b-4 border-red-900 animate-pulse flex items-center justify-between gap-4">
+            <div className="flex items-center gap-3 flex-1">
+              <ShieldAlert className="w-5 h-5 text-white flex-shrink-0 animate-bounce" />
+              <span className="text-sm font-black text-white uppercase tracking-widest">⏰ CRITICAL: TAB AWAY DETECTED</span>
+            </div>
+            <div className="bg-red-900 rounded-lg px-4 py-2 flex items-center gap-2">
+              <span className="text-xl font-black text-white tabular-nums">{remainingEscapeTime}s</span>
+              <span className="text-xs font-bold text-red-100 uppercase">RETURN NOW</span>
+            </div>
+          </div>
+        )}
+
         {/* Row 1: Session Info */}
         <div className="px-6 py-4 flex items-center justify-between gap-6">
           <div className="flex items-center gap-5">
@@ -935,18 +1276,60 @@ export default function StudentSecureQuiz() {
       {/* Modals */}
       <Dialog open={showWarningModal} onOpenChange={(o) => { if (!o) { isSecurityPaused.current = false; setShowWarningModal(false); } }}>
         <DialogContent className="rounded-3xl p-8 max-w-sm w-[90vw] border-none shadow-2xl animate-in zoom-in-95 duration-200">
-          <div className="text-center space-y-4">
-            <div className="w-16 h-16 bg-red-50 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-red-100">
+          <div className="text-center space-y-6">
+            {/* Icon */}
+            <div className="w-16 h-16 bg-red-50 rounded-2xl flex items-center justify-center mx-auto mb-4 border-2 border-red-100 shadow-lg">
               <ShieldAlert className="w-10 h-10 text-red-600" />
             </div>
-            <h2 className="text-xl font-bold text-red-600 tracking-tight">Safety Alert</h2>
-            <p className="text-slate-500 font-medium leading-relaxed text-sm">
-              Notice: <span className="text-red-600 font-bold block mt-1">"{lastViolation}"</span>. Please return to your exam paper.
-            </p>
-            <div className="pt-2">
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-4">Strike {warningCount} of 3</p>
-              <Button onClick={() => { isSecurityPaused.current = false; setShowWarningModal(false); }} className="w-full h-12 bg-slate-900 text-white rounded-xl font-bold hover:bg-black transition-colors">I Understand</Button>
+            
+            {/* Title */}
+            <div>
+              <h2 className="text-2xl font-black text-red-600 tracking-tight mb-2">⚠️ Security Violation</h2>
+              <p className="text-slate-500 text-sm font-bold uppercase tracking-widest">Strike {warningCount} of 3</p>
             </div>
+            
+            {/* Violation Reason */}
+            <div className="bg-red-50/50 border border-red-100 rounded-2xl p-4">
+              <p className="text-red-600 font-bold text-sm leading-relaxed">
+                <span className="block text-xs text-red-500 uppercase tracking-widest font-black mb-2">Reason:</span>
+                "{lastViolation}"
+              </p>
+            </div>
+            
+            {/* Warning Message */}
+            <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100">
+              <p className="text-slate-600 font-medium text-sm leading-relaxed">
+                Please return to your exam immediately. Two more violations will result in automatic session termination and submission.
+              </p>
+            </div>
+            
+            {/* Strike Progress */}
+            <div className="space-y-2">
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Strikes Remaining</p>
+              <div className="flex gap-2 justify-center">
+                {[1, 2, 3].map((i) => (
+                  <div 
+                    key={i}
+                    className={cn(
+                      "h-2 flex-1 rounded-full transition-all",
+                      i <= warningCount ? "bg-red-500" : "bg-slate-200"
+                    )}
+                  />
+                ))}
+              </div>
+            </div>
+            
+            {/* Action Button */}
+            <Button 
+              onClick={() => { 
+                isSecurityPaused.current = false; 
+                setShowWarningModal(false);
+                setBlurIntensity(0); // Remove blur when acknowledging
+              }} 
+              className="w-full h-12 bg-slate-900 text-white rounded-xl font-bold hover:bg-black transition-colors shadow-lg"
+            >
+              Understood - Resuming Exam
+            </Button>
           </div>
         </DialogContent>
       </Dialog>
