@@ -40,14 +40,24 @@ const StudentAppLogin = () => {
 
     setIsLoading(true);
     try {
+      console.log('🔵 Starting login attempt for:', loginData.email);
       const response = await studentAuthAPI.login({ email: loginData.email, password: loginData.password });
-      // The studentAuthAPI.login already sets the items in storage, 
-      // but we update the context for reactive state updates.
+      
+      // Detailed logging for success
+      console.log('✅ Login response received:', response.data.success);
+      
       updateStudentData(response.data.student, response.data.token);
       toast.success('Login Successful');
       navigate('/student/dashboard');
     } catch (error: any) {
-      toast.error(error.response?.data?.message || 'Invalid email or password');
+      console.error('❌ Login Error Details:', {
+        status: error.response?.status,
+        data: error.response?.data,
+        message: error.message
+      });
+      
+      const errorMessage = error.response?.data?.message || error.message || 'Invalid email or password';
+      toast.error(errorMessage);
     } finally {
       setIsLoading(false);
     }
