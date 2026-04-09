@@ -92,7 +92,7 @@ Structure:
 
   try {
     const model = genAI.getGenerativeModel({
-      model: 'gemini-3.1-pro-preview',
+      model: 'gemini-2.5-flash',
     });
 
     const result = await model.generateContent(prompt);
