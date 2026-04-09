@@ -8,7 +8,7 @@ if (!API_KEY) {
   console.warn('VITE_GEMINI_API_KEY is not set. Please add it to your .env file.');
 }
 
-const genAI = API_KEY ? new GoogleGenerativeAI(API_KEY, { apiVersion: 'v1' }) : null;
+const genAI = API_KEY ? new GoogleGenerativeAI(API_KEY) : null;
 
 export interface GenerateQuestionsParams {
   text: string;
@@ -93,34 +93,21 @@ Structure:
   try {
     const model = genAI.getGenerativeModel({
       model: 'gemini-1.5-flash',
-      systemInstruction: {
-        role: "system",
-        parts: [{ text: `You are an Academic Content Analyzer. Your task is to generate assessment items as a strictly valid JSON array of objects.
-        
-        STRUCTURE:
-        [
-          {
-            "id": "generated_id",
-            "type": "mcq" | "short-answer",
-            "question": "Question text...",
-            "options": ["Op1", "Op2", "Op3", "Op4"], // Only for MCQ
-            "answer": "A" | "B" | "C" | "D" | "Text answer",
-            "explanation": "Citation from source."
-          }
-        ]` }]
-      },
-      generationConfig: {
-        temperature: 0.7,
-        maxOutputTokens: 8192,
-        responseMimeType: "application/json",
-      }
     });
 
     const result = await model.generateContent(prompt);
     const response = await result.response;
     const responseText = response.text();
 
-    const questions: Question[] = JSON.parse(responseText);
+    // Extract JSON from response (remove markdown code blocks if present)
+    let jsonText = responseText.trim();
+    if (jsonText.startsWith('```json')) {
+      jsonText = jsonText.replace(/```json\n?/, '').replace(/\n?```$/, '');
+    } else if (jsonText.startsWith('```')) {
+      jsonText = jsonText.replace(/```\n?/, '').replace(/\n?```$/, '');
+    }
+
+    const questions: Question[] = JSON.parse(jsonText);
 
     // Validate and enhance the questions
     return questions.map((q, index) => ({
