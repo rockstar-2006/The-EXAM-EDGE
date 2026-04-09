@@ -32,7 +32,7 @@ export const useAuth = () => {
     try {
       const response = await api.post('/auth/login', { email, password });
       if (response.data.token) {
-        storage.setItem('token', response.data.token);
+        storage.setItem('teacherToken', response.data.token);
       }
       setUser(response.data.user);
       return { success: true };
@@ -48,7 +48,7 @@ export const useAuth = () => {
     try {
       const response = await api.post('/auth/register', { name, email, password, role });
       if (response.data.token) {
-        storage.setItem('token', response.data.token);
+        storage.setItem('teacherToken', response.data.token);
       }
       setUser(response.data.user);
       return { success: true };
@@ -66,7 +66,8 @@ export const useAuth = () => {
     } catch (error) {
       console.error('Logout error:', error);
     }
-    storage.removeItem('token');
+    storage.removeItem('teacherToken');
+    storage.removeItem('token'); // Clear legacy token if any
     setUser(null);
   };
 

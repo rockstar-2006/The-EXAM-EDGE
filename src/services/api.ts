@@ -48,7 +48,6 @@ export const teacherAuthAPI = {
       const response = await httpClient.post('/auth/login', credentials);
       if (response.data.token) {
         storage.setItem('teacherToken', response.data.token);
-        storage.setItem('token', response.data.token);
         storage.setItem('userData', JSON.stringify(response.data.user));
       }
       return response;

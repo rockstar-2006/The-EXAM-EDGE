@@ -211,7 +211,7 @@ export default function DashboardPage() {
               {savedQuizzes.length > 0 ? (
                 savedQuizzes.slice(0, 4).map((quiz) => (
                   <div
-                    key={quiz.id}
+                    key={quiz._id}
                     className="flex items-center gap-4 p-3 rounded-xl bg-card border border-sidebar-border/50 hover:border-primary/50 hover:translate-x-1 transition-all duration-300 group cursor-pointer shadow-sm"
                   >
                     <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-white transition-colors">

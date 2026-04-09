@@ -178,7 +178,7 @@ export default function ResultsPage() {
                         <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground opacity-60">Avg Score</p>
                         <div className="flex items-center gap-2">
                           <TrendingUp className="h-3.5 w-3.5 text-secondary" />
-                          <span className="font-black text-sm">{quiz.averageScore !== undefined ? `${quiz.averageScore.toFixed(1)}%` : '0%'}</span>
+                          <span className="font-black text-sm">{typeof quiz.averageScore === 'number' ? `${quiz.averageScore.toFixed(1)}%` : '0%'}</span>
                         </div>
                       </div>
                     </div>

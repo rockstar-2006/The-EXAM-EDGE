@@ -112,11 +112,8 @@ export default function QuizResultsPage() {
   const handleDownloadExcel = async (detailed: boolean = false) => {
     setDownloading(true);
     try {
-      const token = document.cookie
-        .split('; ')
-        .find((row) => row.startsWith('token='))
-        ?.split('=')[1];
-
+      const token = localStorage.getItem('teacherToken') || localStorage.getItem('token');
+      
       const response = await axios.get(
         `${API_URL}/quiz/${quizId}/results/download${detailed ? '?detailed=true' : ''}`,
         {
@@ -195,11 +192,18 @@ export default function QuizResultsPage() {
   }, [attempts, searchTerm, sortConfig]);
 
   const stats = attempts.length > 0 ? {
-    avgPercentage: (attempts.reduce((sum, a) => sum + a.percentage, 0) / attempts.length).toFixed(1),
-    passRate: ((attempts.filter((a) => a.percentage >= 40).length / attempts.length) * 100).toFixed(1),
-    highestScore: Math.max(...attempts.map((a) => a.totalMarks)),
-    lowestScore: Math.min(...attempts.map((a) => a.totalMarks)),
+    avgPercentage: (attempts.reduce((sum, a) => sum + (a.percentage || 0), 0) / attempts.length).toFixed(1),
+    passRate: ((attempts.filter((a) => (a.percentage || 0) >= 40).length / attempts.length) * 100).toFixed(1),
+    highestScore: Math.max(...attempts.map((a) => a.totalMarks || 0)),
+    lowestScore: Math.min(...attempts.map((a) => a.totalMarks || 0)),
   } : null;
+
+  const topPerformers = useMemo(() => {
+    return [...attempts]
+      .filter(a => a.status === 'submitted' || a.status === 'graded')
+      .sort((a, b) => (b.percentage || 0) - (a.percentage || 0))
+      .slice(0, 5);
+  }, [attempts]);
 
   const containerVariants = {
     hidden: { opacity: 0 },
@@ -299,6 +303,52 @@ export default function QuizResultsPage() {
         </motion.div>
       )}
 
+      {topPerformers.length > 0 && (
+        <motion.div variants={itemVariants} className="space-y-6">
+          <div className="flex items-center gap-3 px-1">
+            <div className="w-10 h-10 rounded-2xl bg-primary/10 flex items-center justify-center text-primary">
+              <Trophy className="w-5 h-5 shadow-glow" />
+            </div>
+            <div>
+              <h2 className="text-xl font-black uppercase italic tracking-tighter">Top 5 Achievers</h2>
+              <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">Elite performance leaderboard</p>
+            </div>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+            {topPerformers.map((student, idx) => (
+              <Card key={student._id} className="relative overflow-hidden border-sidebar-border/50 bg-card/40 backdrop-blur-md group hover:scale-[1.02] transition-transform duration-300">
+                <div className={cn(
+                  "absolute top-0 left-0 w-full h-1",
+                  idx === 0 ? "bg-amber-400" : idx === 1 ? "bg-slate-300" : idx === 2 ? "bg-amber-600" : "bg-primary/20"
+                )} />
+                <CardContent className="p-5">
+                  <div className="flex flex-col items-center text-center gap-2">
+                    <div className="relative">
+                      <div className={cn(
+                        "w-12 h-12 rounded-full flex items-center justify-center text-lg font-black",
+                        idx === 0 ? "bg-amber-400/10 text-amber-500" : 
+                        idx === 1 ? "bg-slate-300/10 text-slate-400" : 
+                        idx === 2 ? "bg-amber-600/10 text-amber-700" : "bg-primary/10 text-primary"
+                      )}>
+                        {idx + 1}
+                      </div>
+                      {idx < 3 && <Sparkles className={cn("absolute -top-1 -right-1 w-4 h-4", idx === 0 ? "text-amber-400" : "text-slate-400")} />}
+                    </div>
+                    <div className="space-y-0.5">
+                      <p className="font-black text-sm uppercase truncate w-full max-w-[140px]">{student.studentName}</p>
+                      <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-tighter">{student.studentUSN}</p>
+                    </div>
+                    <div className="mt-2 text-xl font-black italic tracking-tighter text-primary">
+                      {(student.percentage || 0).toFixed(1)}%
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </motion.div>
+      )}
+
       <motion.div variants={itemVariants}>
         <Card className="shadow-elevated border-sidebar-border/50 glass-effect overflow-hidden">
           <CardHeader className="bg-muted/10 border-b border-sidebar-border/50 py-6">
@@ -363,9 +413,9 @@ export default function QuizResultsPage() {
                         <TableCell className="text-center">
                           <span className={cn(
                             "text-sm font-black italic tracking-tighter px-3 py-1 rounded-md",
-                            attempt.percentage >= 40 ? "text-emerald-600 bg-emerald-50" : "text-rose-600 bg-rose-50"
+                            (attempt.percentage || 0) >= 40 ? "text-emerald-600 bg-emerald-50" : "text-rose-600 bg-rose-50"
                           )}>
-                            {attempt.percentage.toFixed(1)}%
+                            {(attempt.percentage || 0).toFixed(1)}%
                           </span>
                         </TableCell>
                         <TableCell>
@@ -410,7 +460,7 @@ export default function QuizResultsPage() {
                     </DialogDescription>
                   </div>
                   <div className="text-right">
-                    <div className="text-4xl font-black text-primary tracking-tighter">{selectedAttempt.percentage.toFixed(1)}%</div>
+                    <div className="text-4xl font-black text-primary tracking-tighter">{(selectedAttempt.percentage || 0).toFixed(1)}%</div>
                     <div className="text-[10px] font-black uppercase text-muted-foreground/40">Calibration</div>
                   </div>
                 </div>
