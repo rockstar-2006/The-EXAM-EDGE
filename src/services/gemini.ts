@@ -8,7 +8,7 @@ if (!API_KEY) {
   console.warn('VITE_GEMINI_API_KEY is not set. Please add it to your .env file.');
 }
 
-const genAI = API_KEY ? new GoogleGenerativeAI(API_KEY) : null;
+const genAI = API_KEY ? new GoogleGenerativeAI(API_KEY, { apiVersion: 'v1' }) : null;
 
 export interface GenerateQuestionsParams {
   text: string;
