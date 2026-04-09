@@ -92,27 +92,35 @@ Structure:
 
   try {
     const model = genAI.getGenerativeModel({
-      model: 'gemini-2.5-flash',  // Using the correct, stable model name
+      model: 'gemini-1.5-flash',
+      systemInstruction: {
+        role: "system",
+        parts: [{ text: `You are an Academic Content Analyzer. Your task is to generate assessment items as a strictly valid JSON array of objects.
+        
+        STRUCTURE:
+        [
+          {
+            "id": "generated_id",
+            "type": "mcq" | "short-answer",
+            "question": "Question text...",
+            "options": ["Op1", "Op2", "Op3", "Op4"], // Only for MCQ
+            "answer": "A" | "B" | "C" | "D" | "Text answer",
+            "explanation": "Citation from source."
+          }
+        ]` }]
+      },
       generationConfig: {
-        temperature: 0.7,  // Balanced creativity
-        topK: 40,
-        topP: 0.95,
-        maxOutputTokens: 8192,  // Sufficient for large quizzes
+        temperature: 0.7,
+        maxOutputTokens: 8192,
+        responseMimeType: "application/json",
       }
     });
+
     const result = await model.generateContent(prompt);
     const response = await result.response;
     const responseText = response.text();
 
-    // Extract JSON from response (remove markdown code blocks if present)
-    let jsonText = responseText.trim();
-    if (jsonText.startsWith('```json')) {
-      jsonText = jsonText.replace(/```json\n?/, '').replace(/\n?```$/, '');
-    } else if (jsonText.startsWith('```')) {
-      jsonText = jsonText.replace(/```\n?/, '').replace(/\n?```$/, '');
-    }
-
-    const questions: Question[] = JSON.parse(jsonText);
+    const questions: Question[] = JSON.parse(responseText);
 
     // Validate and enhance the questions
     return questions.map((q, index) => ({
