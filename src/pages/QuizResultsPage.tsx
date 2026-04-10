@@ -132,7 +132,29 @@ export default function QuizResultsPage() {
       link.remove();
       toast.success('Excel artifact generated successfully');
     } catch (error: any) {
-      toast.error('Artifact generation failed');
+      console.error('Artifact generation error:', error);
+      let errorMessage = 'Artifact generation failed';
+      
+      if (error.response?.data) {
+        if (error.response.data instanceof Blob) {
+          // If response is blob, we need to read it to see the error message
+          const reader = new FileReader();
+          reader.onload = () => {
+            try {
+              const errorData = JSON.parse(reader.result as string);
+              toast.error(`Export failed: ${errorData.message || 'Server error'}`);
+            } catch (e) {
+              toast.error('Export failed: Internal Server Error');
+            }
+          };
+          reader.readAsText(error.response.data);
+          return;
+        } else if (typeof error.response.data === 'object') {
+          errorMessage = `Export failed: ${error.response.data.message || error.message}`;
+        }
+      }
+      
+      toast.error(errorMessage);
     } finally {
       setDownloading(false);
     }
