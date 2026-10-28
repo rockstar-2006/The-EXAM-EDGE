@@ -1,14 +1,16 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { Question } from '@/types';
+import axios from 'axios';
 
-// Add your Gemini API key to .env as VITE_GEMINI_API_KEY
-const API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
+// Default system key from environment as fallback
+const DEFAULT_GEMINI_KEY = import.meta.env.VITE_GEMINI_API_KEY || '';
 
-if (!API_KEY) {
-  console.warn('VITE_GEMINI_API_KEY is not set. Please add it to your .env file.');
+export interface AISettings {
+  provider: 'system_default' | 'gemini' | 'groq' | 'claude';
+  apiKey?: string;
+  modelName?: string;
+  customPrompt?: string;
 }
-
-const genAI = API_KEY ? new GoogleGenerativeAI(API_KEY) : null;
 
 export interface GenerateQuestionsParams {
   text: string;
@@ -16,18 +18,27 @@ export interface GenerateQuestionsParams {
   type: 'mcq' | 'short-answer' | 'mixed';
   customPrompt?: string;
   difficulty?: 'easy' | 'medium' | 'hard' | 'mixed';
+  aiSettings?: AISettings;
 }
 
 export async function generateQuestions(
   params: GenerateQuestionsParams
 ): Promise<Question[]> {
-  if (!genAI) {
-    throw new Error('Gemini API key is not configured. Please add VITE_GEMINI_API_KEY to your .env file.');
-  }
+  const { text, numQuestions, type, customPrompt, difficulty, aiSettings } = params;
 
-  const { text, numQuestions, type, customPrompt, difficulty } = params;
+  // Resolve Provider and Key
+  const provider = aiSettings?.provider || 'system_default';
+  const customKey = aiSettings?.apiKey?.trim();
+  const modelName = aiSettings?.modelName?.trim();
+  const savedGlobalPrompt = aiSettings?.customPrompt?.trim();
 
-  // Construct the prompt based on question type and difficulty
+  // Combine Global Persona Directive with Per-Quiz Custom Directive
+  const combinedPromptDirectives = [
+    savedGlobalPrompt ? `FACULTY PEDAGOGICAL DIRECTIVE:\n${savedGlobalPrompt}` : '',
+    customPrompt ? `SPECIFIC QUIZ DIRECTIVE:\n${customPrompt}` : ''
+  ].filter(Boolean).join('\n\n');
+
+  // Construct standard instruction prompt
   let difficultyInstruction = '';
   if (difficulty && difficulty !== 'mixed') {
     difficultyInstruction = `- Difficulty level: ${difficulty.toUpperCase()}`;
@@ -47,12 +58,13 @@ SOURCE MATERIAL:
 ${text}
 """
 
-${customPrompt ? `CUSTOM DIRECTIVE: ${customPrompt}` : ''}
+${combinedPromptDirectives}
 
 PARAMETERS:
 - Quantity: ${numQuestions} items.
 - Format: ${type === 'mcq' ? 'Multiple Choice (MCQ)' : type === 'short-answer' ? 'Short Answer' : 'Mixed MCQ and Short Answer'}.
 ${difficultyInstruction}
+
 RICH CONTENT RULES:
 - If the source material contains code snippets, diagrams (described in text), or figures, YOU MUST INCLUDE THEM in the "question" field using Markdown code blocks or clear descriptions.
 - For programming topics (like C, Python, Java), PRIORITIZE questions that include code snippets for analysis.
@@ -66,73 +78,133 @@ MCQ RULES:
 - Ensure only ONE option is correct.
 - Distractors should be plausible but clearly incorrect based on the text.
 - Randomize the position of the correct answer (ensure a balanced distribution of A, B, C, D across the quiz).
-- Avoid repeating the same correct answer letter for consecutive questions (e.g., do not output Answer: C, Answer: C, Answer: C).
+- Avoid repeating the same correct answer letter for consecutive questions.
 - Ensure all 4 options are distinct and unique.
-- Do NOT simply shuffle the same options. Invent meaningful distractors.
-
-DUPLICATE ANSWER PREVENTION:
-- You MUST minimize the number of times the same option letter (e.g., "A", "B", "C", "D") is the correct answer in a row.
-- Ideally, no more than 2 consecutive questions should have the same correct answer letter.
-- Randomize the pattern of correct answers (e.g., A, C, B, D, A, B...).
 
 OUTPUT FORMAT:
-Return a strictly valid JSON array of objects. No markdown, no intro/outro text.
+Return a strictly valid JSON array of objects. No markdown formatting around the output, no intro/outro text.
 Structure:
 [
   {
     "id": "generated_1",
-    "type": "mcq", // or "short-answer"
+    "type": "mcq",
     "question": "Question text here...",
-    "options": ["Option 1", "Option 2", "Option 3", "Option 4"], // only for MCQ
-    "answer": "B", // The correct option letter (A/B/C/D) for MCQ, or the text answer for short-answer
+    "options": ["Option 1", "Option 2", "Option 3", "Option 4"],
+    "answer": "B",
     "explanation": "Brief explanation citing the source text."
   }
 ]
 `;
 
+  let jsonResponseText = '';
+
   try {
-    const model = genAI.getGenerativeModel({
-      model: 'gemini-2.5-flash',
-    });
+    // 🚀 ROUTE 1: GROQ CLOUD
+    if (provider === 'groq') {
+      if (!customKey) throw new Error('Groq API Key is not configured. Please add your key in Settings.');
+      const activeModel = modelName || 'llama-3.3-70b-versatile';
 
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    const responseText = response.text();
-
-    // Extract JSON from response (remove markdown code blocks if present)
-    let jsonText = responseText.trim();
-    if (jsonText.startsWith('```json')) {
-      jsonText = jsonText.replace(/```json\n?/, '').replace(/\n?```$/, '');
-    } else if (jsonText.startsWith('```')) {
-      jsonText = jsonText.replace(/```\n?/, '').replace(/\n?```$/, '');
+      const res = await axios.post(
+        'https://api.groq.com/openai/v1/chat/completions',
+        {
+          model: activeModel,
+          messages: [
+            { role: 'system', content: 'You are an assessment generation expert that outputs raw JSON arrays only.' },
+            { role: 'user', content: prompt }
+          ],
+          temperature: 0.3
+        },
+        {
+          headers: {
+            'Authorization': `Bearer ${customKey}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+      jsonResponseText = res.data.choices[0]?.message?.content || '';
     }
+    // 🚀 ROUTE 2: ANTHROPIC CLAUDE
+    else if (provider === 'claude') {
+      if (!customKey) throw new Error('Claude / Anthropic API Key is not configured. Please add your key in Settings.');
+      const activeModel = modelName || 'claude-3-5-sonnet-20241022';
 
-    const questions: Question[] = JSON.parse(jsonText);
+      const res = await axios.post(
+        'https://api.anthropic.com/v1/messages',
+        {
+          model: activeModel,
+          max_tokens: 4000,
+          messages: [{ role: 'user', content: prompt }]
+        },
+        {
+          headers: {
+            'x-api-key': customKey,
+            'anthropic-version': '2023-06-01',
+            'content-type': 'application/json',
+            'anthropic-dangerous-direct-browser-access': 'true'
+          }
+        }
+      );
+      jsonResponseText = res.data.content[0]?.text || '';
+    }
+    // 🚀 ROUTE 3: GOOGLE GEMINI (Custom or System Default)
+    else {
+      const activeKey = (provider === 'gemini' && customKey) ? customKey : DEFAULT_GEMINI_KEY;
+      if (!activeKey) {
+        throw new Error('Gemini API key is not configured. Add your key in Settings or contact your administrator.');
+      }
 
-    // Validate and enhance the questions
+      const genAI = new GoogleGenerativeAI(activeKey);
+      const activeModel = (provider === 'gemini' && modelName) ? modelName : 'gemini-2.5-flash';
+      const model = genAI.getGenerativeModel({ model: activeModel });
+
+      const result = await model.generateContent(prompt);
+      const response = await result.response;
+      jsonResponseText = response.text();
+    }
+  } catch (apiError: any) {
+    console.error(`Error calling ${provider} AI service:`, apiError);
+    const status = apiError?.response?.status;
+    const msg = apiError?.response?.data?.error?.message || apiError?.message || '';
+
+    if (status === 401 || status === 403 || msg.toLowerCase().includes('api key') || msg.toLowerCase().includes('unauthorized')) {
+      throw new Error(`Invalid or unauthorized ${provider.toUpperCase()} API Key. Please verify your key in Settings.`);
+    }
+    if (status === 404 || msg.toLowerCase().includes('model') || msg.toLowerCase().includes('not found')) {
+      throw new Error(`The model "${modelName || 'default'}" was not found or is unavailable for ${provider}. Please check model name in Settings.`);
+    }
+    if (status === 429 || msg.toLowerCase().includes('quota') || msg.toLowerCase().includes('rate limit')) {
+      throw new Error(`Rate limit or token quota exceeded on your ${provider.toUpperCase()} account. Please try again later or switch models.`);
+    }
+    throw new Error(msg || `Failed to generate questions using ${provider}. Please check your connection and Settings.`);
+  }
+
+  // Sanitize and extract JSON
+  let cleanJson = jsonResponseText.trim();
+  cleanJson = cleanJson.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim();
+
+  // Find array boundaries in case the model added conversational prefix or suffix
+  const firstBracket = cleanJson.indexOf('[');
+  const lastBracket = cleanJson.lastIndexOf(']');
+  if (firstBracket !== -1 && lastBracket !== -1 && firstBracket < lastBracket) {
+    cleanJson = cleanJson.substring(firstBracket, lastBracket + 1);
+  }
+
+  try {
+    const questions: Question[] = JSON.parse(cleanJson);
     return questions.map((q, index) => ({
       ...q,
       id: q.id || `gen_${Date.now()}_${index}`,
       isBookmarked: false,
       isSelected: true,
-      // Ensure options are present for MCQs if missing
       options: q.type === 'mcq' && !q.options ? ['True', 'False'] : q.options
     }));
-  } catch (error) {
-    console.error('Error generating questions with Gemini:', error);
-
-    if (error instanceof Error) {
-      if (error.message.includes('API key')) {
-        throw new Error('Invalid API key. Please check your VITE_GEMINI_API_KEY in .env file.');
-      }
-      throw new Error(`Failed to generate questions: ${error.message}`);
-    }
-
-    throw new Error('Failed to generate questions. Please try again.');
+  } catch (parseError) {
+    console.error('Failed to parse AI output as JSON:', cleanJson);
+    throw new Error('AI output formatting error. Please try generating again.');
   }
 }
 
-// Fallback demo questions for testing without API key
+// Fallback demo questions for offline testing
 export function generateDemoQuestions(numQuestions: number, type: string): Question[] {
   const demoQuestions: Question[] = [
     {
@@ -159,16 +231,7 @@ export function generateDemoQuestions(numQuestions: number, type: string): Quest
       explanation: 'Stack follows Last-In-First-Out (LIFO) principle where the last element added is the first to be removed.',
       isBookmarked: false,
       isSelected: true,
-    },
-    {
-      id: 'demo3',
-      type: 'short-answer',
-      question: 'Explain the concept of closure in JavaScript.',
-      answer: 'A closure is a function that has access to variables in its outer (enclosing) lexical scope, even after the outer function has returned.',
-      explanation: 'Closures are created when a function is defined inside another function, giving the inner function access to the outer function\'s variables.',
-      isBookmarked: false,
-      isSelected: true,
-    },
+    }
   ];
 
   return demoQuestions.slice(0, numQuestions);

@@ -176,7 +176,14 @@ export default function StudentSecureQuiz() {
       }
     } catch (e) { console.error('Exit security error', e); }
 
-    if (!Capacitor.isNativePlatform()) return;
+    if (!Capacitor.isNativePlatform()) {
+      if ((window as any).desktopSecurity) {
+        try {
+          (window as any).desktopSecurity.endLockdown();
+        } catch (e) { console.error('Desktop security exit error', e); }
+      }
+      return;
+    }
     try {
       await StatusBar.show();
       if (Capacitor.getPlatform() === 'android') {
@@ -213,6 +220,17 @@ export default function StudentSecureQuiz() {
   const initializeFullscreen = useCallback(async () => {
     try {
       isTransitioning.current = true;
+
+      // 🖥️ Always trigger desktop lockdown immediately on initialize
+      if ((window as any).desktopSecurity?.startLockdown) {
+        try {
+          (window as any).desktopSecurity.startLockdown();
+          console.log('✅ Desktop Lockdown explicitly fired via initializeFullscreen');
+        } catch (e) {
+          console.error('Desktop lockdown init error:', e);
+        }
+      }
+
       if (!document.fullscreenElement) {
         await document.documentElement.requestFullscreen().catch(() => {});
       }
@@ -408,7 +426,17 @@ export default function StudentSecureQuiz() {
             setAttemptId(existingAttempt.id || existingAttempt._id);
             setQuizStarted(true);
             setTimeLeft(resumeTime);
-            initializeFullscreen();
+            // 🖥️ IMMEDIATELY ACTIVATE DESKTOP KIOSK LOCKDOWN
+        if ((window as any).desktopSecurity?.startLockdown) {
+          try {
+            (window as any).desktopSecurity.startLockdown();
+            console.log('✅ Desktop Lockdown initiated');
+          } catch (e) {
+            console.error('Desktop lockdown error:', e);
+          }
+        }
+
+        initializeFullscreen();
           }
         } else {
           console.log('✅ New Quiz - No existing attempt found');
@@ -503,7 +531,8 @@ export default function StudentSecureQuiz() {
       if (isSecurityPaused.current) return; // Already handling a violation
 
       const now = Date.now();
-      if (now - lastFocusEventTime.current < 800) return; // Debounce 800ms
+      // Allow user to return and clear without excessive 800ms throttle
+      if (now - lastFocusEventTime.current < 400) return;
       lastFocusEventTime.current = now;
 
       isOutsideAppRef.current = false; // Clear ref immediately before async setState
@@ -679,7 +708,14 @@ export default function StudentSecureQuiz() {
     
     // 📱 Native App State Listener (Capacitor)
     const setupNativeListeners = async () => {
-      if (!Capacitor.isNativePlatform()) return;
+      if (!Capacitor.isNativePlatform()) {
+      if ((window as any).desktopSecurity) {
+        try {
+          (window as any).desktopSecurity.endLockdown();
+        } catch (e) { console.error('Desktop security exit error', e); }
+      }
+      return;
+    }
       const listener = await App.addListener('appStateChange', ({ isActive }) => {
         if (!isActive) {
           handleFocusLoss('System-level backgrounding or split-screen detected');
@@ -692,8 +728,18 @@ export default function StudentSecureQuiz() {
 
     const nativeCleanup = setupNativeListeners();
 
+    // 🖥️ Desktop Security Listener (Electron)
+    let desktopCleanup: (() => void) | undefined;
+    if ((window as any).desktopSecurity?.onViolation) {
+      desktopCleanup = (window as any).desktopSecurity.onViolation((data: { type: string; reason: string }) => {
+        console.warn('🚨 Desktop Lockdown Violation:', data);
+        handleFocusLoss(data.reason || 'Desktop security violation detected');
+      });
+    }
+
     return () => {
       nativeCleanup.then(clean => clean?.());
+      if (desktopCleanup) desktopCleanup();
       window.removeEventListener('blur', handleBlur, true);
       window.removeEventListener('visibilitychange', handleVisibility, true);
       window.removeEventListener('focus', handleFocus, true);
@@ -735,6 +781,16 @@ export default function StudentSecureQuiz() {
           }
         }
         
+        // 🖥️ IMMEDIATELY ACTIVATE DESKTOP KIOSK LOCKDOWN
+        if ((window as any).desktopSecurity?.startLockdown) {
+          try {
+            (window as any).desktopSecurity.startLockdown();
+            console.log('✅ Desktop Lockdown initiated');
+          } catch (e) {
+            console.error('Desktop lockdown error:', e);
+          }
+        }
+
         initializeFullscreen();
       } else {
         console.error('❌ Start quiz failed:', res.data?.message);
@@ -1221,48 +1277,59 @@ export default function StudentSecureQuiz() {
         <Progress value={((currentQuestion + 1) / (quiz?.questions?.length || 1)) * 100} className="h-1 sm:h-1.5 bg-slate-100 rounded-none shadow-none z-20 shrink-0" />
       </div>
 
-      {/* 📝 Content - Amazon-Grade Smooth Scroll */}
-      <main className="flex-1 overflow-y-auto scroll-smooth bg-white h-full touch-pan-y" style={{ WebkitOverflowScrolling: 'touch' }}>
-        <div className="px-4 sm:px-6 md:px-10 py-6 sm:py-10 pb-48 max-w-2xl mx-auto w-full flex flex-col min-h-full">
-          <div className="flex-1 space-y-8 sm:space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <div className="space-y-3 sm:space-y-4">
-              <Badge className="bg-teal-50 text-teal-600 border-none font-black text-[8px] sm:text-[9px] px-2.5 py-1 rounded-lg uppercase tracking-wider">{currentQ?.marks} Marks</Badge>
-              <div className="text-base sm:text-xl md:text-2xl font-black text-slate-900 leading-tight tracking-tight">
+      {/* 📝 Content - Responsive Desktop & Mobile layout */}
+      <main className="flex-1 overflow-y-auto scroll-smooth bg-slate-50/50 h-full touch-pan-y" style={{ WebkitOverflowScrolling: 'touch' }}>
+        <div className="px-4 sm:px-8 md:px-12 lg:px-16 py-6 sm:py-8 pb-32 max-w-4xl mx-auto w-full flex flex-col min-h-full">
+          <div className="flex-1 space-y-6 sm:space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <div className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-100 shadow-sm space-y-4">
+              <div className="flex items-center justify-between">
+                <Badge className="bg-teal-50 text-teal-700 border-teal-100 font-black text-[9px] sm:text-[10px] px-3 py-1 rounded-xl uppercase tracking-wider">
+                  {currentQ?.marks} {currentQ?.marks === 1 ? 'Mark' : 'Marks'}
+                </Badge>
+                <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">
+                  Question {currentQuestion + 1} of {quiz?.questions?.length || 1}
+                </span>
+              </div>
+              <div className="text-base sm:text-xl md:text-2xl font-black text-slate-900 leading-relaxed tracking-tight">
                 <FormattedText text={currentQ?.question || ''} isQuestion={true} />
               </div>
             </div>
 
-            <div className="space-y-3 sm:space-y-4 pt-2">
-              {currentQ?.type === 'mcq' && currentQ.options?.map((option, idx) => {
-                const isSelected = answers[currentQ._id] === option;
-                return (
-                  <button
-                    key={idx}
-                    onClick={() => setAnswers(p => ({ ...p, [currentQ._id]: option }))}
-                    className={cn(
-                      "w-full p-4 sm:p-5 rounded-2xl sm:rounded-[1.75rem] text-left border-2 transition-all flex items-center gap-3 sm:gap-4 group active:scale-[0.98]",
-                      isSelected
-                        ? "border-indigo-600 bg-indigo-50/50 shadow-md shadow-indigo-100/50"
-                        : "border-slate-50 bg-[#FBFDFF] hover:border-slate-100"
-                    )}
-                  >
-                    <div className={cn(
-                      "w-8 h-8 sm:w-9 sm:h-9 rounded-xl sm:rounded-2xl flex items-center justify-center font-black text-xs shrink-0 transition-all",
-                      isSelected ? "bg-indigo-600 text-white scale-110" : "bg-white text-slate-300 border border-slate-50"
-                    )}>
-                      {String.fromCharCode(65 + idx)}
-                    </div>
-                    <span className={cn("font-bold text-sm sm:text-base leading-snug break-words", isSelected ? "text-indigo-900" : "text-slate-500 group-hover:text-slate-700")}>{option}</span>
-                  </button>
-                );
-              })}
+            <div className="space-y-3 sm:space-y-4">
+              {currentQ?.type === 'mcq' && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
+                  {currentQ.options?.map((option, idx) => {
+                    const isSelected = answers[currentQ._id] === option;
+                    return (
+                      <button
+                        key={idx}
+                        onClick={() => setAnswers(p => ({ ...p, [currentQ._id]: option }))}
+                        className={cn(
+                          "w-full p-4 sm:p-5 rounded-2xl text-left border-2 transition-all flex items-center gap-3.5 group active:scale-[0.99]",
+                          isSelected
+                            ? "border-indigo-600 bg-indigo-50/70 shadow-md shadow-indigo-100/50"
+                            : "border-slate-100 bg-white hover:border-slate-200 hover:shadow-sm"
+                        )}
+                      >
+                        <div className={cn(
+                          "w-9 h-9 rounded-xl flex items-center justify-center font-black text-xs shrink-0 transition-all",
+                          isSelected ? "bg-indigo-600 text-white scale-105 shadow-sm" : "bg-slate-100 text-slate-500 border border-slate-200"
+                        )}>
+                          {String.fromCharCode(65 + idx)}
+                        </div>
+                        <span className={cn("font-bold text-sm sm:text-base leading-snug break-words", isSelected ? "text-indigo-950 font-black" : "text-slate-700")}>{option}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
 
               {currentQ?.type === 'short-answer' && (
-                <div className="space-y-2">
-                  <Label className="text-[10px] font-black text-slate-300 uppercase tracking-widest pl-1">Your Answer</Label>
+                <div className="space-y-2 bg-white p-6 rounded-3xl border border-slate-100">
+                  <Label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Your Detailed Answer</Label>
                   <Textarea
                     placeholder="Type your response here..."
-                    className="min-h-[200px] sm:min-h-[250px] rounded-2xl sm:rounded-[2rem] p-6 sm:p-8 border-slate-100 bg-[#FBFDFF] focus:bg-white focus:ring-8 focus:ring-indigo-50/50 font-bold text-sm sm:text-lg transition-all resize-none shadow-inner"
+                    className="min-h-[180px] sm:min-h-[220px] rounded-2xl p-5 border-slate-200 bg-slate-50/50 focus:bg-white focus:ring-4 focus:ring-indigo-100 font-medium text-sm sm:text-base transition-all resize-none shadow-inner"
                     value={answers[currentQ._id] || ''}
                     onChange={(e) => setAnswers(p => ({ ...p, [currentQ._id]: e.target.value }))}
                   />
@@ -1270,7 +1337,7 @@ export default function StudentSecureQuiz() {
               )}
 
               {currentQ?.type === 'truefalse' && (
-                <div className="space-y-3 sm:space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                   {['True', 'False'].map((option) => {
                     const isSelected = answers[currentQ._id] === option;
                     return (
@@ -1278,19 +1345,19 @@ export default function StudentSecureQuiz() {
                         key={option}
                         onClick={() => setAnswers(p => ({ ...p, [currentQ._id]: option }))}
                         className={cn(
-                          "w-full p-4 sm:p-5 rounded-2xl sm:rounded-[1.75rem] text-left border-2 transition-all flex items-center gap-3 sm:gap-4 group active:scale-[0.98]",
+                          "w-full p-5 rounded-2xl text-left border-2 transition-all flex items-center gap-3.5 group active:scale-[0.99]",
                           isSelected
-                            ? "border-indigo-600 bg-indigo-50/50 shadow-md shadow-indigo-100/50"
-                            : "border-slate-50 bg-[#FBFDFF] hover:border-slate-100"
+                            ? "border-indigo-600 bg-indigo-50/70 shadow-md shadow-indigo-100/50"
+                            : "border-slate-100 bg-white hover:border-slate-200"
                         )}
                       >
                         <div className={cn(
-                          "w-8 h-8 sm:w-9 sm:h-9 rounded-xl sm:rounded-2xl flex items-center justify-center font-black text-xs shrink-0 transition-all",
-                          isSelected ? "bg-indigo-600 text-white scale-110" : "bg-white text-slate-300 border border-slate-50"
+                          "w-9 h-9 rounded-xl flex items-center justify-center font-black text-xs shrink-0 transition-all",
+                          isSelected ? "bg-indigo-600 text-white scale-105" : "bg-slate-100 text-slate-500 border border-slate-200"
                         )}>
                           {option === 'True' ? 'T' : 'F'}
                         </div>
-                        <span className={cn("font-bold text-sm sm:text-base leading-snug", isSelected ? "text-indigo-900" : "text-slate-500 group-hover:text-slate-700")}>{option}</span>
+                        <span className={cn("font-bold text-sm sm:text-base leading-snug", isSelected ? "text-indigo-950 font-black" : "text-slate-700")}>{option}</span>
                       </button>
                     );
                   })}

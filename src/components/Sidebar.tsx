@@ -1,19 +1,23 @@
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
-import { GraduationCap, LayoutDashboard, Users, FileText, Bookmark, LogOut, Menu, Sparkles, Settings, X } from 'lucide-react';
+import { 
+  GraduationCap, 
+  LayoutDashboard, 
+  Users, 
+  FileText, 
+  Bookmark, 
+  LogOut, 
+  Menu, 
+  Sparkles, 
+  Settings, 
+  Building2, 
+  KeyRound,
+  X 
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
 import { cn } from '@/lib/utils';
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-
-const navItems = [
-  { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard' },
-  { icon: Users, label: 'Student Details', path: '/students' },
-  { icon: FileText, label: 'Create Quiz', path: '/create-quiz' },
-  { icon: FileText, label: 'Results', path: '/results' },
-  { icon: Bookmark, label: 'Bookmarks', path: '/bookmarks' },
-  { icon: Settings, label: 'Settings', path: '/settings' },
-];
 
 export function Sidebar() {
   const { user, logout } = useAuth();
@@ -21,6 +25,24 @@ export function Sidebar() {
   const location = useLocation();
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+
+  // Check if current user is Super Admin
+  const isAdmin = user?.role === 'admin' || user?.email === 'admin@gmail.com';
+
+  // Dedicated navigation menus: Admin sees ONLY Admin Console and Account Settings
+  const navItems = isAdmin
+    ? [
+        { icon: Building2, label: 'Campus Admin Portal', path: '/admin/dashboard', isAdminOnly: true },
+        { icon: KeyRound, label: 'Admin Credentials', path: '/settings' },
+      ]
+    : [
+        { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard' },
+        { icon: Users, label: 'Student Details', path: '/students' },
+        { icon: FileText, label: 'Create Quiz', path: '/create-quiz' },
+        { icon: FileText, label: 'Results', path: '/results' },
+        { icon: Bookmark, label: 'Bookmarks', path: '/bookmarks' },
+        { icon: Settings, label: 'Settings & AI Models', path: '/settings' },
+      ];
 
   // Close mobile drawer on route change
   useEffect(() => {
@@ -68,7 +90,9 @@ export function Sidebar() {
               </div>
               <div className="flex flex-col">
                 <span className="font-black text-sm tracking-tighter uppercase italic">Faculty <span className="text-secondary">Quest</span></span>
-                <span className="text-[10px] text-primary/60 font-black uppercase tracking-[0.2em]">Faculty Portal</span>
+                <span className="text-[10px] text-primary/60 font-black uppercase tracking-[0.2em]">
+                  {isAdmin ? 'Campus Administration' : 'Faculty Portal'}
+                </span>
               </div>
             </motion.div>
           )}
@@ -100,11 +124,19 @@ export function Sidebar() {
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          className="p-4 mx-2 mt-4 rounded-2xl bg-gradient-to-br from-sidebar-accent/50 to-transparent border border-sidebar-border/30"
+          className={cn(
+            "p-4 mx-2 mt-4 rounded-2xl border transition-all",
+            isAdmin 
+              ? "bg-indigo-950/20 border-indigo-900/30 text-indigo-200" 
+              : "bg-gradient-to-br from-sidebar-accent/50 to-transparent border-sidebar-border/30"
+          )}
         >
           <div className="flex items-center gap-3">
             <div className="relative">
-              <div className="w-10 h-10 rounded-full gradient-primary flex items-center justify-center p-[2px]">
+              <div className={cn(
+                "w-10 h-10 rounded-full flex items-center justify-center p-[2px]",
+                isAdmin ? "bg-indigo-600" : "gradient-primary"
+              )}>
                 <div className="w-full h-full rounded-full bg-sidebar flex items-center justify-center overflow-hidden">
                   <span className="text-sm font-bold bg-gradient-to-br from-primary to-secondary bg-clip-text text-transparent">
                     {user.name.charAt(0)}
@@ -115,7 +147,9 @@ export function Sidebar() {
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-bold truncate tracking-tight">{user.name}</p>
-              <p className="text-[11px] text-sidebar-foreground/50 truncate font-medium">Faculty Member</p>
+              <p className={cn("text-[11px] truncate font-black uppercase tracking-wider", isAdmin ? "text-indigo-400" : "text-sidebar-foreground/50")}>
+                {isAdmin ? 'Campus Administrator' : 'Faculty Member'}
+              </p>
             </div>
           </div>
         </motion.div>
@@ -136,23 +170,24 @@ export function Sidebar() {
                 whileTap={{ scale: 0.98 }}
                 className={cn(
                   'flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-300 relative overflow-hidden',
+                  item.isAdminOnly && !isActive && 'text-indigo-400/80 hover:text-indigo-300 hover:bg-indigo-950/30 border border-indigo-950/40',
                   isActive
                     ? 'text-white'
-                    : 'text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent/30',
+                    : !item.isAdminOnly && 'text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent/30',
                   (isCollapsed && !mobile) && 'justify-center'
                 )}
               >
                 {isActive && (
                   <motion.div
                     layoutId={mobile ? "activeNavMobile" : "activeNav"}
-                    className="absolute inset-0 gradient-primary -z-10 shadow-lg"
+                    className={cn("absolute inset-0 -z-10 shadow-lg", item.isAdminOnly ? "bg-indigo-600" : "gradient-primary")}
                     transition={{ type: 'spring', stiffness: 300, damping: 30 }}
                   />
                 )}
 
                 <item.icon className={cn(
                   "h-5 w-5 flex-shrink-0 transition-colors duration-300",
-                  isActive ? "text-white" : "group-hover:text-primary"
+                  isActive ? "text-white" : item.isAdminOnly ? "text-red-400" : "group-hover:text-primary"
                 )} />
 
                 {(!isCollapsed || mobile) && (
@@ -192,7 +227,7 @@ export function Sidebar() {
 
   return (
     <>
-      {/* Mobile hamburger button - visible only on small screens */}
+      {/* Mobile hamburger button */}
       <button
         onClick={() => setMobileOpen(true)}
         className="md:hidden fixed top-4 left-4 z-50 w-10 h-10 bg-sidebar rounded-xl flex items-center justify-center shadow-lg border border-sidebar-border/50"
@@ -243,4 +278,3 @@ export function Sidebar() {
     </>
   );
 }
-

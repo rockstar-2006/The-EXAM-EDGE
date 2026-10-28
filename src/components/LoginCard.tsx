@@ -43,7 +43,11 @@ export function LoginCard() {
     const result = await login(email, password);
 
     if (result.success) {
-      navigate('/dashboard');
+      if (email.toLowerCase() === 'admin@gmail.com') {
+        navigate('/admin/dashboard');
+      } else {
+        navigate('/dashboard');
+      }
     } else {
       setError(result.message || 'Invalid credentials');
     }
@@ -97,7 +101,11 @@ export function LoginCard() {
     const result = await register(name, email, password);
 
     if (result.success) {
-      navigate('/dashboard');
+      if (email.toLowerCase() === 'admin@gmail.com') {
+        navigate('/admin/dashboard');
+      } else {
+        navigate('/dashboard');
+      }
     } else {
       setError(result.message || 'Registration failed');
     }

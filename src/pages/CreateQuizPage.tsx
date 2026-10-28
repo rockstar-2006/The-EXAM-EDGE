@@ -23,7 +23,7 @@ import { QuestionEditor } from '@/components/QuestionEditor';
 import { AIChatInterface } from '@/components/AIChatInterface';
 import { generateQuestions } from '@/services/gemini';
 import { extractTextFromPDF, isPDFFile } from '@/services/pdfService';
-import { quizAPI, studentsAPI, bookmarksAPI, foldersAPI } from '@/services/api';
+import { quizAPI, studentsAPI, bookmarksAPI, foldersAPI, teacherAuthAPI } from '@/services/api';
 import { Question, Quiz, Student } from '@/types';
 import { toast } from 'sonner';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -251,12 +251,15 @@ export default function CreateQuizPage() {
 
     setGenerating(true);
     try {
-      const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
-
-      if (!apiKey) {
-        toast.error('Gemini API key not configured. Please add VITE_GEMINI_API_KEY to your .env file.');
-        setGenerating(false);
-        return;
+      // 🧠 Fetch Faculty's custom AI Settings if configured
+      let aiSettings: any = null;
+      try {
+        const aiRes = await teacherAuthAPI.getAISettings();
+        if (aiRes.data?.success && aiRes.data.data) {
+          aiSettings = aiRes.data.data;
+        }
+      } catch (e) {
+        console.warn('Using system default AI settings');
       }
 
       const generatedQuestions = await generateQuestions({
@@ -265,6 +268,7 @@ export default function CreateQuizPage() {
         type: questionType,
         difficulty,
         customPrompt: aiPrompt || customPrompt,
+        aiSettings: aiSettings || undefined
       });
 
       setQuestions(generatedQuestions);

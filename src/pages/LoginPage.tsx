@@ -9,7 +9,15 @@ export default function LoginPage() {
 
   useEffect(() => {
     if (isAuthenticated) {
-      navigate('/dashboard');
+      const userData = localStorage.getItem('userData');
+      try {
+        const user = userData ? JSON.parse(userData) : null;
+        if (user?.role === 'admin' || user?.email === 'admin@gmail.com') {
+          navigate('/admin/dashboard', { replace: true });
+          return;
+        }
+      } catch (e) {}
+      navigate('/dashboard', { replace: true });
     }
   }, [isAuthenticated, navigate]);
 

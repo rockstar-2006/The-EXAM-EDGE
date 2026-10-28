@@ -74,6 +74,12 @@ export const teacherAuthAPI = {
   updatePassword: async (data: any) => {
     return await httpClient.put('/auth/update-password', data);
   },
+  getAISettings: async () => {
+    return await httpClient.get('/auth/ai-settings');
+  },
+  updateAISettings: async (data: any) => {
+    return await httpClient.put('/auth/ai-settings', data);
+  },
 };
 
 export const studentAuthAPI = {
@@ -422,5 +428,53 @@ export const foldersAPI = {
       console.error('Error deleting folder:', error);
       throw error;
     }
+  },
+};
+
+/* =========================
+   SUPER ADMIN APIs
+========================= */
+export const adminAPI = {
+  getStats: async () => {
+    return await httpClient.get('/admin/stats');
+  },
+  getFacultyList: async () => {
+    return await httpClient.get('/admin/faculty');
+  },
+  deleteFaculty: async (facultyId: string) => {
+    return await httpClient.delete(`/admin/faculty/${facultyId}`);
+  },
+  resetFacultyPassword: async (facultyId: string, newPassword: string) => {
+    return await httpClient.put(`/admin/faculty/${facultyId}/reset-password`, { newPassword });
+  },
+  getAllQuizzes: async () => {
+    return await httpClient.get('/admin/quizzes');
+  },
+  deleteQuiz: async (quizId: string) => {
+    return await httpClient.delete(`/admin/quiz/${quizId}`);
+  },
+  getStudentList: async () => {
+    return await httpClient.get('/admin/students');
+  },
+  resetStudentPassword: async (studentId: string, newPassword: string) => {
+    return await httpClient.put(`/admin/student/${studentId}/reset-password`, { newPassword });
+  },
+  deleteStudent: async (studentId: string) => {
+    return await httpClient.delete(`/admin/student/${studentId}`);
+  },
+  batchDeleteFaculty: async (facultyIds: string[]) => {
+    return await httpClient.post('/admin/faculty/batch-delete', { facultyIds });
+  },
+  batchDeleteQuizzes: async (quizIds: string[]) => {
+    return await httpClient.post('/admin/quiz/batch-delete', { quizIds });
+  },
+  batchDeleteStudents: async (studentIds: string[]) => {
+    return await httpClient.post('/admin/student/batch-delete', { studentIds });
+  },
+  purgeAttempts: async (quizId?: string) => {
+    return await httpClient.post('/admin/purge-attempts', { quizId });
+  },
+  wipeEntireDatabase: async (confirmationText: string) => {
+    return await httpClient.post('/admin/wipe-entire-database', { confirmationText });
   },
 };

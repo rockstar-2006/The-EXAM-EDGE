@@ -10,8 +10,11 @@
     "build:mobile": "vite build --mode mobile",
     "lint": "eslint .",
     "preview": "vite preview",
-    "android": "npx cap open android"
+    "android": "npx cap open android",
+    "electron:dev": "concurrently -k \"npm run dev\" \"npm --prefix backend start\" \"wait-on tcp:8080 tcp:3001 && electron .\"",
+    "electron:build": "vite build && electron-builder"
   },
+  "main": "electron/main.cjs",
   "dependencies": {
     "@awesome-cordova-plugins/android-full-screen": "^8.1.0",
     "@capacitor-community/privacy-screen": "^6.0.0",
@@ -90,6 +93,9 @@
     "@types/react-dom": "^18.3.7",
     "@vitejs/plugin-react-swc": "^3.11.0",
     "autoprefixer": "^10.4.21",
+    "concurrently": "^10.0.6",
+    "electron": "^45.0.0",
+    "electron-builder": "^26.18.0",
     "eslint": "^9.32.0",
     "eslint-plugin-react-hooks": "^5.2.0",
     "eslint-plugin-react-refresh": "^0.4.20",
@@ -98,6 +104,35 @@
     "tailwindcss": "^3.4.17",
     "typescript": "^5.8.3",
     "typescript-eslint": "^8.38.0",
-    "vite": "^5.4.19"
+    "vite": "^5.4.19",
+    "wait-on": "^9.5.1"
+  },
+  "build": {
+    "appId": "com.facultyquest.securebrowser",
+    "productName": "FacultyQuest Secure Exam Browser",
+    "directories": {
+      "output": "dist-electron"
+    },
+    "files": [
+      "dist/**/*",
+      "electron/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        "nsis",
+        "portable"
+      ]
+    },
+    "asar": true,
+    "asarUnpack": [
+      "**/node_modules/**/*"
+    ],
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    }
   }
 }

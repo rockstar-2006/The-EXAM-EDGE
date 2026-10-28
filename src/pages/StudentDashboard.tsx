@@ -17,7 +17,9 @@ import {
   MapPin,
   Calendar,
   Lock,
-  Timer
+  Timer,
+  Download,
+  Monitor
 } from 'lucide-react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useStudentAuth } from '../context/StudentAuthContext';
@@ -26,6 +28,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { Capacitor } from '@capacitor/core';
 import { 
   Dialog,
   DialogContent,
@@ -350,11 +353,15 @@ const StudentDashboard = () => {
     q && (q.status === 'disqualified' || q.status === 'blocked' || q.status === 'active' || q.status === 'in-progress')
   );
 
+  const isDesktop = typeof window !== 'undefined' && Boolean((window as any).desktopSecurity);
+  const isMobile = Capacitor.getPlatform() !== 'web';
+  const showDesktopDownload = !isDesktop && !isMobile;
+
   return (
     <div className="relative flex flex-col min-h-[100dvh] h-[100dvh] w-full bg-[#FBFDFF] text-slate-900 overflow-hidden">
       {/* High-Performance Clean Header - Relative to ensure scroll is natural */}
       <header className="relative bg-white border-b border-slate-100 z-40 pt-safe sm:pt-6">
-        <div className="max-w-5xl mx-auto px-6 h-16 sm:h-20 flex items-center justify-between">
+        <div className="max-w-7xl mx-auto px-6 h-16 sm:h-20 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <div className="w-11 h-11 rounded-2xl bg-indigo-600 flex items-center justify-center shadow-lg shadow-indigo-100 border border-indigo-500 transform transition-transform hover:scale-105 active:scale-95">
               <GraduationCap className="h-6 w-6 text-white" />
@@ -366,6 +373,18 @@ const StudentDashboard = () => {
           </div>
 
           <div className="flex items-center gap-2 sm:gap-3">
+            {showDesktopDownload && (
+              <a
+                href="https://github.com/rockstar-2006/The-EXAM-EDGE/releases/download/Production/FacultyQuest.Secure.Exam.Browser.Setup.0.0.0.exe"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hidden sm:inline-flex items-center gap-2 px-3.5 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-2xl text-xs font-bold transition-all shadow-sm active:scale-95"
+                title="Download Windows Secure Exam Browser (.exe)"
+              >
+                <Download className="w-3.5 h-3.5" />
+                <span>Exam Browser (.exe)</span>
+              </a>
+            )}
             <Button 
               variant="ghost" 
               size="icon" 
@@ -381,15 +400,25 @@ const StudentDashboard = () => {
               </Button>
             </Link>
             <div className="h-6 w-px bg-slate-100 mx-1 sm:mx-2" />
-            <Button variant="ghost" onClick={handleLogout} className="text-slate-400 hover:text-red-600 hover:bg-red-50/50 border border-transparent hover:border-red-100 h-10 sm:h-12 px-3 sm:px-5 rounded-2xl font-black text-[10px] sm:text-xs uppercase tracking-widest transition-all">
-              <LogOut className="h-4 w-4 sm:h-5 sm:w-5 mr-1.5 sm:mr-2" /> <span className="hidden sm:inline">Exit</span>
+            <Button 
+              variant="ghost" 
+              onClick={() => {
+                if ((window as any).desktopSecurity?.closeApp) {
+                  (window as any).desktopSecurity.closeApp();
+                } else {
+                  handleLogout();
+                }
+              }} 
+              className="text-slate-400 hover:text-red-600 hover:bg-red-50/50 border border-transparent hover:border-red-100 h-10 sm:h-12 px-3 sm:px-5 rounded-2xl font-black text-[10px] sm:text-xs uppercase tracking-widest transition-all"
+            >
+              <LogOut className="h-4 w-4 sm:h-5 sm:w-5 mr-1.5 sm:mr-2" /> <span>{typeof window !== 'undefined' && (window as any).desktopSecurity?.closeApp ? 'Close App' : 'Logout'}</span>
             </Button>
           </div>
         </div>
       </header>
 
       <main className="flex-1 overflow-y-auto overscroll-y-contain touch-pan-y pb-24" style={{ WebkitOverflowScrolling: 'touch' }}>
-        <div className="max-w-5xl mx-auto px-5 sm:px-8 py-8 sm:py-14 space-y-10 sm:space-y-16">
+        <div className="max-w-7xl mx-auto px-5 sm:px-8 py-8 sm:py-14 space-y-10 sm:space-y-16">
         {/* Professional Header Banner */}
         <section className="bg-white p-6 sm:p-10 rounded-3xl sm:rounded-[2.5rem] border border-slate-100 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-6 sm:gap-8 border-2 hover:border-indigo-100 transition-all">
           <div className="flex items-center gap-4 sm:gap-6">

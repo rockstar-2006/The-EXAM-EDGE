@@ -17,6 +17,7 @@ import QuizResultsPage from "./pages/QuizResultsPage";
 import ResultsPage from "./pages/ResultsPage";
 import SettingsPage from "./pages/SettingsPage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
+import AdminDashboardPage from "./pages/AdminDashboardPage";
 import NotFound from "./pages/NotFound";
 
 import StudentAppLogin from "./pages/StudentAppLogin";
@@ -32,6 +33,8 @@ const queryClient = new QueryClient();
 const App = () => {
     const [loading, setLoading] = useState(true);
     const isMobile = Capacitor.getPlatform() !== 'web';
+    const isDesktop = typeof window !== 'undefined' && Boolean((window as any).desktopSecurity);
+    const isApp = isMobile || isDesktop;
 
     useEffect(() => {
         const timer = setTimeout(() => {
@@ -40,7 +43,7 @@ const App = () => {
         return () => clearTimeout(timer);
     }, []);
 
-    const Router = isMobile ? HashRouter : BrowserRouter;
+    const Router = isApp ? HashRouter : BrowserRouter;
 
     return (
         <QueryClientProvider client={queryClient}>
@@ -53,13 +56,14 @@ const App = () => {
 
                     <Router>
                         <Routes>
-                            {/* Faculty Routes */}
+                            {/* Faculty & Super Admin Routes */}
                             <Route path="/login" element={<LoginPage />} />
                             <Route path="/reset-password/:token" element={<ResetPasswordPage type="teacher" />} />
 
                             <Route element={<ProtectedRoute role="teacher" />}>
                                 <Route element={<DashboardLayout />}>
                                     <Route path="/dashboard" element={<DashboardPage />} />
+                                    <Route path="/admin/dashboard" element={<AdminDashboardPage />} />
                                     <Route path="/students" element={<StudentsPage />} />
                                     <Route path="/create-quiz" element={<CreateQuizPage />} />
                                     <Route path="/results" element={<ResultsPage />} />
@@ -82,7 +86,7 @@ const App = () => {
                             </Route>
 
                             {/* General Routes */}
-                            <Route path="/" element={<Navigate to={isMobile ? "/student/login" : "/login"} replace />} />
+                            <Route path="/" element={<Navigate to={isApp ? "/student/login" : "/login"} replace />} />
                             <Route path="*" element={<NotFound />} />
                         </Routes>
                     </Router>

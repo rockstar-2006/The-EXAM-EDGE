@@ -5,10 +5,11 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
-import { Lock, Mail, Shield, Eye, EyeOff, GraduationCap, ChevronRight, Loader2, Info } from 'lucide-react';
+import { Lock, Mail, Shield, Eye, EyeOff, GraduationCap, ChevronRight, Loader2, Info, Download, Monitor } from 'lucide-react';
 import { studentAuthAPI, storage } from '@/services/api';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useStudentAuth } from '../context/StudentAuthContext';
+import { Capacitor } from '@capacitor/core';
 
 const StudentAppLogin = () => {
   const { updateStudentData } = useStudentAuth();
@@ -17,6 +18,10 @@ const StudentAppLogin = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [showForgot, setShowForgot] = useState(false);
   const [forgotEmail, setForgotEmail] = useState('');
+
+  const isDesktop = typeof window !== 'undefined' && Boolean((window as any).desktopSecurity);
+  const isMobile = Capacitor.getPlatform() !== 'web';
+  const showDesktopDownload = !isDesktop && !isMobile;
 
   const [loginData, setLoginData] = useState({
     email: '',
@@ -83,6 +88,17 @@ const StudentAppLogin = () => {
 
   return (
     <div className="min-h-screen bg-[#FBFDFF] flex flex-col items-center justify-center p-6 relative overflow-hidden font-sans">
+      {/* Desktop Clean Exit Button in top right corner */}
+      {typeof window !== 'undefined' && Boolean((window as any).desktopSecurity) && (
+        <button
+          onClick={() => (window as any).desktopSecurity.closeApp()}
+          className="absolute top-6 right-6 z-50 flex items-center gap-2 px-4 py-2 rounded-2xl bg-white border border-slate-200 text-slate-500 hover:text-red-600 hover:border-red-200 shadow-sm transition-all font-bold text-xs uppercase tracking-wider active:scale-95"
+        >
+          <span className="w-2 h-2 rounded-full bg-red-500" />
+          Close App
+        </button>
+      )}
+
       {/* Soft background elements */}
       <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-indigo-50/40 rounded-full blur-[120px] -mr-[300px] -mt-[300px] animate-pulse" />
       <div className="absolute bottom-0 left-0 w-[600px] h-[600px] bg-blue-50/40 rounded-full blur-[120px] -ml-[300px] -mb-[300px] animate-pulse" />
@@ -245,6 +261,37 @@ const StudentAppLogin = () => {
             </p>
           </div>
         </motion.div>
+
+        {/* Windows Exam Browser (.exe) Download Banner for Web Visitors */}
+        {showDesktopDownload && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.9 }}
+            className="mt-4 p-4 sm:p-5 bg-gradient-to-r from-indigo-50/90 via-blue-50/70 to-indigo-50/90 border border-indigo-100 rounded-3xl backdrop-blur-sm flex flex-col sm:flex-row items-center justify-between gap-4 shadow-sm"
+          >
+            <div className="flex items-center gap-3.5 min-w-0 w-full sm:w-auto">
+              <div className="w-11 h-11 bg-indigo-600 text-white rounded-2xl flex items-center justify-center shrink-0 shadow-md shadow-indigo-200">
+                <Monitor className="w-5 h-5" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs font-black text-slate-900 tracking-tight">Windows Exam Browser (.exe)</p>
+                <p className="text-[10px] text-slate-500 font-semibold leading-relaxed">
+                  Official desktop application for secure lockdown assessments
+                </p>
+              </div>
+            </div>
+            <a
+              href="https://github.com/rockstar-2006/The-EXAM-EDGE/releases/download/Production/FacultyQuest.Secure.Exam.Browser.Setup.0.0.0.exe"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="w-full sm:w-auto shrink-0 px-5 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl text-xs font-bold flex items-center justify-center gap-2 shadow-md shadow-indigo-200 transition-all active:scale-95 uppercase tracking-wider"
+            >
+              <Download className="w-4 h-4" />
+              <span>Download .exe</span>
+            </a>
+          </motion.div>
+        )}
 
         {/* Global Security Disclaimer */}
         <div className="mt-12 flex items-center justify-center gap-4">
