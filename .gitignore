@@ -16,6 +16,7 @@ package-lock.json
 dist/
 dist-native/
 dist-electron/
+build-desktop/
 *.exe
 
 # Mobile platforms

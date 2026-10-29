@@ -111,7 +111,7 @@
     "appId": "com.facultyquest.securebrowser",
     "productName": "FacultyQuest Secure Exam Browser",
     "directories": {
-      "output": "dist-electron"
+      "output": "build-desktop"
     },
     "files": [
       "dist/**/*",

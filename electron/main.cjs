@@ -97,7 +97,7 @@ function createWindow() {
     movable: false,
     minimizable: false,
     maximizable: false,
-    closable: false,
+    closable: true,
     backgroundColor: '#ffffff',
     webPreferences: {
       preload: path.join(__dirname, 'preload.cjs'),
@@ -125,8 +125,14 @@ function createWindow() {
   } else {
     mainWindow.loadFile(path.join(__dirname, '../dist/index.html'), {
       hash: '/student/login'
+    }).catch(err => {
+      console.error('Failed to load local HTML file:', err);
     });
   }
+
+  mainWindow.webContents.on('did-fail-load', (event, errorCode, errorDescription, validatedURL) => {
+    console.error('Page load failed:', validatedURL, errorCode, errorDescription);
+  });
 
   // Once ready to show, explicitly lock full monitor bounds and maximize
   mainWindow.once('ready-to-show', () => {
@@ -183,6 +189,7 @@ function enableExamLockdown() {
   mainWindow.setFullScreen(true);
   mainWindow.setKiosk(true);
   mainWindow.setAlwaysOnTop(true, 'screen-saver');
+  mainWindow.setClosable(false);
   mainWindow.focus();
 
   // Block cheating and window-switching hotkeys at the OS level
