@@ -7,7 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { toast } from 'sonner';
 import {
   Download, ArrowLeft, Loader2, FileSpreadsheet, Search, Users, ChevronUp, ChevronDown, ChevronRight, Activity, Calendar, Clock,
-  Trophy, Target, FileText, Trash2, Award, TrendingUp, RefreshCw, Database, Sparkles, X, Code
+  Trophy, Target, FileText, Trash2, Award, TrendingUp, RefreshCw, Database, Sparkles, X, Code, ShieldAlert, CheckCircle2
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { quizAPI } from '@/services/api';
@@ -21,6 +21,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { AcademicTextRenderer } from '@/components/AcademicTextRenderer';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
 
@@ -32,6 +33,7 @@ interface QuizAttempt {
   studentBranch: string;
   studentYear: string;
   studentSemester: string;
+  studentSection?: string;
   totalMarks: number;
   maxMarks: number;
   percentage: number;
@@ -40,38 +42,6 @@ interface QuizAttempt {
   submittedAt: string;
   answers: any[];
 }
-
-// 📝 CODE AWARE TEXT RENDERING
-const FormattedText = ({ text, isQuestion = false }: { text: string; isQuestion?: boolean }) => {
-  if (!text) return null;
-  const parts = text.split(/(```[\s\S]*?```)/g);
-
-  return (
-    <div className={cn("space-y-3 normal-case", isQuestion ? "text-foreground" : "")}>
-      {parts.map((part, i) => {
-        if (part.startsWith('```')) {
-          const code = part.replace(/^```[a-zA-Z]*\n?|```$/g, '').trim();
-          return (
-            <div key={i} className="my-4 relative group">
-              <pre className="relative p-5 bg-muted border rounded-xl font-mono text-[11px] sm:text-xs leading-relaxed overflow-x-auto text-foreground shadow-sm scrollbar-thin">
-                <code className="block">{code}</code>
-              </pre>
-              <div className="absolute top-2 right-2 flex items-center gap-1 opacity-20">
-                <Code className="w-3 h-3" />
-                <span className="text-[8px] font-black uppercase tracking-widest">CODE</span>
-              </div>
-            </div>
-          );
-        }
-        return (
-          <p key={i} className="whitespace-pre-wrap leading-relaxed inline-block w-full">
-            {part}
-          </p>
-        );
-      })}
-    </div>
-  );
-};
 
 export default function QuizResultsPage() {
   const { quizId } = useParams<{ quizId: string }>();
@@ -84,6 +54,7 @@ export default function QuizResultsPage() {
   const [selectedAttempt, setSelectedAttempt] = useState<QuizAttempt | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [sortConfig, setSortConfig] = useState<{ key: keyof QuizAttempt; direction: 'asc' | 'desc' } | null>(null);
+  const [isResetting, setIsResetting] = useState<string | null>(null);
 
   const fetchResults = useCallback(async () => {
     try {
@@ -93,7 +64,7 @@ export default function QuizResultsPage() {
       setAttempts(data.attempts || []);
     } catch (error: any) {
       console.error('Error fetching results:', error);
-      toast.error('Sync failed: Persistence layer error');
+      toast.error('Sync failed: Could not load quiz attempts');
     } finally {
       setLoading(false);
     }
@@ -130,14 +101,13 @@ export default function QuizResultsPage() {
       document.body.appendChild(link);
       link.click();
       link.remove();
-      toast.success('Excel artifact generated successfully');
+      toast.success('Excel report generated successfully');
     } catch (error: any) {
       console.error('Artifact generation error:', error);
-      let errorMessage = 'Artifact generation failed';
+      let errorMessage = 'Report generation failed';
       
       if (error.response?.data) {
         if (error.response.data instanceof Blob) {
-          // If response is blob, we need to read it to see the error message
           const reader = new FileReader();
           reader.onload = () => {
             try {
@@ -172,10 +142,30 @@ export default function QuizResultsPage() {
     if (!window.confirm('Permanently erase this assessment attempt?')) return;
     try {
       await quizAPI.deleteAttempt(attemptId);
-      toast.success('Attempt record purged');
+      toast.success('Attempt record removed');
       fetchResults();
     } catch (error) {
       toast.error('Failed to remove record');
+    }
+  };
+
+  const handleResetAttempt = async (attemptId: string) => {
+    if (!window.confirm("Are you sure you want to reset this attempt and allow the student to retake the quiz? Previous marks will be cleared.")) {
+      return;
+    }
+    setIsResetting(attemptId);
+    try {
+      await quizAPI.resetAttempt(quizId!, attemptId);
+      toast.success("Attempt reset successfully. Student is unblocked and can retake the quiz.");
+      if (selectedAttempt?._id === attemptId) {
+        setSelectedAttempt(null);
+      }
+      await fetchResults();
+    } catch (err: any) {
+      console.error("Reset attempt error:", err);
+      toast.error(err.response?.data?.message || "Failed to reset attempt");
+    } finally {
+      setIsResetting(null);
     }
   };
 
@@ -188,7 +178,8 @@ export default function QuizResultsPage() {
       result = result.filter(a =>
         a.studentName.toLowerCase().includes(lowerSearch) ||
         a.studentUSN.toLowerCase().includes(lowerSearch) ||
-        a.studentEmail.toLowerCase().includes(lowerSearch)
+        a.studentEmail.toLowerCase().includes(lowerSearch) ||
+        (a.studentSection && a.studentSection.toLowerCase().includes(lowerSearch))
       );
     }
 
@@ -252,29 +243,23 @@ export default function QuizResultsPage() {
   }
 
   return (
-    <motion.div
-      variants={containerVariants}
-      initial="hidden"
-      animate="show"
-      className="p-4 md:p-6 lg:p-8 space-y-8 md:space-y-10 max-w-7xl mx-auto"
-    >
-      <motion.div variants={itemVariants} className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 md:gap-6">
-        <div className="space-y-3">
-          <Button variant="ghost" size="sm" onClick={() => navigate('/results')} className="h-8 px-0 text-muted-foreground hover:text-primary transition-colors font-black uppercase text-[10px] tracking-widest gap-2">
-            <ArrowLeft className="w-3 h-3" /> Back to Reports
-          </Button>
-          <div className="flex items-center gap-2 text-primary font-bold uppercase tracking-[0.2em] text-xs">
-            <Activity className="w-4 h-4" />
-            Student Performance Analysis
-          </div>
-          <h1 className="text-2xl md:text-3xl lg:text-5xl font-black tracking-tighter uppercase italic truncate max-w-2xl">
-            {quizTitle || 'Assessment Module'}
-          </h1>
-          {autoRefresh && (
-            <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-primary/60">
-              <RefreshCw className="w-3 h-3 animate-spin" /> Live Updates Active
+    <motion.div variants={containerVariants} initial="hidden" animate="show" className="p-4 sm:p-6 lg:p-8 space-y-8 max-w-[1600px] mx-auto min-h-screen">
+      <motion.div variants={itemVariants} className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 pb-6 border-b border-sidebar-border/50">
+        <div className="space-y-2">
+          <div className="flex items-center gap-3">
+            <Button variant="ghost" size="icon" onClick={() => navigate('/results')} className="h-10 w-10 rounded-xl hover:bg-primary/10">
+              <ArrowLeft className="w-5 h-5 text-primary" />
+            </Button>
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <Badge variant="outline" className="text-[10px] font-black uppercase tracking-widest text-primary border-primary/20 bg-primary/5">
+                  Quiz Analytics
+                </Badge>
+                <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              </div>
+              <h1 className="text-3xl md:text-4xl font-black uppercase tracking-tight text-foreground">{quizTitle || 'Assessment Analysis'}</h1>
             </div>
-          )}
+          </div>
         </div>
 
         <div className="flex flex-wrap gap-3 w-full md:w-auto">
@@ -332,8 +317,8 @@ export default function QuizResultsPage() {
               <Trophy className="w-5 h-5 shadow-glow" />
             </div>
             <div>
-              <h2 className="text-xl font-black uppercase italic tracking-tighter">Top 5 Achievers</h2>
-              <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">Elite performance leaderboard</p>
+              <h2 className="text-xl font-black uppercase italic tracking-tighter">Top Achievers</h2>
+              <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">Leaderboard</p>
             </div>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
@@ -358,7 +343,9 @@ export default function QuizResultsPage() {
                     </div>
                     <div className="space-y-0.5">
                       <p className="font-black text-sm uppercase truncate w-full max-w-[140px]">{student.studentName}</p>
-                      <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-tighter">{student.studentUSN}</p>
+                      <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-tighter">
+                        {student.studentUSN} {student.studentSection ? `• SEC ${student.studentSection}` : ''}
+                      </p>
                     </div>
                     <div className="mt-2 text-xl font-black italic tracking-tighter text-primary">
                       {(student.percentage || 0).toFixed(1)}%
@@ -380,12 +367,14 @@ export default function QuizResultsPage() {
                   <Database className="w-5 h-5 text-primary" />
                   Student Performance Records
                 </CardTitle>
-                <CardDescription className="text-xs font-bold uppercase tracking-wider text-foreground/60">Comprehensive list of student results for this assessment.</CardDescription>
+                <CardDescription className="text-xs font-bold uppercase tracking-wider text-foreground/60">
+                  Comprehensive list of student results with proctoring violations and retake controls.
+                </CardDescription>
               </div>
               <div className="relative w-full md:w-96 group">
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
                 <Input
-                  placeholder="Search students (Name, USN, Email)..."
+                  placeholder="Search students (Name, USN, Email, Sec)..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="pl-11 h-12 bg-white border-sidebar-border/50 text-foreground font-bold rounded-xl focus:ring-primary/20 shadow-sm"
@@ -413,8 +402,8 @@ export default function QuizResultsPage() {
                       <TableHead onClick={() => handleSort('percentage')} className="text-[10px] font-black uppercase text-center cursor-pointer hover:text-primary transition-colors text-foreground">
                         <div className="flex items-center justify-center gap-2">Percentage {sortConfig?.key === 'percentage' && (sortConfig.direction === 'asc' ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />)}</div>
                       </TableHead>
-                      <TableHead className="text-[10px] font-black uppercase text-foreground">Security Status</TableHead>
-                      <TableHead className="text-[10px] font-black uppercase pr-8 text-right text-foreground">Details</TableHead>
+                      <TableHead className="text-[10px] font-black uppercase text-foreground">Security Status & Violation</TableHead>
+                      <TableHead className="text-[10px] font-black uppercase pr-8 text-right text-foreground">Actions & Retake</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -426,6 +415,11 @@ export default function QuizResultsPage() {
                             <div className="flex items-center gap-2">
                               <span className="text-[10px] font-black uppercase text-foreground/70">{attempt.studentUSN}</span>
                               <span className="text-[10px] font-bold text-primary italic lowercase tracking-wider">{attempt.studentBranch}</span>
+                              {attempt.studentSection && (
+                                <Badge variant="outline" className="text-[8px] font-black uppercase px-1.5 py-0 border-indigo-200 text-indigo-700 bg-indigo-50/50">
+                                  SEC {attempt.studentSection}
+                                </Badge>
+                              )}
                             </div>
                           </div>
                         </TableCell>
@@ -441,16 +435,41 @@ export default function QuizResultsPage() {
                           </span>
                         </TableCell>
                         <TableCell>
-                          <Badge className={cn(
-                            "text-[9px] font-black uppercase tracking-widest w-fit",
-                            attempt.status === 'blocked' ? "bg-rose-500 shadow-glow shadow-rose-500/20" :
-                              attempt.status === 'graded' || attempt.status === 'submitted' ? "bg-emerald-500" : "bg-muted text-muted-foreground"
-                          )}>
-                            {attempt.status === 'blocked' ? 'RESTRICTED' : attempt.status}
-                          </Badge>
+                          <div className="flex flex-col gap-1 items-start max-w-[280px]">
+                            <Badge className={cn(
+                              "text-[9px] font-black uppercase tracking-widest w-fit",
+                              attempt.status === 'blocked' ? "bg-rose-500 shadow-glow shadow-rose-500/20 text-white" :
+                                attempt.status === 'graded' || attempt.status === 'submitted' ? "bg-emerald-500 text-white" : "bg-muted text-muted-foreground"
+                            )}>
+                              {attempt.status === 'blocked' ? 'BLOCKED / RESTRICTED' : attempt.status}
+                            </Badge>
+                            {attempt.status === 'blocked' && (
+                              <div className="bg-rose-50 border border-rose-200/80 rounded-md px-2 py-1 flex items-start gap-1.5 w-full">
+                                <ShieldAlert className="w-3.5 h-3.5 text-rose-600 shrink-0 mt-0.5" />
+                                <span className="text-[10px] font-bold text-rose-700 leading-tight">
+                                  {attempt.violationReason || 'Terminated by lockdown protocol'}
+                                </span>
+                              </div>
+                            )}
+                          </div>
                         </TableCell>
                         <TableCell className="pr-8 text-right">
-                          <div className="flex justify-end gap-2">
+                          <div className="flex justify-end items-center gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleResetAttempt(attempt._id)}
+                              disabled={isResetting === attempt._id}
+                              className="h-8 px-3 text-[10px] font-black uppercase tracking-wider text-amber-700 border-amber-300 bg-amber-50/50 hover:bg-amber-100/80 hover:text-amber-800 transition-colors"
+                              title="Reset marks & allow student to retake quiz"
+                            >
+                              {isResetting === attempt._id ? (
+                                <Loader2 className="w-3 h-3 animate-spin mr-1" />
+                              ) : (
+                                <RefreshCw className="w-3 h-3 mr-1 text-amber-600" />
+                              )}
+                              Allow Retake
+                            </Button>
                             <Button variant="ghost" size="icon" onClick={() => setSelectedAttempt(attempt)} className="h-8 w-8 hover:bg-primary/10">
                               <ChevronRight className="w-4 h-4" />
                             </Button>
@@ -477,53 +496,93 @@ export default function QuizResultsPage() {
                 <div className="flex justify-between items-start">
                   <div>
                     <DialogTitle className="text-3xl font-black tracking-tighter uppercase italic text-foreground">{selectedAttempt.studentName}</DialogTitle>
-                    <DialogDescription className="text-[10px] font-black uppercase text-foreground/80 flex items-center gap-2">
+                    <DialogDescription className="text-[10px] font-black uppercase text-foreground/80 flex items-center gap-2 mt-1">
                       {selectedAttempt.studentEmail} <span className="opacity-20">•</span> {selectedAttempt.studentUSN} <span className="opacity-20">•</span> <span className="text-primary italic">{selectedAttempt.studentBranch}</span>
+                      {selectedAttempt.studentSection && (
+                        <>
+                          <span className="opacity-20">•</span>
+                          <span className="font-bold text-indigo-600">SEC {selectedAttempt.studentSection}</span>
+                        </>
+                      )}
                     </DialogDescription>
                   </div>
                   <div className="text-right">
                     <div className="text-4xl font-black text-primary tracking-tighter">{(selectedAttempt.percentage || 0).toFixed(1)}%</div>
-                    <div className="text-[10px] font-black uppercase text-muted-foreground/40">Calibration</div>
+                    <div className="text-[10px] font-black uppercase text-muted-foreground/40">Total Score</div>
                   </div>
                 </div>
-                {selectedAttempt.status === 'blocked' && (
-                  <div className="mt-6 p-4 bg-rose-500/10 border border-rose-500/20 rounded-xl flex items-start gap-4">
-                    <Activity className="w-5 h-5 text-rose-500 mt-1" />
-                    <div>
-                      <p className="text-[10px] font-black uppercase text-rose-600">Violation Detected</p>
-                      <p className="text-sm font-bold text-rose-900 mt-0.5 uppercase italic">{selectedAttempt.violationReason || 'TERMINATED BY SYSTEM'}</p>
+
+                {selectedAttempt.status === 'blocked' ? (
+                  <div className="mt-6 p-4 bg-rose-50 border border-rose-200 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div className="flex items-start gap-3">
+                      <ShieldAlert className="w-6 h-6 text-rose-600 shrink-0 mt-0.5" />
+                      <div>
+                        <p className="text-[10px] font-black uppercase tracking-wider text-rose-600">Lockdown Violation Reason</p>
+                        <p className="text-sm font-bold text-rose-900 mt-0.5">{selectedAttempt.violationReason || 'Terminated by lockdown protocol'}</p>
+                        <p className="text-[11px] text-rose-700/80 mt-1">
+                          Click below to reset marks and allow this student to retake the exam.
+                        </p>
+                      </div>
                     </div>
+                    <Button
+                      onClick={() => handleResetAttempt(selectedAttempt._id)}
+                      disabled={isResetting === selectedAttempt._id}
+                      className="shrink-0 bg-rose-600 hover:bg-rose-700 text-white font-black text-xs uppercase tracking-wider h-11 px-5 rounded-xl shadow-md"
+                    >
+                      {isResetting === selectedAttempt._id ? (
+                        <Loader2 className="w-4 h-4 animate-spin mr-1.5" />
+                      ) : (
+                        <RefreshCw className="w-4 h-4 mr-1.5" />
+                      )}
+                      Reset & Allow Retake
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="mt-4 flex justify-end">
+                    <Button
+                      variant="outline"
+                      onClick={() => handleResetAttempt(selectedAttempt._id)}
+                      disabled={isResetting === selectedAttempt._id}
+                      className="text-amber-700 border-amber-300 bg-amber-50/50 hover:bg-amber-100 font-bold text-xs uppercase tracking-wider h-9 px-4 rounded-xl"
+                    >
+                      <RefreshCw className="w-3.5 h-3.5 mr-1.5 text-amber-600" />
+                      Reset Attempt & Retake
+                    </Button>
                   </div>
                 )}
               </DialogHeader>
               <div className="flex-1 overflow-auto p-8 space-y-6 bg-muted/5">
-                <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-foreground/40 px-2">Unit Breakdown</h3>
+                <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-foreground/40 px-2">Questions & Responses</h3>
                 {selectedAttempt.answers?.map((ans, idx) => (
                   <Card key={idx} className={cn("border-sidebar-border/60 relative overflow-hidden bg-white shadow-sm", ans.isCorrect ? "bg-emerald-500/[0.02]" : "bg-rose-500/[0.02]")}>
                     <div className={cn("absolute left-0 top-0 w-1.5 h-full", ans.isCorrect ? "bg-emerald-500" : "bg-rose-500")} />
                     <CardContent className="p-6">
                       <div className="flex justify-between mb-4">
-                        <Badge variant="outline" className="text-[8px] font-black uppercase">Unit {idx + 1}</Badge>
+                        <Badge variant="outline" className="text-[8px] font-black uppercase">Question {idx + 1}</Badge>
                         <span className={cn("font-black text-xs", ans.isCorrect ? "text-emerald-600" : "text-rose-600")}>{ans.marks} PTS</span>
                       </div>
-                      <div className="text-lg font-black tracking-tight mb-6 normal-case">
-                        <FormattedText text={ans.question} isQuestion={true} />
+                      <div className="text-base font-bold tracking-tight mb-6 normal-case">
+                        <AcademicTextRenderer text={ans.question} content={ans.question} isQuestion={true} imageUrl={ans.imageUrl} />
                       </div>
                       <div className="grid md:grid-cols-2 gap-6">
                         <div className="space-y-1">
-                          <p className="text-[8px] font-black uppercase text-muted-foreground">Response</p>
-                          <div className={cn("p-4 rounded-xl border font-black text-sm", ans.isCorrect ? "bg-emerald-500/5 border-emerald-500/20 text-emerald-900" : "bg-rose-500/5 border-rose-500/20 text-rose-900")}>{ans.studentAnswer || 'N/A'}</div>
+                          <p className="text-[8px] font-black uppercase text-muted-foreground">Student Answer</p>
+                          <div className={cn("p-4 rounded-xl border font-bold text-sm", ans.isCorrect ? "bg-emerald-500/5 border-emerald-500/20 text-emerald-900" : "bg-rose-500/5 border-rose-500/20 text-rose-900")}>
+                            {ans.studentAnswer || 'N/A'}
+                          </div>
                         </div>
                         <div className="space-y-1">
-                          <p className="text-[8px] font-black uppercase text-muted-foreground">Correct</p>
-                          <div className="p-4 rounded-xl border border-sidebar-border bg-muted/40 font-black text-sm text-foreground">{ans.correctAnswer}</div>
+                          <p className="text-[8px] font-black uppercase text-muted-foreground">Correct Answer</p>
+                          <div className="p-4 rounded-xl border border-sidebar-border bg-muted/40 font-bold text-sm text-foreground">
+                            {ans.correctAnswer}
+                          </div>
                         </div>
                       </div>
                     </CardContent>
                   </Card>
                 ))}
               </div>
-              <div className="p-8 bg-muted/20 border-t flex justify-end">
+              <div className="p-6 bg-muted/20 border-t flex justify-end">
                 <Button onClick={() => setSelectedAttempt(null)} className="font-black uppercase text-[10px] h-12 px-8 gradient-primary shadow-glow">Close Report</Button>
               </div>
             </>

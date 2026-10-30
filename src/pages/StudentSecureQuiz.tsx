@@ -39,6 +39,7 @@ import { Capacitor } from '@capacitor/core';
 import { NavigationBar } from '@capgo/capacitor-navigation-bar';
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { PrivacyScreen } from '@capacitor-community/privacy-screen';
+import { AcademicTextRenderer } from '@/components/AcademicTextRenderer';
 
 // --- TYPES ---
 interface Question {
@@ -47,6 +48,7 @@ interface Question {
   question: string;
   options?: string[];
   marks: number;
+  imageUrl?: string;
 }
 
 interface Quiz {
@@ -305,6 +307,24 @@ export default function StudentSecureQuiz() {
     };
   }, [enforceNavigationHidden]);
 
+  // 🧹 Purge Clipboard continuously during active exam to block any clipboard viewer or history
+  useEffect(() => {
+    if (!quizStarted || quizSubmitted || isBlocked) return;
+    
+    const wipeClipboard = () => {
+      try {
+        navigator.clipboard?.writeText('');
+      } catch (err) {}
+      if ((window as any).desktopSecurity?.clearClipboard) {
+        (window as any).desktopSecurity.clearClipboard();
+      }
+    };
+
+    wipeClipboard();
+    const clipInterval = setInterval(wipeClipboard, 1500);
+    return () => clearInterval(clipInterval);
+  }, [quizStarted, quizSubmitted, isBlocked]);
+
   const triggerViolation = useCallback((reason: string) => {
     if (isTransitioning.current || isSecurityPaused.current || isBlocked) return;
     
@@ -365,7 +385,8 @@ export default function StudentSecureQuiz() {
             type: q.type || 'mcq',
             options: q.options || [],
             marks: q.marks || 1,
-            difficulty: q.difficulty
+            difficulty: q.difficulty,
+            imageUrl: q.imageUrl || ''
           }))
         });
         console.log('📚 Questions Loaded:', { 
@@ -393,15 +414,14 @@ export default function StudentSecureQuiz() {
             submittedAt: existingAttempt.submittedAt
           });
           
-          // Log the exact condition check
-          const isExplicitlyBlocked = existingAttempt.status === 'blocked';
+          // Check if blocked or disqualified
+          const isExplicitlyBlocked = existingAttempt.status === 'blocked' || existingAttempt.isBlocked === true || existingAttempt.status === 'disqualified' || existingAttempt.status === 'expired';
           console.log('🔐 Blocking Logic Check:', {
             value: existingAttempt.status,
             isEqualToBlocked: isExplicitlyBlocked,
             type: typeof existingAttempt.status
           });
           
-          // Only block if status is EXPLICITLY 'blocked' - new quizzes will have no attempt
           if (isExplicitlyBlocked) {
             console.warn('⚠️ BLOCKED QUIZ DETECTED - Setting isBlocked flag');
             const violationReason = existingAttempt.violationReason || 'Security violations detected during previous attempt';
@@ -612,6 +632,33 @@ export default function StudentSecureQuiz() {
       ) {
         e.preventDefault();
         triggerViolation('Developer tools shortcut detected');
+        return;
+      }
+
+      // Block Windows Key + V (Windows Clipboard History), Ctrl+V, Win+., Ctrl+Insert, Shift+Insert
+      const isVKey = e.key === 'v' || e.key === 'V';
+      const isCKey = e.key === 'c' || e.key === 'C';
+      const isXKey = e.key === 'x' || e.key === 'X';
+      const isInsert = e.key === 'Insert';
+      const isMeta = e.metaKey || e.key === 'Meta' || e.key === 'OS' || (e as any).keyCode === 91 || (e as any).keyCode === 92;
+
+      if (
+        (isVKey && (isMeta || e.ctrlKey || e.altKey)) ||
+        (isCKey && (isMeta || e.ctrlKey)) ||
+        (isXKey && (isMeta || e.ctrlKey)) ||
+        (isInsert && (e.shiftKey || e.ctrlKey)) ||
+        (isMeta && (e.key === '.' || e.key === ';'))
+      ) {
+        e.preventDefault();
+        e.stopPropagation();
+        try {
+          navigator.clipboard?.writeText('');
+        } catch (err) {}
+        if ((window as any).desktopSecurity?.clearClipboard) {
+          (window as any).desktopSecurity.clearClipboard();
+        }
+        toast.error("Clipboard Blocked", { description: "Clipboard viewer and pasting are strictly disabled." });
+        return;
       }
     };
 
@@ -621,7 +668,19 @@ export default function StudentSecureQuiz() {
 
     const preventContentExtraction = (e: any) => {
        e.preventDefault();
-       toast.error("Content Protection Active", { description: "Copying/Pasting is restricted during the exam." });
+       if (e.clipboardData) {
+         try {
+           e.clipboardData.clearData();
+           e.clipboardData.setData('text/plain', '');
+         } catch (err) {}
+       }
+       try {
+         navigator.clipboard?.writeText('');
+       } catch (err) {}
+       if ((window as any).desktopSecurity?.clearClipboard) {
+         (window as any).desktopSecurity.clearClipboard();
+       }
+       toast.error("Clipboard Blocked", { description: "Clipboard access is strictly restricted during the exam." });
     };
     
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
@@ -709,13 +768,14 @@ export default function StudentSecureQuiz() {
     // 📱 Native App State Listener (Capacitor)
     const setupNativeListeners = async () => {
       if (!Capacitor.isNativePlatform()) {
-      if ((window as any).desktopSecurity) {
-        try {
-          (window as any).desktopSecurity.endLockdown();
-        } catch (e) { console.error('Desktop security exit error', e); }
+        // Desktop Electron: Ensure lockdown is active while quiz is underway
+        if ((window as any).desktopSecurity?.startLockdown && quizStarted && !quizSubmitted && !isBlocked) {
+          try {
+            (window as any).desktopSecurity.startLockdown();
+          } catch (e) { console.error('Desktop security init error', e); }
+        }
+        return;
       }
-      return;
-    }
       const listener = await App.addListener('appStateChange', ({ isActive }) => {
         if (!isActive) {
           handleFocusLoss('System-level backgrounding or split-screen detected');
@@ -740,6 +800,12 @@ export default function StudentSecureQuiz() {
     return () => {
       nativeCleanup.then(clean => clean?.());
       if (desktopCleanup) desktopCleanup();
+      // Only end desktop lockdown when component unmounts or quiz is done
+      if ((window as any).desktopSecurity?.endLockdown && (quizSubmitted || isBlocked)) {
+        try {
+          (window as any).desktopSecurity.endLockdown();
+        } catch (e) { console.error('Desktop security exit error', e); }
+      }
       window.removeEventListener('blur', handleBlur, true);
       window.removeEventListener('visibilitychange', handleVisibility, true);
       window.removeEventListener('focus', handleFocus, true);
@@ -824,10 +890,18 @@ export default function StudentSecureQuiz() {
       if (res.data?.success) {
         console.log('✅ Quiz submitted successfully:', res.data);
         setSubmissionResult(res.data.results);
-        setQuizSubmitted(true);
+        if (reason || res.data.results?.isBlocked) {
+          setIsBlocked(true);
+        } else {
+          setQuizSubmitted(true);
+        }
         storage.removeItem(`quiz_state_${quizId}`);
         exitFullscreen();
-        toast.success('Quiz submitted successfully!');
+        if (reason) {
+          toast.error('Quiz attempt terminated due to violations');
+        } else {
+          toast.success('Quiz submitted successfully!');
+        }
       } else {
         console.error('❌ Submit failed - not successful:', res.data);
         toast.error('Submission failed: ' + (res.data?.message || 'Unknown error'));
@@ -873,7 +947,70 @@ export default function StudentSecureQuiz() {
     </div>
   );
 
-  // 2. Pre-Quiz Entry
+  // 2. Blocked Screen (Check first so blocked students can NEVER see pre-quiz or Start Quiz)
+  if (isBlocked) {
+    return (
+      <div className="h-screen w-full bg-gradient-to-br from-red-50 via-white to-pink-50 flex flex-col items-center justify-center p-6 text-center">
+        <div className="max-w-md mx-auto space-y-6">
+          <div className="flex justify-center">
+            <div className="relative">
+              <div className="absolute inset-0 w-32 h-32 bg-red-600 rounded-full blur-2xl opacity-30" />
+              <div className="relative w-32 h-32 bg-red-600 rounded-full flex items-center justify-center shadow-2xl shadow-red-600/30">
+                <ShieldAlert className="w-16 h-16 text-white" />
+              </div>
+            </div>
+          </div>
+          
+          <div>
+            <h1 className="text-3xl font-black text-red-600 mb-2">⚠️ Quiz Access Blocked</h1>
+            <p className="text-slate-600 font-bold text-base leading-relaxed">
+              Your attempt to complete this quiz was terminated due to security violations. The quiz has been permanently blocked.
+            </p>
+          </div>
+
+          <div className="bg-red-50 border-2 border-red-200 rounded-2xl p-4 text-left space-y-2">
+            <p className="font-black text-sm text-red-600 uppercase tracking-wide">❌ Reason for Block:</p>
+            <p className="text-slate-700 font-bold">Multiple security violations detected during quiz attempt.</p>
+            <p className="text-sm text-slate-600 mt-3">Violations include:</p>
+            <ul className="list-disc list-inside space-y-1 text-sm text-slate-600 ml-2">
+              <li>Loss of focus (switching out of app)</li>
+              <li>Split-screen or floating window detection</li>
+              <li>Application overlay attempts</li>
+              <li>Exceeding 3 violations (autosubmit triggered)</li>
+            </ul>
+          </div>
+
+          <div className="bg-blue-50 border-2 border-blue-200 rounded-2xl p-4 text-left">
+            <p className="font-black text-sm text-blue-600 uppercase tracking-wide mb-2">📞 What To Do:</p>
+            <p className="text-slate-700 font-bold text-sm">Contact your instructor to:</p>
+            <ul className="list-disc list-inside space-y-1 text-sm text-slate-600 mt-2 ml-2">
+              <li>Review the violation details</li>
+              <li>Request quiz unblocking if violations were unintentional</li>
+              <li>Reschedule or retry the quiz with proper environment</li>
+            </ul>
+          </div>
+
+          <div className="pt-4 space-y-3">
+            <Button
+              onClick={() => navigate('/student/dashboard')}
+              className="w-full h-14 bg-slate-900 hover:bg-black text-white rounded-2xl font-black uppercase tracking-widest text-sm shadow-xl transition-all active:scale-95"
+            >
+              Return to Dashboard
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => window.location.href = 'mailto:support@faculty-quest.com'}
+              className="w-full h-12 border-2 border-slate-200 hover:bg-slate-50 text-slate-600 rounded-2xl font-bold uppercase tracking-widest text-xs"
+            >
+              Email Support
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // 3. Pre-Quiz Entry
   if (!quizStarted && !quizSubmitted) return (
     <div className="min-h-[100dvh] bg-[#F8FAFC] flex items-center justify-center p-4 sm:p-6 text-slate-900">
       <div className="max-w-md w-full space-y-6 sm:space-y-8">
@@ -1049,68 +1186,6 @@ export default function StudentSecureQuiz() {
     );
   }
 
-  // Show blocked screen if quiz access is denied due to violations
-  if (isBlocked) {
-    return (
-      <div className="h-screen w-full bg-gradient-to-br from-red-50 via-white to-pink-50 flex flex-col items-center justify-center p-6 text-center">
-        <div className="max-w-md mx-auto space-y-6">
-          <div className="flex justify-center">
-            <div className="relative">
-              <div className="absolute inset-0 w-32 h-32 bg-red-600 rounded-full blur-2xl opacity-30" />
-              <div className="relative w-32 h-32 bg-red-600 rounded-full flex items-center justify-center shadow-2xl shadow-red-600/30">
-                <ShieldAlert className="w-16 h-16 text-white" />
-              </div>
-            </div>
-          </div>
-          
-          <div>
-            <h1 className="text-3xl font-black text-red-600 mb-2">⚠️ Quiz Access Blocked</h1>
-            <p className="text-slate-600 font-bold text-base leading-relaxed">
-              Your attempt to complete this quiz was terminated due to security violations. The quiz has been permanently blocked.
-            </p>
-          </div>
-
-          <div className="bg-red-50 border-2 border-red-200 rounded-2xl p-4 text-left space-y-2">
-            <p className="font-black text-sm text-red-600 uppercase tracking-wide">❌ Reason for Block:</p>
-            <p className="text-slate-700 font-bold">Multiple security violations detected during quiz attempt.</p>
-            <p className="text-sm text-slate-600 mt-3">Violations include:</p>
-            <ul className="list-disc list-inside space-y-1 text-sm text-slate-600 ml-2">
-              <li>Loss of focus (switching out of app)</li>
-              <li>Split-screen or floating window detection</li>
-              <li>Application overlay attempts</li>
-              <li>Exceeding 3 violations (autosubmit triggered)</li>
-            </ul>
-          </div>
-
-          <div className="bg-blue-50 border-2 border-blue-200 rounded-2xl p-4 text-left">
-            <p className="font-black text-sm text-blue-600 uppercase tracking-wide mb-2">📞 What To Do:</p>
-            <p className="text-slate-700 font-bold text-sm">Contact your instructor to:</p>
-            <ul className="list-disc list-inside space-y-1 text-sm text-slate-600 mt-2 ml-2">
-              <li>Review the violation details</li>
-              <li>Request quiz unblocking if violations were unintentional</li>
-              <li>Reschedule or retry the quiz with proper environment</li>
-            </ul>
-          </div>
-
-          <div className="pt-4 space-y-3">
-            <Button
-              onClick={() => navigate('/student/dashboard')}
-              className="w-full h-14 bg-slate-900 hover:bg-black text-white rounded-2xl font-black uppercase tracking-widest text-sm shadow-xl transition-all active:scale-95"
-            >
-              Return to Dashboard
-            </Button>
-            <Button
-              variant="outline"
-              onClick={() => window.location.href = 'mailto:support@faculty-quest.com'}
-              className="w-full h-12 border-2 border-slate-200 hover:bg-slate-50 text-slate-600 rounded-2xl font-bold uppercase tracking-widest text-xs"
-            >
-              Email Support
-            </Button>
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   const formatTime = (seconds: number) => {
     if (!seconds || isNaN(seconds)) return "00:00";
@@ -1149,12 +1224,17 @@ export default function StudentSecureQuiz() {
           body { display: none !important; }
         }
         * {
-          -webkit-touch-callout: none;
-          -webkit-user-select: none;
-          -khtml-user-select: none;
-          -moz-user-select: none;
-          -ms-user-select: none;
-          user-select: none;
+          -webkit-touch-callout: none !important;
+          -webkit-user-select: none !important;
+          -khtml-user-select: none !important;
+          -moz-user-select: none !important;
+          -ms-user-select: none !important;
+          user-select: none !important;
+        }
+        input, textarea {
+          -webkit-touch-callout: none !important;
+          -webkit-user-select: text !important;
+          user-select: text !important;
         }
       `}</style>
 
@@ -1278,10 +1358,10 @@ export default function StudentSecureQuiz() {
       </div>
 
       {/* 📝 Content - Responsive Desktop & Mobile layout */}
-      <main className="flex-1 overflow-y-auto scroll-smooth bg-slate-50/50 h-full touch-pan-y" style={{ WebkitOverflowScrolling: 'touch' }}>
-        <div className="px-4 sm:px-8 md:px-12 lg:px-16 py-6 sm:py-8 pb-32 max-w-4xl mx-auto w-full flex flex-col min-h-full">
+      <main className="flex-1 min-h-0 overflow-y-auto scroll-smooth bg-slate-50/50 touch-pan-y" style={{ WebkitOverflowScrolling: 'touch' }}>
+        <div className="px-4 sm:px-8 md:px-12 lg:px-16 py-6 sm:py-8 pb-10 max-w-4xl mx-auto w-full flex flex-col">
           <div className="flex-1 space-y-6 sm:space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <div className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-100 shadow-sm space-y-4">
+            <div className="bg-white p-5 sm:p-7 rounded-3xl border border-slate-100 shadow-sm space-y-3 sm:space-y-4">
               <div className="flex items-center justify-between">
                 <Badge className="bg-teal-50 text-teal-700 border-teal-100 font-black text-[9px] sm:text-[10px] px-3 py-1 rounded-xl uppercase tracking-wider">
                   {currentQ?.marks} {currentQ?.marks === 1 ? 'Mark' : 'Marks'}
@@ -1290,34 +1370,42 @@ export default function StudentSecureQuiz() {
                   Question {currentQuestion + 1} of {quiz?.questions?.length || 1}
                 </span>
               </div>
-              <div className="text-base sm:text-xl md:text-2xl font-black text-slate-900 leading-relaxed tracking-tight">
-                <FormattedText text={currentQ?.question || ''} isQuestion={true} />
+              <div className="text-slate-900 leading-relaxed tracking-tight">
+                <AcademicTextRenderer
+                  text={currentQ?.question || ''}
+                  isQuestion={true}
+                  imageUrl={currentQ?.imageUrl}
+                  hideCopyButton={true}
+                />
               </div>
             </div>
 
-            <div className="space-y-3 sm:space-y-4">
+            <div className="space-y-3">
               {currentQ?.type === 'mcq' && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5 sm:gap-3.5">
                   {currentQ.options?.map((option, idx) => {
                     const isSelected = answers[currentQ._id] === option;
+                    const cleanedOptionText = option.replace(/<br\s*\/?>/gi, ' ').replace(/\*\*/g, '').trim();
                     return (
                       <button
                         key={idx}
                         onClick={() => setAnswers(p => ({ ...p, [currentQ._id]: option }))}
                         className={cn(
-                          "w-full p-4 sm:p-5 rounded-2xl text-left border-2 transition-all flex items-center gap-3.5 group active:scale-[0.99]",
+                          "w-full p-3.5 sm:p-4 rounded-2xl text-left border-2 transition-all flex items-center gap-3 group active:scale-[0.99]",
                           isSelected
                             ? "border-indigo-600 bg-indigo-50/70 shadow-md shadow-indigo-100/50"
                             : "border-slate-100 bg-white hover:border-slate-200 hover:shadow-sm"
                         )}
                       >
                         <div className={cn(
-                          "w-9 h-9 rounded-xl flex items-center justify-center font-black text-xs shrink-0 transition-all",
+                          "w-8 h-8 rounded-xl flex items-center justify-center font-black text-xs shrink-0 transition-all",
                           isSelected ? "bg-indigo-600 text-white scale-105 shadow-sm" : "bg-slate-100 text-slate-500 border border-slate-200"
                         )}>
                           {String.fromCharCode(65 + idx)}
                         </div>
-                        <span className={cn("font-bold text-sm sm:text-base leading-snug break-words", isSelected ? "text-indigo-950 font-black" : "text-slate-700")}>{option}</span>
+                        <span className={cn("font-bold text-xs sm:text-sm md:text-base leading-snug break-words", isSelected ? "text-indigo-950 font-black" : "text-slate-700")}>
+                          {cleanedOptionText}
+                        </span>
                       </button>
                     );
                   })}
@@ -1325,13 +1413,34 @@ export default function StudentSecureQuiz() {
               )}
 
               {currentQ?.type === 'short-answer' && (
-                <div className="space-y-2 bg-white p-6 rounded-3xl border border-slate-100">
+                <div className="space-y-2 bg-white p-5 sm:p-6 rounded-3xl border border-slate-100 shadow-sm">
                   <Label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Your Detailed Answer</Label>
                   <Textarea
                     placeholder="Type your response here..."
-                    className="min-h-[180px] sm:min-h-[220px] rounded-2xl p-5 border-slate-200 bg-slate-50/50 focus:bg-white focus:ring-4 focus:ring-indigo-100 font-medium text-sm sm:text-base transition-all resize-none shadow-inner"
+                    className="min-h-[140px] sm:min-h-[180px] rounded-2xl p-4 sm:p-5 border-slate-200 bg-slate-50/50 focus:bg-white focus:ring-4 focus:ring-indigo-100 font-medium text-xs sm:text-sm md:text-base transition-all resize-none shadow-inner"
                     value={answers[currentQ._id] || ''}
                     onChange={(e) => setAnswers(p => ({ ...p, [currentQ._id]: e.target.value }))}
+                    onPaste={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      toast.error("Paste Blocked", { description: "Pasting is disabled. Please type your response directly." });
+                    }}
+                    onCopy={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                    }}
+                    onCut={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                    }}
+                    onContextMenu={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                    }}
+                    autoComplete="off"
+                    autoCorrect="off"
+                    autoCapitalize="off"
+                    spellCheck={false}
                   />
                 </div>
               )}
@@ -1345,19 +1454,19 @@ export default function StudentSecureQuiz() {
                         key={option}
                         onClick={() => setAnswers(p => ({ ...p, [currentQ._id]: option }))}
                         className={cn(
-                          "w-full p-5 rounded-2xl text-left border-2 transition-all flex items-center gap-3.5 group active:scale-[0.99]",
+                          "w-full p-4 sm:p-5 rounded-2xl text-left border-2 transition-all flex items-center gap-3.5 group active:scale-[0.99]",
                           isSelected
                             ? "border-indigo-600 bg-indigo-50/70 shadow-md shadow-indigo-100/50"
                             : "border-slate-100 bg-white hover:border-slate-200"
                         )}
                       >
                         <div className={cn(
-                          "w-9 h-9 rounded-xl flex items-center justify-center font-black text-xs shrink-0 transition-all",
+                          "w-8 h-8 rounded-xl flex items-center justify-center font-black text-xs shrink-0 transition-all",
                           isSelected ? "bg-indigo-600 text-white scale-105" : "bg-slate-100 text-slate-500 border border-slate-200"
                         )}>
                           {option === 'True' ? 'T' : 'F'}
                         </div>
-                        <span className={cn("font-bold text-sm sm:text-base leading-snug", isSelected ? "text-indigo-950 font-black" : "text-slate-700")}>{option}</span>
+                        <span className={cn("font-bold text-xs sm:text-sm md:text-base leading-snug", isSelected ? "text-indigo-950 font-black" : "text-slate-700")}>{option}</span>
                       </button>
                     );
                   })}
@@ -1370,10 +1479,10 @@ export default function StudentSecureQuiz() {
         </div>
       </main>
 
-      {/* 🎮 Controls - High Performance Navigation */}
+      {/* 🎮 Controls - High Performance Docked Navigation */}
       <div 
-        className="fixed bottom-0 left-0 right-0 px-4 sm:px-8 pt-4 sm:pt-5 bg-white/95 backdrop-blur-2xl border-t border-slate-100 flex items-center justify-between gap-3 sm:gap-4 z-40 shrink-0"
-        style={{ paddingBottom: 'max(env(safe-area-inset-bottom, 0px) + 16px, 20px)' }}
+        className="shrink-0 bg-white border-t border-slate-100 px-4 sm:px-8 py-3 sm:py-4 flex items-center justify-between gap-3 sm:gap-4 z-30 shadow-[0_-4px_20px_rgba(0,0,0,0.03)]"
+        style={{ paddingBottom: 'max(env(safe-area-inset-bottom, 0px) + 8px, 12px)' }}
       >
         <Button
           variant="secondary"

@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { Search, Filter, ChevronLeft, ChevronRight, Edit, Trash2, MoreVertical, Table as TableIcon, Layers, User } from 'lucide-react';
+import { Search, Filter, ChevronLeft, ChevronRight, Edit, Trash2, MoreVertical, Table as TableIcon, Layers, User, Bookmark } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -38,6 +38,7 @@ export function StudentTable({
   const [branchFilter, setBranchFilter] = useState<string>('all');
   const [yearFilter, setYearFilter] = useState<string>('all');
   const [semesterFilter, setSemesterFilter] = useState<string>('all');
+  const [sectionFilter, setSectionFilter] = useState<string>('all');
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 8;
 
@@ -53,6 +54,10 @@ export function StudentTable({
     Array.from(new Set(students.map(s => s.semester))).sort(),
     [students]
   );
+  const sections = useMemo(() =>
+    Array.from(new Set(students.map(s => s.section).filter(Boolean) as string[])).sort(),
+    [students]
+  );
 
   const filteredStudents = useMemo(() => {
     return students.filter(student => {
@@ -64,10 +69,11 @@ export function StudentTable({
       const matchesBranch = branchFilter === 'all' || student.branch === branchFilter;
       const matchesYear = yearFilter === 'all' || student.year === yearFilter;
       const matchesSemester = semesterFilter === 'all' || student.semester === semesterFilter;
+      const matchesSection = sectionFilter === 'all' || (student.section || '').toUpperCase() === sectionFilter.toUpperCase();
 
-      return matchesSearch && matchesBranch && matchesYear && matchesSemester;
+      return matchesSearch && matchesBranch && matchesYear && matchesSemester && matchesSection;
     });
-  }, [students, searchTerm, branchFilter, yearFilter, semesterFilter]);
+  }, [students, searchTerm, branchFilter, yearFilter, semesterFilter, sectionFilter]);
 
   const totalPages = Math.ceil(filteredStudents.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
@@ -101,14 +107,6 @@ export function StudentTable({
   const isAllSelected = filteredStudents.length > 0 &&
     filteredStudents.every(s => selectedStudents.includes(s.id));
 
-  const tableVariants = {
-    hidden: { opacity: 0 },
-    show: {
-      opacity: 1,
-      transition: { staggerChildren: 0.05 }
-    }
-  };
-
   const rowVariants = {
     hidden: { opacity: 0, x: -10 },
     show: { opacity: 1, x: 0 }
@@ -121,19 +119,19 @@ export function StudentTable({
         <div className="relative flex-1 group w-full">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
           <Input
-            placeholder="Search students (Name, USN, Email)..."
+            placeholder="Search students (Name, USN, Email, Section)..."
             value={searchTerm}
             onChange={(e) => {
               setSearchTerm(e.target.value);
               setCurrentPage(1);
             }}
-            className="pl-11 h-12 bg-muted/30 border-sidebar-border/50 focus:ring-primary/20 transition-all font-medium"
+            className="pl-11 h-12 bg-white border-2 border-slate-300 hover:border-slate-400 text-slate-900 placeholder:text-slate-500 focus:bg-white focus:border-primary focus:ring-4 focus:ring-primary/20 transition-all font-semibold shadow-xs"
           />
         </div>
 
-        <div className="flex gap-3 w-full lg:w-auto overflow-x-auto pb-1 lg:pb-0 scrollbar-none">
-          <Select value={branchFilter} onValueChange={setBranchFilter}>
-            <SelectTrigger className="w-[160px] h-12 font-bold uppercase text-[10px] tracking-widest bg-muted/30">
+        <div className="flex gap-2.5 w-full lg:w-auto overflow-x-auto pb-1 lg:pb-0 scrollbar-none flex-wrap sm:flex-nowrap">
+          <Select value={branchFilter} onValueChange={(val) => { setBranchFilter(val); setCurrentPage(1); }}>
+            <SelectTrigger className="w-[140px] h-12 font-bold uppercase text-[10px] tracking-widest bg-white border-2 border-slate-300 hover:border-slate-400 text-slate-900 shadow-xs">
               <div className="flex items-center gap-2">
                 <TableIcon className="h-3.5 w-3.5 text-primary" />
                 <SelectValue placeholder="Branch" />
@@ -147,8 +145,8 @@ export function StudentTable({
             </SelectContent>
           </Select>
 
-          <Select value={yearFilter} onValueChange={setYearFilter}>
-            <SelectTrigger className="w-[130px] h-12 font-bold uppercase text-[10px] tracking-widest bg-muted/30">
+          <Select value={yearFilter} onValueChange={(val) => { setYearFilter(val); setCurrentPage(1); }}>
+            <SelectTrigger className="w-[115px] h-12 font-bold uppercase text-[10px] tracking-widest bg-white border-2 border-slate-300 hover:border-slate-400 text-slate-900 shadow-xs">
               <div className="flex items-center gap-2">
                 <Layers className="h-3.5 w-3.5 text-secondary" />
                 <SelectValue placeholder="Year" />
@@ -162,17 +160,32 @@ export function StudentTable({
             </SelectContent>
           </Select>
 
-          <Select value={semesterFilter} onValueChange={setSemesterFilter}>
-            <SelectTrigger className="w-[130px] h-12 font-bold uppercase text-[10px] tracking-widest bg-muted/30">
+          <Select value={semesterFilter} onValueChange={(val) => { setSemesterFilter(val); setCurrentPage(1); }}>
+            <SelectTrigger className="w-[115px] h-12 font-bold uppercase text-[10px] tracking-widest bg-white border-2 border-slate-300 hover:border-slate-400 text-slate-900 shadow-xs">
               <div className="flex items-center gap-2">
                 <Filter className="h-3.5 w-3.5 text-accent" />
                 <SelectValue placeholder="Semester" />
               </div>
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all" className="font-bold text-[10px] uppercase">All Semesters</SelectItem>
+              <SelectItem value="all" className="font-bold text-[10px] uppercase">All Sems</SelectItem>
               {semesters.map(sem => (
                 <SelectItem key={sem} value={sem} className="font-bold text-[10px] uppercase">Sem {sem}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          <Select value={sectionFilter} onValueChange={(val) => { setSectionFilter(val); setCurrentPage(1); }}>
+            <SelectTrigger className="w-[115px] h-12 font-bold uppercase text-[10px] tracking-widest bg-white border-2 border-slate-300 hover:border-slate-400 text-slate-900 shadow-xs">
+              <div className="flex items-center gap-2">
+                <Bookmark className="h-3.5 w-3.5 text-indigo-500" />
+                <SelectValue placeholder="Section" />
+              </div>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all" className="font-bold text-[10px] uppercase">All Secs</SelectItem>
+              {sections.map(sec => (
+                <SelectItem key={sec} value={sec} className="font-bold text-[10px] uppercase">Sec {sec}</SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -182,7 +195,7 @@ export function StudentTable({
       <div className="flex items-center justify-between px-2">
         <div className="text-[11px] font-black uppercase tracking-widest text-muted-foreground/60 flex items-center gap-2">
           <User className="w-3.5 h-3.5" />
-          Showing {startIndex + 1} — {Math.min(startIndex + itemsPerPage, filteredStudents.length)} <span className="text-muted-foreground/30 px-1">/</span> Total {filteredStudents.length} Students
+          Showing {filteredStudents.length > 0 ? startIndex + 1 : 0} — {Math.min(startIndex + itemsPerPage, filteredStudents.length)} <span className="text-muted-foreground/30 px-1">/</span> Total {filteredStudents.length} Students
         </div>
         {showCheckboxes && selectedStudents.length > 0 && (
           <Badge className="bg-primary text-white font-bold tracking-tighter shadow-glow">
@@ -205,11 +218,12 @@ export function StudentTable({
                   />
                 </TableHead>
               )}
-              <TableHead className="text-[10px] font-black uppercase tracking-widest text-muted-foreground py-4">Student Info</TableHead>
-              <TableHead className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Email Address</TableHead>
-              <TableHead className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Branch</TableHead>
-              <TableHead className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Academic Year</TableHead>
-              {(onEdit || onDelete) && <TableHead className="w-20 text-[10px] font-black uppercase tracking-widest text-muted-foreground text-right pr-6">Actions</TableHead>}
+              <TableHead className="text-[11px] font-black uppercase tracking-wider text-slate-800 dark:text-slate-200 py-4">Student Info</TableHead>
+              <TableHead className="text-[11px] font-black uppercase tracking-wider text-slate-800 dark:text-slate-200">Email Address</TableHead>
+              <TableHead className="text-[11px] font-black uppercase tracking-wider text-slate-800 dark:text-slate-200">Branch</TableHead>
+              <TableHead className="text-[11px] font-black uppercase tracking-wider text-slate-800 dark:text-slate-200">Year / Sem</TableHead>
+              <TableHead className="text-[11px] font-black uppercase tracking-wider text-slate-800 dark:text-slate-200 text-center">Class / Section</TableHead>
+              {(onEdit || onDelete) && <TableHead className="w-20 text-[11px] font-black uppercase tracking-wider text-slate-800 dark:text-slate-200 text-right pr-6">Actions</TableHead>}
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -217,7 +231,7 @@ export function StudentTable({
               {paginatedStudents.length === 0 ? (
                 <TableRow>
                   <TableCell
-                    colSpan={showCheckboxes ? 6 : 5}
+                    colSpan={showCheckboxes ? 7 : 6}
                     className="text-center text-[11px] font-bold uppercase tracking-widest text-muted-foreground/40 py-20 italic"
                   >
                     No students found matching your criteria
@@ -263,6 +277,11 @@ export function StudentTable({
                         <div className="w-1 h-1 rounded-full bg-primary/30" />
                         <span className="text-[10px] font-black uppercase tracking-widest text-foreground">S{student.semester}</span>
                       </div>
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <Badge variant="outline" className="bg-indigo-50/50 text-indigo-700 border-indigo-200 text-[10px] font-black uppercase tracking-wider px-2 py-0.5">
+                        {student.section ? `SEC ${student.section}` : '—'}
+                      </Badge>
                     </TableCell>
                     {(onEdit || onDelete) && (
                       <TableCell className="text-right pr-4">

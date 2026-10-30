@@ -10,11 +10,12 @@ export interface ExcelValidationResult {
 // Define flexible header mappings
 const HEADER_MAPPINGS: Record<string, string[]> = {
   'name': ['name', 'student name', 'full name', 'student'],
-  'usn': ['usn', 'university seat number', 'registration number', 'reg no'],
+  'usn': ['usn', 'university seat number', 'registration number', 'reg no', 'roll no', 'roll'],
   'email': ['email', 'email address', 'email id', 'mail'],
   'branch': ['branch', 'department', 'dept', 'stream'],
   'year': ['year', 'study year', 'academic year', 'class year'],
-  'semester': ['semester', 'sem', 'semester number', 'sem no']
+  'semester': ['semester', 'sem', 'semester number', 'sem no'],
+  'section': ['section', 'sec', 'class section', 'division', 'batch', 'class sec']
 };
 
 export async function parseExcelFile(file: File): Promise<ExcelValidationResult> {
@@ -50,19 +51,22 @@ export async function parseExcelFile(file: File): Promise<ExcelValidationResult>
         const headerMap: Record<string, number> = {};
         let missingRequiredFields: string[] = [];
 
-        Object.entries(HEADER_MAPPINGS).forEach(([requiredField, possibleNames]) => {
+        // Core required fields (Section is optional but mapped if present)
+        const CORE_REQUIRED_FIELDS = ['name', 'usn', 'email', 'branch', 'year', 'semester'];
+
+        Object.entries(HEADER_MAPPINGS).forEach(([field, possibleNames]) => {
           const index = normalizedHeaders.findIndex(header =>
             possibleNames.some(name => header.includes(name))
           );
 
           if (index !== -1) {
-            headerMap[requiredField] = index;
-          } else {
-            missingRequiredFields.push(requiredField);
+            headerMap[field] = index;
+          } else if (CORE_REQUIRED_FIELDS.includes(field)) {
+            missingRequiredFields.push(field);
           }
         });
 
-        // Check if we found all required fields
+        // Check if we found all core required fields
         if (missingRequiredFields.length > 0) {
           errors.push(`Missing or could not identify required columns: ${missingRequiredFields.join(', ')}. Found columns: ${headers.join(', ')}`);
         }
@@ -81,6 +85,7 @@ export async function parseExcelFile(file: File): Promise<ExcelValidationResult>
             branch: row[headerMap['branch']]?.toString().trim() || '',
             year: row[headerMap['year']]?.toString().trim() || '',
             semester: row[headerMap['semester']]?.toString().trim() || '',
+            section: headerMap['section'] !== undefined ? (row[headerMap['section']]?.toString().trim() || '') : '',
           };
 
           // Validate email format if present
@@ -144,14 +149,14 @@ function isValidUSN(usn: string): boolean {
 }
 
 export function generateSampleExcel(): void {
-  // Updated sample with different column order and additional column
+  // Updated sample with Section column
   const sampleData = [
-    ['Sr.No', 'Name', 'Year', 'Branch', 'USN', 'Sem', 'Email'],
-    ['1', 'John Doe', '3', 'Computer Science', '1CR21CS001', '5', 'john.doe@example.com'],
-    ['2', 'Jane Smith', '3', 'Computer Science', '1CR21CS002', '5', 'jane.smith@example.com'],
-    ['3', 'Alice Johnson', '2', 'Electronics', '1CR21EC001', '4', 'alice.j@example.com'],
-    ['4', 'Bob Wilson', '4', 'Mechanical', '1CR21ME001', '7', 'bob.w@example.com'],
-    ['5', 'Charlie Brown', '3', 'Computer Science', '1CR21CS003', '5', 'charlie.b@example.com'],
+    ['Sr.No', 'Name', 'Year', 'Branch', 'USN', 'Sem', 'Section', 'Email'],
+    ['1', 'John Doe', '3', 'Computer Science', '1CR21CS001', '5', 'A', 'john.doe@example.com'],
+    ['2', 'Jane Smith', '3', 'Computer Science', '1CR21CS002', '5', 'B', 'jane.smith@example.com'],
+    ['3', 'Alice Johnson', '2', 'Electronics', '1CR21EC001', '4', 'A', 'alice.j@example.com'],
+    ['4', 'Bob Wilson', '4', 'Mechanical', '1CR21ME001', '7', 'C', 'bob.w@example.com'],
+    ['5', 'Charlie Brown', '3', 'Computer Science', '1CR21CS003', '5', 'B', 'charlie.b@example.com'],
   ];
 
   const ws = XLSX.utils.aoa_to_sheet(sampleData);

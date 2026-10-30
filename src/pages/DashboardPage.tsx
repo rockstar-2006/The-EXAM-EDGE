@@ -108,13 +108,13 @@ export default function DashboardPage() {
         <div className="space-y-2">
           <div className="flex items-center gap-2 text-primary font-bold uppercase tracking-[0.2em] text-[10px]">
             <Sparkles className="w-4 h-4" />
-            Faculty Management Hub
+            Faculty Portal
           </div>
           <h1 className="text-3xl md:text-4xl lg:text-5xl font-black tracking-tighter uppercase italic">
             Welcome back, <span className="bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">Professor</span>
           </h1>
           <p className="text-muted-foreground text-lg font-medium max-w-2xl">
-            Access your academic dashboard to manage student records, create assessments, and review performance reports.
+            Manage your college classes, create quizzes, and review student results.
           </p>
         </div>
         <Button size="lg" className="gradient-primary shadow-glow hover:scale-105 transition-all group" asChild>
@@ -157,7 +157,7 @@ export default function DashboardPage() {
         <motion.div variants={item} className="lg:col-span-2 space-y-6">
           <div className="flex items-center justify-between">
             <h2 className="text-2xl font-bold tracking-tight flex items-center gap-2">
-              Quick Portals
+              Quick Actions
             </h2>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -170,12 +170,12 @@ export default function DashboardPage() {
                   <div className="w-12 h-12 rounded-2xl gradient-primary flex items-center justify-center mb-4 shadow-lg group-hover:shadow-glow transition-all">
                     <Users className="w-6 h-6 text-white" />
                   </div>
-                  <h3 className="text-xl font-bold mb-2">Student Database</h3>
+                  <h3 className="text-xl font-bold mb-2">Students & Classes</h3>
                   <p className="text-muted-foreground text-sm leading-relaxed mb-4">
-                    Import, manage, and view detailed records for all student cohorts.
+                    View and manage enrolled college students by branch and section.
                   </p>
                   <div className="flex items-center text-primary text-sm font-bold group-hover:gap-2 transition-all">
-                    Access Portal <ChevronRight className="w-4 h-4" />
+                    View Students <ChevronRight className="w-4 h-4" />
                   </div>
                 </CardContent>
               </Card>
@@ -192,10 +192,10 @@ export default function DashboardPage() {
                   </div>
                   <h3 className="text-xl font-bold mb-2">Question Bank</h3>
                   <p className="text-muted-foreground text-sm leading-relaxed mb-4">
-                    Review and reuse your curated collection of AI-generated questions.
+                    Review and reuse your saved collection of questions for college exams.
                   </p>
                   <div className="flex items-center text-secondary text-sm font-bold group-hover:gap-2 transition-all">
-                    View Bank <ChevronRight className="w-4 h-4" />
+                    Open Question Bank <ChevronRight className="w-4 h-4" />
                   </div>
                 </CardContent>
               </Card>

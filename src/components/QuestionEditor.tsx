@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Edit2, Bookmark, BookmarkCheck, Trash2, Save, X, Check, Target, Layers, Activity, Code } from 'lucide-react';
+import { useState, useRef, useEffect } from 'react';
+import { Edit2, Bookmark, BookmarkCheck, Trash2, Save, X, Check, Target, Layers, Activity, Code, Image as ImageIcon, Upload, Link as LinkIcon, Scissors } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -9,9 +9,13 @@ import { Question } from '@/types';
 import { cn } from '@/lib/utils';
 import { motion, AnimatePresence, Variants } from 'framer-motion';
 import { Label } from '@/components/ui/label';
+import { AcademicTextRenderer } from '@/components/AcademicTextRenderer';
+import { PDFVisualSnipModal } from '@/components/PDFVisualSnipModal';
+
 interface QuestionEditorProps {
   question: Question;
   index: number;
+  uploadedPdfFile?: File | null;
   onUpdate: (question: Question) => void;
   onDelete: (id: string) => void;
   onToggleBookmark: (id: string) => void;
@@ -97,13 +101,36 @@ const formatCodeSnippet = (code: string) => {
 export function QuestionEditor({
   question,
   index,
+  uploadedPdfFile,
   onUpdate,
   onDelete,
   onToggleBookmark,
   onToggleSelect,
 }: QuestionEditorProps) {
   const [isEditing, setIsEditing] = useState(false);
+  const [isSnipModalOpen, setIsSnipModalOpen] = useState(false);
   const [editedQuestion, setEditedQuestion] = useState(question);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    setEditedQuestion(question);
+  }, [question]);
+
+  const handleImageFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 4 * 1024 * 1024) {
+      alert('Figure file size exceeds 4MB. Please choose a smaller image.');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      setEditedQuestion(prev => ({ ...prev, imageUrl: reader.result as string }));
+    };
+    reader.readAsDataURL(file);
+  };
 
   const handleSave = () => {
     onUpdate(editedQuestion);
@@ -122,6 +149,7 @@ export function QuestionEditor({
   };
 
   return (
+    <>
     <Card
       className={cn(
         "transition-all duration-300 relative overflow-hidden group",
@@ -149,8 +177,8 @@ export function QuestionEditor({
           {/* Header Area */}
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
-              <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/40 bg-muted/50 px-2 py-0.5 rounded-md">
-                UNIT {String(index + 1).padStart(2, '0')}
+              <span className="text-[10px] font-black uppercase tracking-wider text-slate-700 bg-slate-100 border border-slate-200 px-2.5 py-1 rounded-md">
+                QUESTION {index + 1}
               </span>
               <div className="flex items-center gap-2">
                 <Badge variant="outline" className="border-primary/20 bg-primary/5 text-primary text-[9px] font-black uppercase tracking-widest px-2.5 h-6">
@@ -162,6 +190,16 @@ export function QuestionEditor({
             <div className="flex items-center gap-2">
               {!isEditing && (
                 <>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setIsSnipModalOpen(true)}
+                    className="h-8 px-2.5 rounded-xl border-indigo-200 bg-indigo-50/80 hover:bg-indigo-100 text-indigo-700 hover:text-indigo-900 transition-all font-bold text-xs flex items-center gap-1.5 shadow-xs"
+                    title="Crop figure directly from PDF"
+                  >
+                    <Scissors className="h-3.5 w-3.5 text-indigo-600" />
+                    <span className="hidden sm:inline">Crop Figure from PDF</span>
+                  </Button>
                   <Button variant="ghost" size="icon" onClick={() => setIsEditing(true)} className="h-9 w-9 rounded-xl hover:bg-primary/10 hover:text-primary transition-colors">
                     <Edit2 className="h-4 w-4" />
                   </Button>
@@ -185,25 +223,25 @@ export function QuestionEditor({
             {isEditing ? (
               <motion.div key="editing" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95 }} className="space-y-6">
                 <div className="space-y-1.5">
-                  <Label className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/60 ml-1">Question Matrix</Label>
+                  <Label className="text-[10px] font-black uppercase tracking-widest text-slate-700 ml-1">Question Text</Label>
                   <Textarea
                     value={editedQuestion.question}
                     onChange={(e) => setEditedQuestion({ ...editedQuestion, question: e.target.value })}
-                    className="min-h-[100px] bg-muted/20 border-sidebar-border/50 rounded-2xl p-4 font-bold text-sm tracking-tight focus-visible:ring-primary/20"
+                    className="min-h-[100px] bg-slate-50 border-2 border-slate-300 hover:border-slate-400 focus:bg-white text-slate-900 rounded-2xl p-4 font-bold text-sm tracking-tight focus-visible:ring-primary/20"
                   />
                 </div>
 
                 {editedQuestion.type === 'mcq' && editedQuestion.options && (
                   <div className="space-y-4">
-                    <Label className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/60 ml-1">Option Array</Label>
+                    <Label className="text-[10px] font-black uppercase tracking-widest text-slate-700 ml-1">Options</Label>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       {editedQuestion.options.map((option, i) => (
-                        <div key={i} className="flex items-center gap-3 bg-muted/20 rounded-xl p-3 border border-sidebar-border/30 group-focus-within:border-primary/30 transition-all">
-                          <span className="text-xs font-black text-primary/40 w-4">{String.fromCharCode(65 + i)}</span>
+                        <div key={i} className="flex items-center gap-3 bg-slate-50 rounded-xl p-3 border-2 border-slate-300 hover:border-slate-400 focus-within:border-primary focus-within:bg-white transition-all shadow-xs">
+                          <span className="text-xs font-black text-primary w-4">{String.fromCharCode(65 + i)}</span>
                           <Input
                             value={option}
                             onChange={(e) => updateOption(i, e.target.value)}
-                            className="h-8 border-none bg-transparent shadow-none focus-visible:ring-0 font-bold text-xs"
+                            className="h-8 border-none bg-transparent shadow-none focus-visible:ring-0 font-bold text-xs text-slate-900"
                           />
                         </div>
                       ))}
@@ -213,27 +251,96 @@ export function QuestionEditor({
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-1.5">
-                    <Label className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/60 ml-1">Calibration Answer</Label>
+                    <Label className="text-[10px] font-black uppercase tracking-widest text-slate-700 ml-1">Correct Answer</Label>
                     <Input
                       value={editedQuestion.answer}
                       onChange={(e) => setEditedQuestion({ ...editedQuestion, answer: e.target.value })}
-                      className="h-10 bg-muted/20 border-sidebar-border/50 font-black uppercase text-xs"
-                      placeholder={editedQuestion.type === 'mcq' ? 'e.g., A' : 'EXPECTED STRING'}
+                      className="h-10 bg-slate-50 border-2 border-slate-300 hover:border-slate-400 focus:bg-white font-black uppercase text-xs text-slate-900"
+                      placeholder={editedQuestion.type === 'mcq' ? 'e.g., A' : 'Expected answer string'}
                     />
                   </div>
                   <div className="space-y-1.5">
-                    <Label className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/60 ml-1">Points Assessment</Label>
+                    <Label className="text-[10px] font-black uppercase tracking-widest text-slate-700 ml-1">Marks / Points</Label>
                     <Input
                       type="number"
                       value={editedQuestion.marks}
                       onChange={(e) => setEditedQuestion({ ...editedQuestion, marks: Number(e.target.value) })}
-                      className="h-10 bg-muted/20 border-sidebar-border/50 font-black text-xs"
+                      className="h-10 bg-slate-50 border-2 border-slate-300 hover:border-slate-400 focus:bg-white font-black text-xs text-slate-900"
                     />
                   </div>
                 </div>
 
+                {/* 🖼️ Figure / Diagram Attachment */}
+                <div className="space-y-2 p-4 bg-slate-50 border-2 border-slate-200 rounded-2xl">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-[10px] font-black uppercase tracking-widest text-primary flex items-center gap-1.5">
+                      <ImageIcon className="w-3.5 h-3.5" />
+                      Question Diagram / Image (Optional)
+                    </Label>
+                    {editedQuestion.imageUrl && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setEditedQuestion(prev => ({ ...prev, imageUrl: '' }))}
+                        className="h-7 text-xs text-rose-500 hover:text-rose-700 hover:bg-rose-50"
+                      >
+                        <Trash2 className="w-3 h-3 mr-1" /> Remove Image
+                      </Button>
+                    )}
+                  </div>
+                  <div className="flex flex-col sm:flex-row gap-2">
+                    <div className="flex-1 relative">
+                      <Input
+                        value={editedQuestion.imageUrl || ''}
+                        onChange={(e) => setEditedQuestion({ ...editedQuestion, imageUrl: e.target.value })}
+                        placeholder="Paste image / diagram URL (https://...)"
+                        className="h-9 text-xs bg-background"
+                      />
+                    </div>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={handleImageFileChange}
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => fileInputRef.current?.click()}
+                      className="h-9 px-3 text-xs font-bold shrink-0 gap-1.5 border-sidebar-border/60"
+                    >
+                      <Upload className="w-3.5 h-3.5" /> Upload File
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setIsSnipModalOpen(true)}
+                      className="h-9 px-3 text-xs font-bold shrink-0 gap-1.5 border-indigo-200 text-indigo-700 bg-indigo-50/50 hover:bg-indigo-100 hover:text-indigo-800 transition-colors"
+                      title="Crop figure directly from PDF"
+                    >
+                      <Scissors className="w-3.5 h-3.5" /> Crop from PDF
+                    </Button>
+                  </div>
+                  {editedQuestion.imageUrl && (
+                    <div className="mt-2 p-2 bg-background border border-sidebar-border/40 rounded-xl flex items-center gap-3">
+                      <img
+                        src={editedQuestion.imageUrl}
+                        alt="Figure Preview"
+                        className="w-16 h-16 object-contain rounded-lg border bg-slate-50"
+                      />
+                      <div className="text-xs text-muted-foreground truncate">
+                        <span className="font-bold text-foreground">Figure attached:</span> Image will render above question for students.
+                      </div>
+                    </div>
+                  )}
+                </div>
+
                 <div className="space-y-1.5">
-                  <Label className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/60 ml-1">Contextual Explanation (OPTIONAL)</Label>
+                  <Label className="text-[10px] font-black uppercase tracking-widest text-slate-700 ml-1">Answer Explanation (Optional)</Label>
                   <Textarea
                     value={editedQuestion.explanation || ''}
                     onChange={(e) => setEditedQuestion({ ...editedQuestion, explanation: e.target.value })}
@@ -252,8 +359,29 @@ export function QuestionEditor({
               </motion.div>
             ) : (
               <motion.div key="viewing" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-6">
-                <div className="text-xl font-black tracking-tight group-hover:text-primary transition-colors">
-                  <FormattedText text={question.question} isQuestion={true} />
+                <div className="text-lg sm:text-xl font-black tracking-tight group-hover:text-primary transition-colors">
+                  <AcademicTextRenderer
+                    text={question.question}
+                    isQuestion={true}
+                    imageUrl={question.imageUrl}
+                    onSnipRequest={() => setIsSnipModalOpen(true)}
+                  />
+                  {!question.imageUrl && /diagram|figure|plot|schematic|shown below/i.test(question.question) && (
+                    <div className="mt-3 p-3 rounded-2xl bg-indigo-50/80 border border-indigo-200 flex items-center justify-between gap-3 text-xs font-bold text-indigo-950">
+                      <div className="flex items-center gap-2">
+                        <Scissors className="w-4 h-4 text-indigo-600" />
+                        <span>Figure reference detected. Click to attach diagram from your slides.</span>
+                      </div>
+                      <Button
+                        type="button"
+                        size="sm"
+                        onClick={() => setIsSnipModalOpen(true)}
+                        className="h-7 text-[11px] font-black bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl shadow-xs shrink-0"
+                      >
+                        Snip from PDF
+                      </Button>
+                    </div>
+                  )}
                 </div>
 
                 {question.type === 'mcq' && question.options && (
@@ -307,6 +435,22 @@ export function QuestionEditor({
         </div>
       </div>
     </Card>
+
+    {isSnipModalOpen && (
+      <PDFVisualSnipModal
+        isOpen={isSnipModalOpen}
+        onClose={() => setIsSnipModalOpen(false)}
+        pdfFile={uploadedPdfFile}
+        questionIndex={index}
+        questionText={question.question}
+        questionExplanation={question.explanation}
+        onAttach={(dataUrl) => {
+          setEditedQuestion(prev => ({ ...prev, imageUrl: dataUrl }));
+          onUpdate({ ...question, imageUrl: dataUrl });
+        }}
+      />
+    )}
+  </>
   );
 }
 

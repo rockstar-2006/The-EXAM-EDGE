@@ -54,7 +54,7 @@ const App = () => {
                     <Toaster />
                     <Sonner position="top-center" />
 
-                    <Router>
+                    <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
                         <Routes>
                             {/* Faculty & Super Admin Routes */}
                             <Route path="/login" element={<LoginPage />} />

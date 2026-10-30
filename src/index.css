@@ -10,13 +10,13 @@ All colors MUST be HSL.
 @layer base {
   :root {
     --background: 210 20% 98%;
-    --foreground: 224 71% 4%;
+    --foreground: 222 47% 11%;
 
     --card: 0 0% 100%;
-    --card-foreground: 224 71% 4%;
+    --card-foreground: 222 47% 11%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 224 71% 4%;
+    --popover-foreground: 222 47% 11%;
 
     --primary: 262 83% 58%;
     /* Vibrant Purple */
@@ -26,8 +26,8 @@ All colors MUST be HSL.
     /* Hot Pink */
     --secondary-foreground: 0 0% 100%;
 
-    --muted: 262 30% 96%;
-    --muted-foreground: 262 10% 40%;
+    --muted: 214 32% 91%;
+    --muted-foreground: 215 25% 35%;
 
     --accent: 322 83% 58%;
     --accent-foreground: 0 0% 100%;
@@ -35,8 +35,8 @@ All colors MUST be HSL.
     --destructive: 0 84% 60%;
     --destructive-foreground: 210 20% 98%;
 
-    --border: 262 20% 90%;
-    --input: 262 20% 90%;
+    --border: 214 32% 82%;
+    --input: 214 32% 80%;
     --ring: 262 83% 58%;
 
     --radius: 0.85rem;
@@ -47,7 +47,7 @@ All colors MUST be HSL.
     --sidebar-primary-foreground: 210 40% 98%;
     --sidebar-accent: 217 33% 17%;
     --sidebar-accent-foreground: 210 40% 98%;
-    --sidebar-border: 217 33% 17%;
+    --sidebar-border: 215 25% 82%;
     --sidebar-ring: 221 83% 53%;
 
     /* Custom tokens for Faculty Quest - White-Purple-Pink Theme */

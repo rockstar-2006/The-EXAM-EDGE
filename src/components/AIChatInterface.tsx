@@ -24,7 +24,7 @@ export function AIChatInterface({ onPromptSubmit, isGenerating }: AIChatInterfac
     {
       id: '1',
       role: 'assistant',
-      content: 'Hello! I am your AI Knowledge Architect. I can help you synthesize customized assessment modules. Specify difficulty levels (EASY, MEDIUM, HARD) or target specific intellectual domains.',
+      content: 'Hello! I am your AI Quiz Assistant. I can help you create questions and quizzes from your syllabus, topics, or study material. Let me know what you would like to generate!',
       timestamp: new Date(),
     },
   ]);
@@ -61,7 +61,7 @@ export function AIChatInterface({ onPromptSubmit, isGenerating }: AIChatInterfac
         {
           id: (Date.now() + 1).toString(),
           role: 'assistant',
-          content: 'SYNTHESIZING: Analyzing request and generating validated question units...',
+          content: 'Analyzing study material and generating questions...',
           timestamp: new Date(),
         },
       ]);
@@ -69,10 +69,10 @@ export function AIChatInterface({ onPromptSubmit, isGenerating }: AIChatInterfac
   };
 
   const suggestions = [
-    '5 EASY MCQS',
-    '3 HARD UNITS ON CALC',
-    'MIXED 10 (4E, 3M, 3H)',
-    '5 DETAILED MCQS'
+    '5 Easy MCQs',
+    '5 Medium Questions',
+    '10 Mixed Questions',
+    '5 Short Answer Questions'
   ];
 
   return (
@@ -85,10 +85,10 @@ export function AIChatInterface({ onPromptSubmit, isGenerating }: AIChatInterfac
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h3 className="font-black text-xs uppercase tracking-widest">Neural Architect</h3>
-              <Badge className="bg-emerald-500/10 text-emerald-600 text-[8px] font-black uppercase tracking-widest h-4 px-1.5 border-none">ACTIVE</Badge>
+              <h3 className="font-black text-xs uppercase tracking-widest text-slate-900 dark:text-slate-100">AI Quiz Assistant</h3>
+              <Badge className="bg-emerald-500/10 text-emerald-700 text-[8px] font-black uppercase tracking-widest h-4 px-1.5 border-none">ONLINE</Badge>
             </div>
-            <p className="text-[10px] font-bold text-muted-foreground/60 uppercase tracking-widest mt-0.5 italic">Intelligence System Operational</p>
+            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-0.5">Ready to generate questions</p>
           </div>
         </div>
       </div>
@@ -108,7 +108,7 @@ export function AIChatInterface({ onPromptSubmit, isGenerating }: AIChatInterfac
               >
                 <div className={cn(
                   "w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm transition-all",
-                  message.role === 'user' ? 'gradient-primary text-white shadow-glow' : 'bg-muted border border-sidebar-border/50'
+                  message.role === 'user' ? 'gradient-primary text-white shadow-glow' : 'bg-slate-100 border border-slate-300 text-slate-700'
                 )}>
                   {message.role === 'user' ? <User className="h-4 w-4" /> : <Bot className="h-4 w-4" />}
                 </div>
@@ -116,12 +116,12 @@ export function AIChatInterface({ onPromptSubmit, isGenerating }: AIChatInterfac
                   "rounded-2xl p-4 max-w-[85%] shadow-sm relative",
                   message.role === 'user'
                     ? 'bg-primary text-white font-bold text-xs uppercase tracking-tight rounded-tr-none'
-                    : 'bg-card border border-sidebar-border/30 text-xs font-medium leading-relaxed rounded-tl-none'
+                    : 'bg-white border-2 border-slate-200 text-slate-800 text-xs font-semibold leading-relaxed rounded-tl-none'
                 )}>
                   {message.content}
                   <div className={cn(
-                    "text-[8px] mt-2 font-black uppercase tracking-widest opacity-40",
-                    message.role === 'user' ? 'text-white/60' : 'text-muted-foreground'
+                    "text-[8px] mt-2 font-black uppercase tracking-widest",
+                    message.role === 'user' ? 'text-white/70' : 'text-slate-400'
                   )}>
                     {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                   </div>
@@ -136,7 +136,7 @@ export function AIChatInterface({ onPromptSubmit, isGenerating }: AIChatInterfac
                 <div className="w-1.5 h-1.5 bg-primary rounded-full animate-bounce [animation-delay:-0.15s]" />
                 <div className="w-1.5 h-1.5 bg-primary rounded-full animate-bounce" />
               </div>
-              <span className="text-[9px] font-black uppercase tracking-widest text-primary/40 italic">Synthesizing Asset Matrix...</span>
+              <span className="text-[10px] font-black uppercase tracking-widest text-primary italic">Creating questions...</span>
             </motion.div>
           )}
         </div>
@@ -149,7 +149,7 @@ export function AIChatInterface({ onPromptSubmit, isGenerating }: AIChatInterfac
               key={index}
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
-              className="px-3 py-1.5 rounded-lg bg-muted border border-sidebar-border/50 text-[9px] font-black uppercase tracking-widest hover:border-primary/50 hover:bg-primary/5 transition-all disabled:opacity-50"
+              className="px-3 py-1.5 rounded-lg bg-slate-100 border border-slate-300 text-[10px] font-black uppercase tracking-wider text-slate-800 hover:border-primary hover:bg-primary/10 hover:text-primary transition-all disabled:opacity-50 shadow-xs"
               onClick={() => setInput(suggestion)}
               disabled={isGenerating}
             >
@@ -163,8 +163,8 @@ export function AIChatInterface({ onPromptSubmit, isGenerating }: AIChatInterfac
             <Textarea
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder="COMMAND: SPECIFY GENERATION PARAMETERS..."
-              className="min-h-[60px] max-h-[120px] bg-muted/30 border-sidebar-border/50 rounded-2xl p-4 font-bold text-xs uppercase tracking-tight focus-visible:ring-primary/20 resize-none pr-12 transition-all scrollbar-none"
+              placeholder="Ask AI to generate questions (e.g., 'Generate 5 MCQs on Chapter 2')..."
+              className="min-h-[60px] max-h-[120px] bg-slate-50 border-2 border-slate-300 hover:border-slate-400 focus:bg-white text-slate-900 placeholder:text-slate-500 rounded-2xl p-4 font-semibold text-xs focus-visible:ring-primary/20 resize-none pr-12 transition-all scrollbar-none shadow-sm"
               disabled={isGenerating}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && !e.shiftKey) {

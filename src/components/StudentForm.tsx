@@ -41,6 +41,7 @@ export function StudentForm({ open, onOpenChange, student, onSuccess }: StudentF
         branch: '',
         year: '',
         semester: '',
+        section: '',
     });
     const [errors, setErrors] = useState<Record<string, string>>({});
     const [submitProgress, setSubmitProgress] = useState(0);
@@ -61,9 +62,10 @@ export function StudentForm({ open, onOpenChange, student, onSuccess }: StudentF
                 branch: student.branch || '',
                 year: student.year || '',
                 semester: student.semester || '',
+                section: (student as any).section || '',
             });
         } else {
-            setFormData({ name: '', usn: '', email: '', branch: '', year: '', semester: '' });
+            setFormData({ name: '', usn: '', email: '', branch: '', year: '', semester: '', section: '' });
         }
         setErrors({});
     }, [student, open]);
@@ -146,8 +148,8 @@ export function StudentForm({ open, onOpenChange, student, onSuccess }: StudentF
                             <div className="space-y-4">
                                 {[
                                     { id: 'name', label: 'Full Name', icon: User, placeholder: 'JOHN DOE' },
-                                    { id: 'usn', label: 'Identity USN', icon: Hash, placeholder: '1CR21CS001' },
-                                    { id: 'email', label: 'Email Address', icon: Mail, placeholder: 'JOE.D@SMART.EDU' }
+                                    { id: 'usn', label: 'USN / Roll Number', icon: Hash, placeholder: '1CR21CS001' },
+                                    { id: 'email', label: 'Email Address', icon: Mail, placeholder: 'JOE.D@COLLEGE.EDU' }
                                 ].map((f) => (
                                     <div key={f.id} className="space-y-1.5">
                                         <Label className="text-[10px] font-black uppercase tracking-widest opacity-60 ml-1">{f.label}</Label>
@@ -170,12 +172,12 @@ export function StudentForm({ open, onOpenChange, student, onSuccess }: StudentF
                         </div>
 
                         <div className="space-y-6">
-                            <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/40 border-b pb-2">Academic Details</p>
+                            <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 border-b pb-2">Class & Department</p>
                             <div className="space-y-4">
                                 <div className="space-y-1.5">
-                                    <Label className="text-[10px] font-black uppercase tracking-widest opacity-60 ml-1">Assigned Branch</Label>
+                                    <Label className="text-[10px] font-black uppercase tracking-widest text-slate-700 ml-1">Branch / Department</Label>
                                     <Select value={formData.branch} onValueChange={(v) => setFormData({ ...formData, branch: v })}>
-                                        <SelectTrigger className="h-12 bg-muted/30 border-sidebar-border/50 font-bold uppercase text-[10px] tracking-widest">
+                                        <SelectTrigger className="h-12 bg-white border-2 border-slate-300 text-slate-900 font-bold uppercase text-[10px] tracking-widest">
                                             <SelectValue placeholder="SELECT BRANCH" />
                                         </SelectTrigger>
                                         <SelectContent className="glass-effect">
@@ -185,12 +187,12 @@ export function StudentForm({ open, onOpenChange, student, onSuccess }: StudentF
                                         </SelectContent>
                                     </Select>
                                 </div>
-                                <div className="grid grid-cols-2 gap-4">
+                                <div className="grid grid-cols-3 gap-3">
                                     <div className="space-y-1.5">
                                         <Label className="text-[10px] font-black uppercase tracking-widest opacity-60 ml-1">Year</Label>
                                         <Select value={formData.year} onValueChange={(v) => setFormData({ ...formData, year: v })}>
-                                            <SelectTrigger className="h-12 bg-muted/30 border-sidebar-border/50 font-bold uppercase text-[10px] tracking-widest">
-                                                <SelectValue placeholder="YEAR" />
+                                            <SelectTrigger className="h-12 bg-muted/30 border-sidebar-border/50 font-bold uppercase text-[10px] tracking-widest px-2">
+                                                <SelectValue placeholder="YR" />
                                             </SelectTrigger>
                                             <SelectContent className="glass-effect">
                                                 {yearOptions.map(y => (
@@ -202,7 +204,7 @@ export function StudentForm({ open, onOpenChange, student, onSuccess }: StudentF
                                     <div className="space-y-1.5">
                                         <Label className="text-[10px] font-black uppercase tracking-widest opacity-60 ml-1">Semester</Label>
                                         <Select value={formData.semester} onValueChange={(v) => setFormData({ ...formData, semester: v })}>
-                                            <SelectTrigger className="h-12 bg-muted/30 border-sidebar-border/50 font-bold uppercase text-[10px] tracking-widest">
+                                            <SelectTrigger className="h-12 bg-muted/30 border-sidebar-border/50 font-bold uppercase text-[10px] tracking-widest px-2">
                                                 <SelectValue placeholder="SEM" />
                                             </SelectTrigger>
                                             <SelectContent className="glass-effect">
@@ -211,6 +213,15 @@ export function StudentForm({ open, onOpenChange, student, onSuccess }: StudentF
                                                 ))}
                                             </SelectContent>
                                         </Select>
+                                    </div>
+                                    <div className="space-y-1.5">
+                                        <Label className="text-[10px] font-black uppercase tracking-widest text-slate-700 dark:text-slate-300 ml-1">Class / Section</Label>
+                                        <Input
+                                            value={formData.section}
+                                            onChange={(e) => setFormData({ ...formData, section: e.target.value.toUpperCase() })}
+                                            className="h-12 bg-white dark:bg-slate-900 border-2 border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-100 font-bold uppercase text-xs tracking-tight transition-all focus:border-primary text-center px-1 shadow-xs"
+                                            placeholder="A, B, C..."
+                                        />
                                     </div>
                                 </div>
                             </div>

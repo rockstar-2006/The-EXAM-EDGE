@@ -6,6 +6,7 @@ export interface Student {
   branch: string;
   year: string;
   semester: string;
+  section?: string;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -19,6 +20,7 @@ export interface Question {
   explanation?: string;
   marks?: number;
   difficulty?: 'easy' | 'medium' | 'hard' | 'mixed';
+  imageUrl?: string;
   isBookmarked?: boolean;
   isSelected?: boolean;
 }

@@ -37,11 +37,11 @@ export function Sidebar() {
       ]
     : [
         { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard' },
-        { icon: Users, label: 'Student Details', path: '/students' },
+        { icon: Users, label: 'Students & Classes', path: '/students' },
         { icon: FileText, label: 'Create Quiz', path: '/create-quiz' },
-        { icon: FileText, label: 'Results', path: '/results' },
-        { icon: Bookmark, label: 'Bookmarks', path: '/bookmarks' },
-        { icon: Settings, label: 'Settings & AI Models', path: '/settings' },
+        { icon: FileText, label: 'Quiz Results', path: '/results' },
+        { icon: Bookmark, label: 'Question Bank', path: '/bookmarks' },
+        { icon: Settings, label: 'Settings', path: '/settings' },
       ];
 
   // Close mobile drawer on route change

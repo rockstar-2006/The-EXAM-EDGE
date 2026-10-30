@@ -233,6 +233,15 @@ export const quizAPI = {
     }
   },
 
+  resetAttempt: async (quizId: string, attemptId: string) => {
+    try {
+      return await httpClient.post(`/quiz/${quizId}/attempt/${attemptId}/reset`);
+    } catch (error: any) {
+      console.error('Error resetting quiz attempt:', error);
+      throw error;
+    }
+  },
+
   getAllWithStats: async () => {
     try {
       return await httpClient.get('/quiz/results/all');
@@ -297,6 +306,7 @@ export const studentsAPI = {
           branch: student.branch,
           year: student.year,
           semester: student.semester,
+          section: student.section || '',
           userId: student.userId,
           createdAt: student.createdAt,
           updatedAt: student.updatedAt
@@ -380,6 +390,14 @@ export const bookmarksAPI = {
       return await httpClient.get('/bookmarks');
     } catch (error: any) {
       console.error('Error fetching bookmarks:', error);
+      throw error;
+    }
+  },
+  update: async (id: string, data: any) => {
+    try {
+      return await httpClient.put(`/bookmarks/${id}`, data);
+    } catch (error: any) {
+      console.error('Error updating bookmark:', error);
       throw error;
     }
   },

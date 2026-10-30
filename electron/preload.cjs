@@ -4,6 +4,7 @@ contextBridge.exposeInMainWorld('desktopSecurity', {
   isDesktop: true,
   startLockdown: () => ipcRenderer.send('exam:start-lockdown'),
   endLockdown: () => ipcRenderer.send('exam:end-lockdown'),
+  clearClipboard: () => ipcRenderer.send('clipboard:clear'),
   closeApp: () => ipcRenderer.send('app:close'),
   checkEnvironment: () => ipcRenderer.invoke('exam:check-environment'),
   onViolation: (callback) => {

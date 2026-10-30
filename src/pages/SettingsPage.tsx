@@ -155,24 +155,24 @@ export default function SettingsPage({ type }: SettingsPageProps) {
                     </div>
 
                     <div className="space-y-2">
-                      <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Model Name</Label>
+                      <Label className="text-xs font-black uppercase tracking-wider text-slate-700 dark:text-slate-300">Model Name</Label>
                       <Input
                         value={aiModel}
                         onChange={(e) => setAiModel(e.target.value)}
                         placeholder="e.g. gemini-2.5-flash or llama-3.3-70b-versatile"
-                        className="h-12 rounded-xl bg-muted/40 font-semibold"
+                        className="h-12 rounded-xl bg-white border-2 border-slate-300 hover:border-slate-400 text-slate-900 font-bold focus:border-indigo-600 shadow-xs"
                       />
                       {/* Quick Model Selector Pills */}
                       <div className="flex flex-wrap gap-1.5 pt-1">
                         {aiProvider === 'gemini' || aiProvider === 'system_default' ? (
                           <>
-                            {['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-1.5-pro'].map((m) => (
+                            {['gemini-2.5-flash', 'gemini-2.5-pro'].map((m) => (
                               <button
                                 key={m}
                                 type="button"
                                 onClick={() => setAiModel(m)}
-                                className={`text-[10px] font-bold px-2 py-0.5 rounded-md border transition-all ${
-                                  aiModel === m ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-muted/50 text-muted-foreground hover:bg-muted'
+                                className={`text-[10px] font-bold px-2 py-0.5 rounded-md border-2 transition-all ${
+                                  aiModel === m ? 'bg-indigo-600 text-white border-indigo-600 shadow-xs' : 'bg-slate-100 text-slate-800 border-slate-300 hover:bg-slate-200'
                                 }`}
                               >
                                 {m}
@@ -186,8 +186,8 @@ export default function SettingsPage({ type }: SettingsPageProps) {
                                 key={m}
                                 type="button"
                                 onClick={() => setAiModel(m)}
-                                className={`text-[10px] font-bold px-2 py-0.5 rounded-md border transition-all ${
-                                  aiModel === m ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-muted/50 text-muted-foreground hover:bg-muted'
+                                className={`text-[10px] font-bold px-2 py-0.5 rounded-md border-2 transition-all ${
+                                  aiModel === m ? 'bg-indigo-600 text-white border-indigo-600 shadow-xs' : 'bg-slate-100 text-slate-800 border-slate-300 hover:bg-slate-200'
                                 }`}
                               >
                                 {m}
@@ -201,8 +201,8 @@ export default function SettingsPage({ type }: SettingsPageProps) {
                                 key={m}
                                 type="button"
                                 onClick={() => setAiModel(m)}
-                                className={`text-[10px] font-bold px-2 py-0.5 rounded-md border transition-all ${
-                                  aiModel === m ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-muted/50 text-muted-foreground hover:bg-muted'
+                                className={`text-[10px] font-bold px-2 py-0.5 rounded-md border-2 transition-all ${
+                                  aiModel === m ? 'bg-indigo-600 text-white border-indigo-600 shadow-xs' : 'bg-slate-100 text-slate-800 border-slate-300 hover:bg-slate-200'
                                 }`}
                               >
                                 {m}
@@ -216,31 +216,31 @@ export default function SettingsPage({ type }: SettingsPageProps) {
 
                   {aiProvider !== 'system_default' && (
                     <div className="space-y-2">
-                      <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Your Private API Key</Label>
+                      <Label className="text-xs font-black uppercase tracking-wider text-slate-700 dark:text-slate-300">Your Private API Key</Label>
                       <div className="relative">
                         <Input
                           type={showAiKey ? 'text' : 'password'}
                           value={aiKey}
                           onChange={(e) => setAiKey(e.target.value)}
                           placeholder={`Enter your ${aiProvider.toUpperCase()} API Key`}
-                          className="h-12 pr-12 rounded-xl bg-muted/40 font-mono text-sm"
+                          className="h-12 pr-12 rounded-xl bg-white border-2 border-slate-300 hover:border-slate-400 text-slate-900 font-mono text-sm focus:border-indigo-600 shadow-xs"
                         />
                         <button
                           type="button"
                           onClick={() => setShowAiKey(!showAiKey)}
-                          className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-600 hover:text-slate-900"
                         >
                           {showAiKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                         </button>
                       </div>
-                      <p className="text-[11px] text-muted-foreground">
+                      <p className="text-[11px] text-slate-600 dark:text-slate-400 font-semibold">
                         Your key is stored securely and used only for your quizzes.
                       </p>
                     </div>
                   )}
 
                   <div className="space-y-2">
-                    <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                    <Label className="text-xs font-black uppercase tracking-wider text-slate-700 dark:text-slate-300">
                       Custom Master Generation Directive / Persona
                     </Label>
                     <Textarea
@@ -248,9 +248,9 @@ export default function SettingsPage({ type }: SettingsPageProps) {
                       value={customPrompt}
                       onChange={(e) => setCustomPrompt(e.target.value)}
                       placeholder="e.g., 'Emphasize real-world application, tricky edge cases, and code output prediction. Avoid textbook definition questions.'"
-                      className="rounded-xl bg-muted/40 font-medium text-sm resize-none"
+                      className="rounded-xl bg-white border-2 border-slate-300 hover:border-slate-400 text-slate-900 font-semibold text-sm resize-none focus:border-indigo-600 shadow-xs"
                     />
-                    <p className="text-[11px] text-muted-foreground">
+                    <p className="text-[11px] text-slate-600 dark:text-slate-400 font-semibold">
                       This custom directive will be injected into every AI quiz you generate.
                     </p>
                   </div>

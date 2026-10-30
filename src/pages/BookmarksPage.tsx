@@ -1,9 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   Folder, Share2, Trash2, ArrowLeft,
   Search, BookOpen, Target,
   FileText, Plus, FolderPlus, MoreVertical,
-  CalendarClock, Check, FolderEdit, Download, FileSpreadsheet, FileText as FileTextIcon, File as FileWord
+  CalendarClock, Check, FolderEdit, Download, FileSpreadsheet, FileText as FileTextIcon, File as FileWord,
+  Scissors, Upload, X
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType, BorderStyle } from 'docx';
@@ -68,6 +69,10 @@ export default function BookmarksPage() {
   const [startTime, setStartTime] = useState('');
   const [endDate, setEndDate] = useState('');
   const [endTime, setEndTime] = useState('');
+
+  // Course PDF reference for snipping figures directly into bookmarked questions
+  const [activePdfFile, setActivePdfFile] = useState<File | null>(null);
+  const pdfInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     fetchData();
@@ -292,9 +297,49 @@ export default function BookmarksPage() {
     toast.success('Word export complete');
   };
 
+  /**
+   * Compresses large base64 figure strings into lightweight 960px JPEGs (~40-80KB)
+   */
+  const optimizeBase64Image = async (base64Str: string): Promise<string> => {
+    if (!base64Str || !base64Str.startsWith('data:image')) return base64Str;
+    if (base64Str.length < 100000) return base64Str;
+
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => {
+        const maxDim = 960;
+        let width = img.naturalWidth || img.width;
+        let height = img.naturalHeight || img.height;
+
+        if (width > maxDim || height > maxDim) {
+          if (width > height) {
+            height = Math.round((height * maxDim) / width);
+            width = maxDim;
+          } else {
+            width = Math.round((width * maxDim) / height);
+            height = maxDim;
+          }
+        }
+
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          resolve(base64Str);
+          return;
+        }
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fillRect(0, 0, width, height);
+        ctx.drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL('image/jpeg', 0.82));
+      };
+      img.onerror = () => resolve(base64Str);
+      img.src = base64Str;
+    });
+  };
+
   const handleUpdateQuestion = async (updatedQ: Question) => {
-    // This assumes the bookmark structure contains the question object directly
-    // and we want to update the 'question' property of the bookmark
     try {
       // Find the bookmark that contains this question
       const bookmark = bookmarks.find(b =>
@@ -302,17 +347,22 @@ export default function BookmarksPage() {
       );
 
       if (bookmark) {
-        // We'd ideally call an API to update the bookmark's question content
-        // Since bookmarksAPI doesn't have 'update', we might just success toast or 
-        // if you have a specific endpoint. 
-        // For now, let's assume we maintain local state at least.
+        let finalQ = { ...updatedQ };
+        if (finalQ.imageUrl && finalQ.imageUrl.startsWith('data:image')) {
+          finalQ.imageUrl = await optimizeBase64Image(finalQ.imageUrl);
+        }
+
+        // Persist update directly to backend MongoDB
+        await bookmarksAPI.update(bookmark._id, { question: finalQ });
+
         setBookmarks(prev => prev.map(b =>
-          b._id === bookmark._id ? { ...b, question: updatedQ } : b
+          b._id === bookmark._id ? { ...b, question: finalQ } : b
         ));
-        toast.success('Question updated locally');
+        toast.success('Question & figure saved successfully');
       }
     } catch (error) {
-      toast.error('Update failed');
+      console.error('Bookmark update failed:', error);
+      toast.error('Failed to save question changes');
     }
   };
 
@@ -519,7 +569,7 @@ export default function BookmarksPage() {
       <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 md:gap-6 relative z-10">
         <div className="space-y-2">
           <div className="flex items-center gap-2 text-primary font-bold uppercase tracking-[0.2em] text-[10px]">
-            <BookOpen className="w-4 h-4" /> Library
+            <BookOpen className="w-4 h-4" /> Question Bank
           </div>
           <h1 className="text-2xl md:text-4xl lg:text-5xl font-black tracking-tighter uppercase italic text-foreground">
             {activeFolderId ? (
@@ -530,25 +580,69 @@ export default function BookmarksPage() {
                 <span className="truncate max-w-[200px] md:max-w-none">{activeFolder?.name}</span>
               </span>
             ) : (
-              <>Saved <span className="bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">Collections</span></>
+              <>Saved <span className="bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">Question Folders</span></>
             )}
           </h1>
-          <p className="text-muted-foreground text-xs md:text-sm font-bold uppercase tracking-widest opacity-60 max-w-xl">
+          <p className="text-slate-600 dark:text-slate-400 text-xs md:text-sm font-bold uppercase tracking-widest max-w-xl">
             {activeFolderId
-              ? `${displayedBookmarks.length} Items stored in this folder`
-              : "Select a folder to view saved questions and quizzes"
+              ? `${displayedBookmarks.length} Questions stored in this folder`
+              : "Select a folder to view your saved questions"
             }
           </p>
         </div>
 
         <div className="flex flex-wrap gap-2 md:gap-3 w-full md:w-auto">
+          {/* PDF Selector for Snipping Figures */}
+          <input
+            ref={pdfInputRef}
+            type="file"
+            accept=".pdf,application/pdf"
+            className="hidden"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) {
+                setActivePdfFile(file);
+                toast.success(`PDF "${file.name}" loaded for cropping figures!`);
+              }
+            }}
+          />
+          {activeFolderId && (
+            <div className="flex items-center">
+              {activePdfFile ? (
+                <Badge variant="secondary" className="h-12 px-3 gap-2 bg-indigo-50 border-2 border-indigo-200 text-indigo-900 rounded-xl font-bold text-xs flex items-center shadow-xs">
+                  <span className="truncate max-w-[130px] font-semibold">{activePdfFile.name}</span>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setActivePdfFile(null)}
+                    className="h-5 w-5 hover:bg-rose-100 hover:text-rose-600 rounded-full"
+                    title="Remove PDF"
+                  >
+                    <X className="w-3 h-3" />
+                  </Button>
+                </Badge>
+              ) : (
+                <Button
+                  variant="outline"
+                  onClick={() => pdfInputRef.current?.click()}
+                  className="h-12 px-4 rounded-xl border-2 border-dashed border-indigo-300 hover:border-indigo-500 bg-indigo-50/70 hover:bg-indigo-100/80 text-indigo-800 font-bold text-xs flex items-center gap-2 shadow-xs transition-all"
+                  title="Upload a PDF textbook or slides to snip diagrams into bookmarked questions"
+                >
+                  <Scissors className="w-4 h-4 text-indigo-600" />
+                  <span className="hidden sm:inline">Load PDF for Snipping</span>
+                  <span className="sm:hidden">PDF</span>
+                </Button>
+              )}
+            </div>
+          )}
+
           <div className="relative flex-1 md:w-72">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
             <Input
               placeholder={activeFolderId ? "Search questions..." : "Search folders..."}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9 h-12 bg-card/50 border-border/50 rounded-xl font-medium shadow-sm transition-all focus:ring-primary/20"
+              className="pl-9 h-12 bg-white border-2 border-slate-300 hover:border-slate-400 text-slate-900 placeholder:text-slate-500 rounded-xl font-semibold shadow-xs transition-all focus:border-primary focus:ring-4 focus:ring-primary/20"
             />
           </div>
           {activeFolderId && displayedBookmarks.length > 0 && (
@@ -689,6 +783,7 @@ export default function BookmarksPage() {
                               isBookmarked: true
                             }}
                             index={idx}
+                            uploadedPdfFile={activePdfFile}
                             onUpdate={handleUpdateQuestion}
                             onDelete={() => handleDeleteBookmark(bookmark._id)}
                             onToggleBookmark={() => handleDeleteBookmark(bookmark._id)} // Serves as delete here

@@ -1,6 +1,7 @@
-const { app, BrowserWindow, globalShortcut, screen, ipcMain, Menu, dialog } = require('electron');
+const { app, BrowserWindow, globalShortcut, screen, ipcMain, Menu, dialog, clipboard } = require('electron');
 const path = require('path');
 const os = require('os');
+const fs = require('fs');
 const { execSync } = require('child_process');
 
 // 🔒 1. CRITICAL: Block Remote Debugging, Automation Ports, and Accessibility scraping
@@ -33,6 +34,7 @@ if (!gotTheLock) {
 
 let mainWindow = null;
 let isExamActive = false;
+let clipboardWipeInterval = null;
 
 // 🔍 3. Anti-Virtual Machine & Sandbox Detection
 function detectVirtualMachine() {
@@ -88,7 +90,7 @@ function createWindow() {
     width: width,
     height: height,
     autoHideMenuBar: true,
-    show: false, // Don't show until maximized and ready to prevent small initial box
+    show: false, // Don't show until maximized and locked to prevent any desktop leakage
     kiosk: true,
     fullscreen: true,
     alwaysOnTop: true,
@@ -103,13 +105,28 @@ function createWindow() {
       preload: path.join(__dirname, 'preload.cjs'),
       nodeIntegration: false,
       contextIsolation: true,
-      devTools: process.env.NODE_ENV === 'development',
-      sandbox: true,
+      devTools: false,
+      sandbox: false,
       webSecurity: true
     }
   });
 
   mainWindow.setMenuBarVisibility(false);
+
+  // Prevent context menu (right click) everywhere in the window
+  mainWindow.webContents.on('context-menu', (e) => {
+    e.preventDefault();
+  });
+
+  // Block clipboard reading permissions
+  if (mainWindow.webContents.session) {
+    mainWindow.webContents.session.setPermissionRequestHandler((webContents, permission, callback) => {
+      if (permission === 'clipboard-read' || permission === 'clipboard-sanitized-write') {
+        return callback(false);
+      }
+      callback(true);
+    });
+  }
 
   // Enable display protection against OBS / Screen Recorders
   try {
@@ -120,10 +137,17 @@ function createWindow() {
 
   // Load the web app directly into Student Login for the desktop exam app
   const startUrl = process.env.ELECTRON_START_URL || 'http://localhost:8080/#/student/login';
+  const distPath = path.join(__dirname, '../dist/index.html');
+
   if (!app.isPackaged) {
-    mainWindow.loadURL(startUrl);
+    mainWindow.loadURL(startUrl).catch(err => {
+      console.warn('⚠️ Could not reach dev server on 8080, falling back to local files:', err.message);
+      if (fs.existsSync(distPath)) {
+        mainWindow.loadFile(distPath, { hash: '/student/login' });
+      }
+    });
   } else {
-    mainWindow.loadFile(path.join(__dirname, '../dist/index.html'), {
+    mainWindow.loadFile(distPath, {
       hash: '/student/login'
     }).catch(err => {
       console.error('Failed to load local HTML file:', err);
@@ -132,9 +156,14 @@ function createWindow() {
 
   mainWindow.webContents.on('did-fail-load', (event, errorCode, errorDescription, validatedURL) => {
     console.error('Page load failed:', validatedURL, errorCode, errorDescription);
+    // If dev server on 8080 is offline (ERR_CONNECTION_REFUSED -102 or -105), fall back to built dist/index.html
+    if ((errorCode === -102 || errorCode === -105) && fs.existsSync(distPath)) {
+      console.log('🔄 Dev server offline. Automatically loading local app from dist/index.html');
+      mainWindow.loadFile(distPath, { hash: '/student/login' });
+    }
   });
 
-  // Once ready to show, explicitly lock full monitor bounds and maximize
+  // Once ready to show, explicitly lock full monitor bounds and maximize in kiosk mode
   mainWindow.once('ready-to-show', () => {
     mainWindow.setBounds({ x: 0, y: 0, width, height });
     mainWindow.maximize();
@@ -143,6 +172,9 @@ function createWindow() {
     mainWindow.setAlwaysOnTop(true, 'screen-saver');
     mainWindow.show();
     mainWindow.focus();
+
+    // 🔒 Activate full security lockdown immediately upon launch
+    enableExamLockdown();
   });
 
   // Monitor focus loss during active exams
@@ -192,12 +224,41 @@ function enableExamLockdown() {
   mainWindow.setClosable(false);
   mainWindow.focus();
 
-  // Block cheating and window-switching hotkeys at the OS level
+  // Wipe clipboard immediately upon exam activation
+  try {
+    clipboard.clear();
+  } catch (e) {}
+
+  if (!clipboardWipeInterval) {
+    clipboardWipeInterval = setInterval(() => {
+      if (isExamActive) {
+        try {
+          clipboard.clear();
+        } catch (e) {}
+      }
+    }, 1000);
+  }
+
+  // Block cheating, clipboard viewer, and window-switching hotkeys at the OS level
   const blockedKeys = [
     'CommandOrControl+C',
     'CommandOrControl+V',
     'CommandOrControl+X',
     'CommandOrControl+A',
+    'CommandOrControl+Insert',
+    'Shift+Insert',
+    'Super+V',
+    'Super+C',
+    'Super+X',
+    'Super+A',
+    'Super+H',
+    'Super+Tab',
+    'Super+.',
+    'Super+;',
+    'Meta+V',
+    'Meta+C',
+    'Meta+X',
+    'Meta+A',
     'Alt+Tab',
     'Alt+F4',
     'Alt+Space',
@@ -221,6 +282,9 @@ function enableExamLockdown() {
     try {
       globalShortcut.register(shortcut, () => {
         if (isExamActive && mainWindow) {
+          try {
+            clipboard.clear();
+          } catch (e) {}
           mainWindow.webContents.send('proctoring:violation', {
             type: 'blocked-shortcut',
             reason: `Prohibited shortcut attempt: ${shortcut}`
@@ -241,11 +305,24 @@ function disableExamLockdown() {
 
   console.log('🔓 EXAM LOCKDOWN RELEASED');
 
+  if (clipboardWipeInterval) {
+    clearInterval(clipboardWipeInterval);
+    clipboardWipeInterval = null;
+  }
+  try {
+    clipboard.clear();
+  } catch (e) {}
+
   globalShortcut.unregisterAll();
   mainWindow.setClosable(true);
 }
 
 // IPC Communication with Frontend
+ipcMain.on('clipboard:clear', () => {
+  try {
+    clipboard.clear();
+  } catch (e) {}
+});
 ipcMain.on('exam:start-lockdown', () => {
   enableExamLockdown();
 });

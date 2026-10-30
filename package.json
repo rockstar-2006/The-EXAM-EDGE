@@ -11,6 +11,7 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "android": "npx cap open android",
+    "electron": "electron .",
     "electron:dev": "concurrently -k \"npm run dev\" \"npm --prefix backend start\" \"wait-on tcp:8080 tcp:3001 && electron .\"",
     "electron:build": "vite build && electron-builder"
   },

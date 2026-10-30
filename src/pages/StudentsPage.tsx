@@ -189,13 +189,13 @@ export default function StudentsPage() {
         <div className="space-y-3">
           <div className="flex items-center gap-2 text-primary font-bold uppercase tracking-[0.2em] text-xs">
             <Users className="w-4 h-4" />
-            Registry Management
+            Student Management
           </div>
           <h1 className="text-3xl md:text-4xl lg:text-5xl font-black tracking-tighter uppercase italic">
-            Student <span className="bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">Management</span>
+            Class & <span className="bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">Student Records</span>
           </h1>
           <p className="text-muted-foreground text-base md:text-lg font-medium max-w-2xl">
-            Maintain accurate student records and manage information across different academic levels.
+            Manage enrolled college students, sections, and class cohorts.
           </p>
         </div>
 
@@ -312,17 +312,23 @@ export default function StudentsPage() {
                                 </div>
                               </div>
                               <div className="flex items-center gap-4 mr-4">
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
+                                <div
+                                  role="button"
+                                  tabIndex={0}
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     setEditingLabel({ id: cohort, name: cohortLabel });
                                   }}
-                                  className="h-9 w-9 p-0 rounded-xl hover:bg-primary/10 hover:text-primary opacity-0 group-hover:opacity-100 transition-all"
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter' || e.key === ' ') {
+                                      e.stopPropagation();
+                                      setEditingLabel({ id: cohort, name: cohortLabel });
+                                    }
+                                  }}
+                                  className="h-9 w-9 flex items-center justify-center rounded-xl hover:bg-primary/10 hover:text-primary opacity-0 group-hover:opacity-100 transition-all cursor-pointer"
                                 >
                                   <FolderEdit className="w-4 h-4" />
-                                </Button>
+                                </div>
                                 {selectedStudents.some(id => cohortStudents.map(s => s.id).includes(id)) && (
                                   <Badge className="bg-primary text-white border-none text-[8px] font-black uppercase px-2 py-1 shadow-glow animate-pulse">
                                     {selectedStudents.filter(id => cohortStudents.map(s => s.id).includes(id)).length} Selected
@@ -357,11 +363,11 @@ export default function StudentsPage() {
                     <div className="space-y-1">
                       <h3 className="text-lg font-black uppercase italic tracking-tighter">No Students Found</h3>
                       <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest leading-relaxed">
-                        The student registry is currently empty. Add students manually or use the bulk upload feature.
+                        The student list is currently empty. Add students manually or upload an Excel spreadsheet.
                       </p>
                     </div>
                     <Button onClick={() => setShowAddForm(true)} variant="outline" className="font-black uppercase text-[10px] tracking-widest px-8">
-                      Manual Ingress
+                      Add Student Manually
                     </Button>
                   </Card>
                 )}
@@ -377,15 +383,15 @@ export default function StudentsPage() {
                     <FileSpreadsheet className="w-7 h-7 text-white" />
                   </div>
                   <div className="space-y-1">
-                    <CardTitle className="text-2xl font-black uppercase italic tracking-tighter">Student Import Pipeline</CardTitle>
-                    <CardDescription className="text-sm font-bold opacity-60 uppercase tracking-widest">Import many student records at once via Excel/CSV files.</CardDescription>
+                    <CardTitle className="text-2xl font-black uppercase italic tracking-tighter">Upload Students (Excel / CSV)</CardTitle>
+                    <CardDescription className="text-sm font-bold opacity-60 uppercase tracking-widest">Upload your class list spreadsheet to enroll multiple students at once.</CardDescription>
                   </div>
                 </div>
               </CardHeader>
               <CardContent className="p-10 space-y-10">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
                   <div className="space-y-6">
-                    <h3 className="text-xs font-black uppercase tracking-[0.2em] text-primary">Upload Zone</h3>
+                    <h3 className="text-xs font-black uppercase tracking-[0.2em] text-primary">Upload Spreadsheet</h3>
                     <div
                       className={cn(
                         "relative group cursor-pointer border-2 border-dashed rounded-3xl p-10 transition-all text-center",
@@ -437,20 +443,35 @@ export default function StudentsPage() {
                   <div className="space-y-6">
                     <div className="flex items-center justify-between">
                       <h3 className="text-xs font-black uppercase tracking-[0.2em] text-secondary">Data Requirements</h3>
-                      <Button variant="link" onClick={generateSampleExcel} className="h-auto p-0 text-[10px] font-black uppercase tracking-widest text-primary italic">Download Sample</Button>
+                      <Button variant="link" onClick={generateSampleExcel} className="h-auto p-0 text-[11px] font-black uppercase tracking-widest text-primary hover:text-primary/80 italic flex items-center gap-1">
+                        <Download className="w-3.5 h-3.5" /> Download Sample Template
+                      </Button>
                     </div>
-                    <div className="grid grid-cols-2 gap-3">
-                      {['Name', 'USN', 'Email', 'Branch', 'Year', 'Semester'].map((col, idx) => (
-                        <div key={idx} className="flex items-center gap-3 p-4 rounded-2xl bg-muted/30 border border-sidebar-border/50 group hover:border-secondary/30 transition-all">
-                          <Terminal className="w-3.5 h-3.5 text-secondary opacity-40 group-hover:opacity-100 transition-opacity" />
-                          <span className="text-[11px] font-black uppercase tracking-widest text-muted-foreground/80">{col}</span>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                      {[
+                        { name: 'Name', required: true },
+                        { name: 'USN', required: true },
+                        { name: 'Email', required: true },
+                        { name: 'Branch', required: true },
+                        { name: 'Year', required: true },
+                        { name: 'Semester', required: true },
+                        { name: 'Section', required: false, note: 'Class Sec (A, B, C)' }
+                      ].map((col, idx) => (
+                        <div key={idx} className="flex items-center gap-3 p-3.5 rounded-2xl bg-white dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-800 group hover:border-secondary/50 shadow-xs transition-all">
+                          <Terminal className="w-3.5 h-3.5 text-secondary" />
+                          <div className="flex flex-col">
+                            <span className="text-xs font-black uppercase tracking-wider text-slate-800 dark:text-slate-200">{col.name}</span>
+                            <span className="text-[9px] font-bold text-slate-500 uppercase tracking-tighter">
+                              {col.required ? 'Required' : (col.note || 'Optional')}
+                            </span>
+                          </div>
                         </div>
                       ))}
                     </div>
                     <Alert className="bg-secondary/5 border-secondary/20 rounded-2xl">
                       <AlertCircle className="w-4 h-4 text-secondary" />
-                      <AlertDescription className="text-[10px] font-bold uppercase tracking-widest text-secondary/80 ml-2">
-                        System automatically performs case-insensitive header mapping.
+                      <AlertDescription className="text-[11px] font-bold uppercase tracking-wider text-slate-700 ml-2">
+                        System automatically maps headers case-insensitively (e.g. &quot;Class Section&quot;, &quot;Sec&quot;, &quot;Section&quot;).
                       </AlertDescription>
                     </Alert>
                   </div>

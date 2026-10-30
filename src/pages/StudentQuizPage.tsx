@@ -14,6 +14,7 @@ import axios from 'axios';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { AcademicTextRenderer, cleanAcademicText } from '@/components/AcademicTextRenderer';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
 
@@ -22,6 +23,7 @@ interface Question {
   type: 'mcq' | 'short-answer';
   question: string;
   options?: string[];
+  imageUrl?: string;
 }
 
 interface Quiz {
@@ -34,79 +36,12 @@ interface Quiz {
 }
 
 // 📝 CODE AWARE TEXT RENDERING
-const FormattedText = ({ text, isQuestion = false }: { text: string; isQuestion?: boolean }) => {
-  if (!text) return null;
-
-  const parts = text.split(/(```)/g);
-  let isCode = false;
-  let codeBuffer = "";
-  const result: React.ReactNode[] = [];
-
-  parts.forEach((part, i) => {
-    if (part === "```") {
-      if (isCode) {
-        const formattedCode = formatCodeSnippet(codeBuffer);
-        result.push(
-          <div key={i} className="my-4 relative group">
-            <pre
-              style={{ textTransform: 'none' }}
-              className="relative p-5 bg-muted border rounded-xl font-mono text-[11px] sm:text-xs leading-relaxed overflow-x-auto text-foreground shadow-sm scrollbar-thin"
-            >
-              <code>{formattedCode}</code>
-            </pre>
-            <div className="absolute top-2 right-2 flex items-center gap-1 opacity-20">
-              <Code className="w-3 h-3" />
-              <span className="text-[8px] font-black uppercase tracking-widest">CODE</span>
-            </div>
-          </div>
-        );
-        codeBuffer = "";
-        isCode = false;
-      } else {
-        isCode = true;
-      }
-    } else {
-      if (isCode) {
-        codeBuffer += part;
-      } else if (part.trim()) {
-        result.push(
-          <p key={i} className="whitespace-pre-wrap leading-relaxed inline-block w-full text-inherit normal-case" style={{ textTransform: 'none' }}>
-            {part}
-          </p>
-        );
-      }
-    }
-  });
-
-  if (isCode && codeBuffer) {
-    result.push(
-      <pre key="unclosed" style={{ textTransform: 'none' }} className="p-5 bg-muted border rounded-xl font-mono text-xs overflow-x-auto">
-        <code>{formatCodeSnippet(codeBuffer)}</code>
-      </pre>
-    );
-  }
-
-  return (
-    <div className={cn("space-y-3", isQuestion ? "text-foreground" : "text-muted-foreground")}>
-      {result}
-    </div>
-  );
+const FormattedText = ({ text, isQuestion = false, imageUrl = '' }: { text: string; isQuestion?: boolean; imageUrl?: string }) => {
+  return <AcademicTextRenderer content={text} isQuestion={isQuestion} imageUrl={imageUrl} />;
 };
 
 const formatCodeSnippet = (code: string) => {
-  let clean = code.trim();
-  clean = clean.replace(/^[a-zA-Z]+\n/, '');
-  if (clean === clean.toUpperCase() && clean.length > 50) {
-    clean = clean.toLowerCase();
-  }
-  if (!clean.includes('\n') && (clean.includes('{') || clean.includes(';'))) {
-    clean = clean
-      .replace(/{\s*/g, ' {\n  ')
-      .replace(/;\s*/g, ';\n  ')
-      .replace(/}\s*/g, '\n}\n')
-      .replace(/\n\s*\n/g, '\n');
-  }
-  return clean;
+  return code;
 };
 
 export default function StudentQuizPage() {
@@ -124,6 +59,7 @@ export default function StudentQuizPage() {
   const [studentBranch, setStudentBranch] = useState('');
   const [studentYear, setStudentYear] = useState('');
   const [studentSemester, setStudentSemester] = useState('');
+  const [studentSection, setStudentSection] = useState('');
 
   const [quizStarted, setQuizStarted] = useState(false);
   const [attemptId, setAttemptId] = useState('');
@@ -486,6 +422,7 @@ export default function StudentQuizPage() {
         setStudentBranch(data.studentInfo.branch || '');
         setStudentYear(data.studentInfo.year || '');
         setStudentSemester(data.studentInfo.semester || '');
+        setStudentSection(data.studentInfo.section || '');
       }
 
       if (data.isBlocked) {
@@ -548,6 +485,7 @@ export default function StudentQuizPage() {
         studentBranch,
         studentYear,
         studentSemester,
+        studentSection,
       });
 
       setAttemptId(response.data.attemptId);
@@ -906,11 +844,11 @@ export default function StudentQuizPage() {
                     </Select>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-3 gap-3">
                     <div className="space-y-2">
-                      <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/80 pl-1">CURRENT YEAR</Label>
+                      <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/80 pl-1">YEAR</Label>
                       <Select value={studentYear} onValueChange={setStudentYear}>
-                        <SelectTrigger className="h-12 bg-muted/20 border-sidebar-border/50 font-bold uppercase text-[10px] tracking-widest">
+                        <SelectTrigger className="h-12 bg-muted/20 border-sidebar-border/50 font-bold uppercase text-[10px] tracking-widest px-2">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
@@ -921,9 +859,9 @@ export default function StudentQuizPage() {
                       </Select>
                     </div>
                     <div className="space-y-2">
-                      <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/80 pl-1">SEMESTER</Label>
+                      <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/80 pl-1">SEM</Label>
                       <Select value={studentSemester} onValueChange={setStudentSemester}>
-                        <SelectTrigger className="h-12 bg-muted/20 border-sidebar-border/50 font-bold uppercase text-[10px] tracking-widest">
+                        <SelectTrigger className="h-12 bg-muted/20 border-sidebar-border/50 font-bold uppercase text-[10px] tracking-widest px-2">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
@@ -932,6 +870,15 @@ export default function StudentQuizPage() {
                           ))}
                         </SelectContent>
                       </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/80 pl-1">SECTION</Label>
+                      <Input
+                        value={studentSection}
+                        onChange={(e) => setStudentSection(e.target.value.toUpperCase())}
+                        placeholder="A, B..."
+                        className="h-12 bg-muted/20 border-sidebar-border/50 font-bold uppercase text-xs tracking-wider rounded-xl text-center px-1"
+                      />
                     </div>
                   </div>
 
@@ -1091,7 +1038,7 @@ export default function StudentQuizPage() {
                       <div className="text-2xl sm:text-4xl font-black text-slate-100 italic tracking-tighter shrink-0">Q{(qIdx + 1).toString().padStart(2, '0')}</div>
                       <div className="space-y-3 sm:space-y-4 pt-1 flex-1">
                         <div className="text-base sm:text-xl md:text-2xl font-bold tracking-tight leading-relaxed text-slate-900">
-                          <FormattedText text={question.question} isQuestion={true} />
+                          <FormattedText text={question.question} isQuestion={true} imageUrl={question.imageUrl} />
                         </div>
                       </div>
                     </div>
@@ -1133,7 +1080,7 @@ export default function StudentQuizPage() {
                               {String.fromCharCode(65 + index)}
                             </div>
                             <Label className="text-xs sm:text-sm font-bold cursor-pointer flex-1 group-hover/option:text-primary transition-colors whitespace-pre-wrap normal-case">
-                              {option}
+                              {cleanAcademicText(option)}
                             </Label>
                           </div>
                         ))}
