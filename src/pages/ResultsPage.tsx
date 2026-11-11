@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { quizAPI } from '@/services/api';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { FileText, Users, Clock, TrendingUp, ChevronRight, Activity, BarChart3, Database, Trash2 } from 'lucide-react';
+import { FileText, Users, Clock, TrendingUp, ChevronRight, Activity, BarChart3, Database, Trash2, Bookmark } from 'lucide-react';
 import { toast } from 'sonner';
 import { motion, AnimatePresence, Variants } from 'framer-motion';
 import { Badge } from '@/components/ui/badge';
@@ -134,11 +134,29 @@ export default function ResultsPage() {
               <Card className="shadow-elevated border-sidebar-border/50 bg-card/40 backdrop-blur-md group hover:border-primary/30 transition-all overflow-hidden relative h-full flex flex-col">
                 <div className="absolute top-0 left-0 w-1 h-0 group-hover:h-full bg-primary transition-all duration-300" />
 
-                {/* Delete Button */}
-                <div className="absolute top-4 right-4 z-20 opacity-0 group-hover:opacity-100 transition-opacity">
+                {/* Actions: Bookmark & Delete */}
+                <div className="absolute top-4 right-4 z-20 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                   <Button
                     variant="ghost"
                     size="icon"
+                    title="Bookmark into Question Bank folder"
+                    onClick={async (e) => {
+                      e.stopPropagation();
+                      try {
+                        const res = await quizAPI.bookmarkQuiz(quiz._id);
+                        toast.success(res.data?.message || 'Bookmarked to Question Bank!');
+                      } catch (err: any) {
+                        toast.error(err.response?.data?.message || 'Failed to bookmark assessment');
+                      }
+                    }}
+                    className="h-8 w-8 rounded-lg hover:bg-primary/10 hover:text-primary transition-colors"
+                  >
+                    <Bookmark className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    title="Delete assessment"
                     onClick={(e) => handleDeleteQuiz(e, quiz._id)}
                     className="h-8 w-8 rounded-lg hover:bg-destructive/10 hover:text-destructive transition-colors"
                   >

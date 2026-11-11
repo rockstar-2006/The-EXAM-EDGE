@@ -20,7 +20,8 @@ import {
   Timer,
   Download,
   Monitor,
-  ShieldAlert
+  ShieldAlert,
+  Power
 } from 'lucide-react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useStudentAuth } from '../context/StudentAuthContext';
@@ -385,6 +386,15 @@ const StudentDashboard = () => {
   }, []);
 
   useEffect(() => {
+    // Release desktop exam lockdown when student is on dashboard
+    if ((window as any).desktopSecurity?.endLockdown) {
+      try {
+        (window as any).desktopSecurity.endLockdown();
+      } catch (e) {
+        console.error('Error releasing lockdown on dashboard:', e);
+      }
+    }
+
     fetchQuizzes();
     
     // Refresh quiz data when user returns to dashboard (after quiz or navigation)
@@ -520,17 +530,25 @@ const StudentDashboard = () => {
             <div className="h-6 w-px bg-slate-100 mx-1 sm:mx-2" />
             <Button 
               variant="ghost" 
-              onClick={() => {
-                if ((window as any).desktopSecurity?.closeApp) {
-                  (window as any).desktopSecurity.closeApp();
-                } else {
-                  handleLogout();
-                }
-              }} 
-              className="text-slate-400 hover:text-red-600 hover:bg-red-50/50 border border-transparent hover:border-red-100 h-10 sm:h-12 px-3 sm:px-5 rounded-2xl font-black text-[10px] sm:text-xs uppercase tracking-widest transition-all"
+              onClick={handleLogout}
+              className="text-slate-500 hover:text-red-600 hover:bg-red-50/50 border border-transparent hover:border-red-100 h-10 sm:h-12 px-3 sm:px-4 rounded-2xl font-black text-[10px] sm:text-xs uppercase tracking-widest transition-all flex items-center gap-1.5"
+              title="Log out of student account"
             >
-              <LogOut className="h-4 w-4 sm:h-5 sm:w-5 mr-1.5 sm:mr-2" /> <span>{typeof window !== 'undefined' && (window as any).desktopSecurity?.closeApp ? 'Close App' : 'Logout'}</span>
+              <LogOut className="h-4 w-4 sm:h-5 sm:w-5" />
+              <span>Logout</span>
             </Button>
+
+            {typeof window !== 'undefined' && Boolean((window as any).desktopSecurity?.closeApp) && (
+              <Button 
+                variant="outline" 
+                onClick={() => (window as any).desktopSecurity.closeApp()}
+                className="bg-white hover:bg-red-50 text-red-600 hover:text-red-700 border-red-200 hover:border-red-300 h-10 sm:h-12 px-3 sm:px-4 rounded-2xl font-black text-[10px] sm:text-xs uppercase tracking-widest transition-all shadow-sm active:scale-95 flex items-center gap-1.5"
+                title="Exit Electron Application"
+              >
+                <Power className="h-4 w-4" />
+                <span>Exit App</span>
+              </Button>
+            )}
           </div>
         </div>
       </header>

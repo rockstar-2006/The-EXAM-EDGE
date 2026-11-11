@@ -260,6 +260,15 @@ export const quizAPI = {
     }
   },
 
+  bookmarkQuiz: async (id: string) => {
+    try {
+      return await httpClient.post(`/quiz/${id}/bookmark`);
+    } catch (error: any) {
+      console.error('Error bookmarking quiz:', error);
+      throw error;
+    }
+  },
+
   share: async (data: any) => {
     try {
       const result = await httpClient.post('/quiz/share', data);
@@ -494,5 +503,11 @@ export const adminAPI = {
   },
   wipeEntireDatabase: async (confirmationText: string) => {
     return await httpClient.post('/admin/wipe-entire-database', { confirmationText });
+  },
+  bookmarkQuizForFaculty: async (facultyId: string, quizId: string) => {
+    return await httpClient.post(`/admin/faculty/${facultyId}/bookmark-quiz/${quizId}`);
+  },
+  syncAllBookmarksForFaculty: async (facultyId: string) => {
+    return await httpClient.post(`/admin/faculty/${facultyId}/sync-all-bookmarks`);
   },
 };

@@ -172,9 +172,18 @@ function createWindow() {
     mainWindow.setAlwaysOnTop(true, 'screen-saver');
     mainWindow.show();
     mainWindow.focus();
+    // Keep closable outside active exam so student can exit from login/dashboard
+    mainWindow.setClosable(true);
+  });
 
-    // 🔒 Activate full security lockdown immediately upon launch
-    enableExamLockdown();
+  mainWindow.on('close', (e) => {
+    if (isExamActive) {
+      e.preventDefault();
+      dialog.showErrorBox(
+        'Action Prohibited',
+        'You cannot exit the application while an examination is actively in progress. Please complete and submit your exam first.'
+      );
+    }
   });
 
   // Monitor focus loss during active exams
@@ -332,19 +341,25 @@ ipcMain.on('exam:end-lockdown', () => {
 });
 
 // ❌ Clean Exit Handler (Allowed outside active exam)
-ipcMain.on('app:close', () => {
-  if (isExamActive) {
+ipcMain.on('app:close', (_event, force = false) => {
+  if (isExamActive && !force) {
     dialog.showErrorBox(
       'Action Prohibited',
       'You cannot exit the application while an examination is actively in progress. Please complete and submit your exam first.'
     );
     return;
   }
+  isExamActive = false;
   if (mainWindow) {
-    mainWindow.setClosable(true);
-    mainWindow.close();
+    try {
+      mainWindow.setClosable(true);
+      mainWindow.destroy();
+    } catch (e) {
+      console.warn('Window destroy error:', e);
+    }
+    mainWindow = null;
   }
-  app.quit();
+  app.exit(0);
 });
 
 ipcMain.handle('exam:check-environment', () => {

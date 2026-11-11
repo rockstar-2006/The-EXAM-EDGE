@@ -29,6 +29,13 @@ const StudentAppLogin = () => {
   });
 
   useEffect(() => {
+    // Release desktop exam lockdown when student is on login screen
+    if ((window as any).desktopSecurity?.endLockdown) {
+      try {
+        (window as any).desktopSecurity.endLockdown();
+      } catch (e) {}
+    }
+
     const token = storage.getItem('studentToken');
     const data = storage.getItem('studentData');
     if (token && data) {

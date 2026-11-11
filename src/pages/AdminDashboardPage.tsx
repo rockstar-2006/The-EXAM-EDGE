@@ -28,6 +28,7 @@ import {
   CheckSquare,
   Square,
   BookOpen,
+  Bookmark,
   X
 } from 'lucide-react';
 import { adminAPI } from '@/services/api';
@@ -64,6 +65,9 @@ export default function AdminDashboardPage() {
   // Inspect Faculty Modal
   const [inspectFaculty, setInspectFaculty] = useState<any>(null);
   const [inspectTab, setInspectTab] = useState<'quizzes' | 'students'>('quizzes');
+  const [syncingQuizId, setSyncingQuizId] = useState<string | null>(null);
+  const [isSyncingAll, setIsSyncingAll] = useState(false);
+  const [bookmarkedQuizIds, setBookmarkedQuizIds] = useState<Set<string>>(new Set());
 
   // Reset Password Modal (Faculty or Student)
   const [resetTarget, setResetTarget] = useState<{ type: 'faculty' | 'student'; id: string; name: string; email: string; usn?: string } | null>(null);
@@ -260,6 +264,45 @@ export default function AdminDashboardPage() {
       handleFetchData();
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'Failed to clear submissions');
+    }
+  };
+
+  const handleSyncSingleQuiz = async (facultyId: string, quizId: string, quizTitle: string) => {
+    setSyncingQuizId(quizId);
+    try {
+      const res = await adminAPI.bookmarkQuizForFaculty(facultyId, quizId);
+      if (res.data?.success) {
+        toast.success(res.data.message || `Bookmarked "${quizTitle}" to faculty library!`);
+        setBookmarkedQuizIds(prev => new Set(prev).add(quizId));
+      } else {
+        toast.error(res.data?.message || 'Failed to bookmark quiz');
+      }
+    } catch (err: any) {
+      console.error('Sync single quiz error:', err);
+      toast.error(err.response?.data?.message || 'Failed to sync quiz to faculty bookmarks');
+    } finally {
+      setSyncingQuizId(null);
+    }
+  };
+
+  const handleSyncAllBookmarks = async (facultyId: string, facultyName: string) => {
+    setIsSyncingAll(true);
+    try {
+      const res = await adminAPI.syncAllBookmarksForFaculty(facultyId);
+      if (res.data?.success) {
+        toast.success(res.data.message || `Synced all assessments for Prof. ${facultyName}!`);
+        if (inspectFaculty?.quizzes) {
+          const allIds = inspectFaculty.quizzes.map((q: any) => q._id);
+          setBookmarkedQuizIds(new Set(allIds));
+        }
+      } else {
+        toast.error(res.data?.message || 'Failed to sync assessments');
+      }
+    } catch (err: any) {
+      console.error('Sync all bookmarks error:', err);
+      toast.error(err.response?.data?.message || 'Failed to sync all assessments');
+    } finally {
+      setIsSyncingAll(false);
     }
   };
 
@@ -828,25 +871,85 @@ export default function AdminDashboardPage() {
                   No course quizzes created under this faculty profile yet.
                 </p>
               ) : (
-                <div className="space-y-2">
-                  {inspectFaculty.quizzes.map((q: any) => (
-                    <div key={q._id} className="p-4 bg-slate-50 rounded-2xl border border-slate-100 flex items-center justify-between">
-                      <div>
-                        <p className="font-bold text-sm text-slate-900">{q.title}</p>
-                        <p className="text-xs text-slate-500 font-medium">
-                          {q.totalMarks} Marks • {q.duration || 30} mins • {q.questions?.length || 0} Questions
-                        </p>
-                        {q.sharedWith && q.sharedWith.length > 0 && (
-                          <p className="text-[10px] text-indigo-600 font-bold mt-1">
-                            Shared with {q.sharedWith.length} enrolled students
-                          </p>
-                        )}
-                      </div>
-                      <Badge variant="outline" className="text-[10px] font-bold">
-                        {new Date(q.createdAt).toLocaleDateString()}
-                      </Badge>
+                <div className="space-y-3">
+                  {/* Action Banner to Sync All Quizzes to Faculty Bookmarks */}
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-100 rounded-2xl p-3.5 px-4 shadow-xs">
+                    <div>
+                      <p className="text-xs font-black text-indigo-950 flex items-center gap-1.5">
+                        <Bookmark className="w-3.5 h-3.5 text-indigo-600" />
+                        Faculty Question Bank Integration
+                      </p>
+                      <p className="text-[11px] text-indigo-700 font-medium mt-0.5">
+                        Transfer and restore assessments directly into Prof. {inspectFaculty?.name}'s Bookmarks library for reuse.
+                      </p>
                     </div>
-                  ))}
+                    <Button
+                      size="sm"
+                      disabled={isSyncingAll}
+                      onClick={() => handleSyncAllBookmarks(inspectFaculty._id, inspectFaculty.name)}
+                      className="h-9 px-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-sm active:scale-95 shrink-0"
+                    >
+                      {isSyncingAll ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Bookmark className="w-3.5 h-3.5" />}
+                      <span>Sync All to Bookmarks</span>
+                    </Button>
+                  </div>
+
+                  <div className="space-y-2">
+                    {inspectFaculty.quizzes.map((q: any) => {
+                      const isBookmarked = bookmarkedQuizIds.has(q._id);
+                      const isSyncingThis = syncingQuizId === q._id;
+
+                      return (
+                        <div key={q._id} className="p-4 bg-slate-50 hover:bg-slate-100/80 rounded-2xl border border-slate-100 transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <p className="font-bold text-sm text-slate-900">{q.title}</p>
+                              {isBookmarked && (
+                                <Badge className="bg-emerald-100 text-emerald-800 text-[9px] font-bold border-emerald-200">
+                                  ✓ In Bookmarks
+                                </Badge>
+                              )}
+                            </div>
+                            <p className="text-xs text-slate-500 font-medium mt-0.5">
+                              {q.totalMarks} Marks • {q.duration || 30} mins • {q.questions?.length || 0} Questions
+                            </p>
+                            {q.sharedWith && q.sharedWith.length > 0 && (
+                              <p className="text-[10px] text-indigo-600 font-bold mt-1">
+                                Shared with {q.sharedWith.length} enrolled students
+                              </p>
+                            )}
+                          </div>
+
+                          <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
+                            <Badge variant="outline" className="text-[10px] font-bold hidden sm:inline-flex bg-white">
+                              {new Date(q.createdAt).toLocaleDateString()}
+                            </Badge>
+
+                            <Button
+                              size="sm"
+                              variant={isBookmarked ? "outline" : "default"}
+                              disabled={isSyncingThis || isSyncingAll}
+                              onClick={() => handleSyncSingleQuiz(inspectFaculty._id, q._id, q.title)}
+                              className={cn(
+                                "h-8 rounded-xl text-[11px] font-bold gap-1 px-3 shadow-xs transition-all",
+                                isBookmarked
+                                  ? "border-emerald-300 text-emerald-800 bg-emerald-50 hover:bg-emerald-100"
+                                  : "bg-indigo-600 hover:bg-indigo-700 text-white"
+                              )}
+                              title="Bookmark this assessment into faculty's library"
+                            >
+                              {isSyncingThis ? (
+                                <Loader2 className="w-3 h-3 animate-spin" />
+                              ) : (
+                                <Bookmark className="w-3 h-3" />
+                              )}
+                              <span>{isBookmarked ? 'Re-Sync' : 'Add to Bookmarks'}</span>
+                            </Button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
               )}
             </TabsContent>
