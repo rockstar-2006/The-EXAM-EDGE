@@ -399,11 +399,27 @@ export default function CreateQuizPage() {
   };
 
   const handleSaveQuiz = async (): Promise<Quiz | null> => {
-    const selectedQuestions = questions.filter(q => q.isSelected);
+    const rawSelectedQuestions = questions.filter(q => q.isSelected);
+
+    // Filter out blank placeholder cards (e.g. freshly added blank manual question cards)
+    const selectedQuestions = rawSelectedQuestions.filter(q => {
+      const hasText = !!(q.question && q.question.trim());
+      const hasImage = !!(q.imageUrl && q.imageUrl.trim());
+      const hasOptions = Array.isArray(q.options) && q.options.some(o => {
+        const text = typeof o === 'object' && o !== null ? (o as any).text : o;
+        return !!String(text || '').trim();
+      });
+      return hasText || hasImage || hasOptions;
+    });
 
     if (selectedQuestions.length === 0) {
-      toast.error('Please select at least one question');
+      toast.error('Please enter question text or select at least one non-empty question');
       return null;
+    }
+
+    if (selectedQuestions.length < rawSelectedQuestions.length) {
+      const skippedCount = rawSelectedQuestions.length - selectedQuestions.length;
+      toast.info(`Skipped ${skippedCount} empty question placeholder(s)`);
     }
 
     if (!quizTitle.trim()) {
@@ -415,19 +431,29 @@ export default function CreateQuizPage() {
     try {
       const normalizedQuestions: NormalizedQuestion[] = await Promise.all(
         selectedQuestions.map(async (q: Question, index: number) => {
-          const questionText = q.question?.trim();
-          if (!questionText) throw new Error(`Question ${index + 1} is empty`);
+          let questionText = q.question?.trim();
+          if (!questionText) {
+            questionText = q.imageUrl ? `Question ${index + 1} (Refer to figure)` : `Question ${index + 1}`;
+          }
 
           let options: string[] = [];
           if (q.options && Array.isArray(q.options)) {
-            options = q.options.map(o => String(typeof o === 'object' ? (o as any).text : o).trim()).filter(o => o !== '');
+            options = q.options.map(o => String(typeof o === 'object' && o !== null ? (o as any).text : o).trim()).filter(o => o !== '');
           }
 
           let finalAnswer = '';
           if ('correctAnswer' in q && q.correctAnswer) {
-            finalAnswer = String(typeof q.correctAnswer === 'object' ? (q.correctAnswer as any).text : q.correctAnswer).trim();
+            finalAnswer = String(typeof q.correctAnswer === 'object' && q.correctAnswer !== null ? (q.correctAnswer as any).text : q.correctAnswer).trim();
           } else if ('answer' in q && q.answer) {
-            finalAnswer = String(typeof q.answer === 'object' ? (q.answer as any).text : q.answer).trim();
+            finalAnswer = String(typeof q.answer === 'object' && q.answer !== null ? (q.answer as any).text : q.answer).trim();
+          }
+          if (!finalAnswer && options.length > 0) {
+            finalAnswer = options[0];
+          }
+
+          let qType: 'mcq' | 'short-answer' | 'mixed' = (q.type as any) || 'mcq';
+          if (qType === 'mcq' && options.length === 0) {
+            qType = 'short-answer';
           }
 
           let optimizedImageUrl = q.imageUrl || '';
@@ -442,7 +468,7 @@ export default function CreateQuizPage() {
             answer: finalAnswer,
             explanation: q.explanation || '',
             marks: 1,
-            type: q.type || 'mcq',
+            type: qType,
             difficulty: (q as any).difficulty || 'medium',
             imageUrl: optimizedImageUrl
           };
@@ -487,7 +513,7 @@ export default function CreateQuizPage() {
       };
     } catch (error: any) {
       console.error('Save error:', error);
-      const message = error.response?.data?.message || 'Failed to save quiz';
+      const message = error.response?.data?.message || error.response?.data?.error || error.message || 'Failed to save quiz';
       toast.error(message);
       return null;
     } finally {
@@ -517,7 +543,16 @@ export default function CreateQuizPage() {
       return;
     }
 
-    const selectedQuestions = questions.filter(q => q.isSelected);
+    const rawSelectedQuestions = questions.filter(q => q.isSelected);
+    const selectedQuestions = rawSelectedQuestions.filter(q => {
+      const hasText = !!(q.question && q.question.trim());
+      const hasImage = !!(q.imageUrl && q.imageUrl.trim());
+      const hasOptions = Array.isArray(q.options) && q.options.some(o => {
+        const text = typeof o === 'object' && o !== null ? (o as any).text : o;
+        return !!String(text || '').trim();
+      });
+      return hasText || hasImage || hasOptions;
+    });
 
     if (selectedQuestions.length === 0) {
       toast.error('Please select at least one question to bookmark');
