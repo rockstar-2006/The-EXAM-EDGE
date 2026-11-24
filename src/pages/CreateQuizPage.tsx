@@ -15,8 +15,10 @@ import {
   Scissors,
   Check,
   Settings,
-  ExternalLink
+  ExternalLink,
+  FileSpreadsheet
 } from 'lucide-react';
+import { QuestionDocImportModal } from '@/components/QuestionDocImportModal';
 import { Switch } from '@/components/ui/switch';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -115,6 +117,9 @@ export default function CreateQuizPage() {
   // PDF Visual Snip & Crop Tool
   const [selectedSnipPdf, setSelectedSnipPdf] = useState<File | null>(null);
   const [isSnipModalOpen, setIsSnipModalOpen] = useState(false);
+
+  // 📄 Bulk Question Document Importer State
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
 
   // 🌐 Public Open-Web Proctored Quiz State
   const [shareActiveTab, setShareActiveTab] = useState<'public' | 'cohorts'>('public');
@@ -885,6 +890,22 @@ export default function CreateQuizPage() {
                   </label>
                 </div>
 
+                <div className="flex items-center justify-between p-3 rounded-xl bg-indigo-50/60 dark:bg-indigo-950/20 border border-indigo-200/80 dark:border-indigo-900">
+                  <div className="flex items-center gap-2 text-xs text-indigo-900 dark:text-indigo-200">
+                    <FileSpreadsheet className="w-4 h-4 text-indigo-600 shrink-0" />
+                    <span>Already have questions written in a Word doc or Excel sheet?</span>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setIsImportModalOpen(true)}
+                    className="h-7 text-xs font-bold text-indigo-700 hover:text-indigo-950 hover:bg-indigo-100/60 p-2 gap-1"
+                  >
+                    <span>Import Questions</span> &rarr;
+                  </Button>
+                </div>
+
                 <AnimatePresence>
                   {uploadedFiles.length > 0 && (
                     <motion.div
@@ -1042,18 +1063,29 @@ export default function CreateQuizPage() {
                     <span className="w-full border-t border-sidebar-border/50" />
                   </div>
                   <div className="relative flex justify-center text-[10px] font-black uppercase tracking-widest text-muted-foreground/40 bg-card px-4">
-                    Or Add Questions Manually
+                    Or Add Questions Manually / Import From File
                   </div>
                 </div>
 
-                <Button
-                  variant="outline"
-                  onClick={handleAddManualQuestion}
-                  className="w-full h-14 border-sidebar-border/50 hover:bg-muted/30 font-black uppercase tracking-widest transition-all"
-                >
-                  <PlusCircle className="w-5 h-5 mr-3 text-primary" />
-                  Add Question Manually
-                </Button>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <Button
+                    variant="outline"
+                    onClick={handleAddManualQuestion}
+                    className="h-14 border-sidebar-border/50 hover:bg-muted/30 font-black uppercase tracking-wider transition-all text-xs"
+                  >
+                    <PlusCircle className="w-5 h-5 mr-2 text-primary shrink-0" />
+                    Add Manually
+                  </Button>
+
+                  <Button
+                    variant="outline"
+                    onClick={() => setIsImportModalOpen(true)}
+                    className="h-14 border-indigo-200 dark:border-indigo-800 bg-indigo-50/50 hover:bg-indigo-100/60 dark:bg-indigo-950/20 text-indigo-700 dark:text-indigo-300 font-black uppercase tracking-wider transition-all text-xs"
+                  >
+                    <FileSpreadsheet className="w-5 h-5 mr-2 text-indigo-600 shrink-0" />
+                    Import Document / Sheet
+                  </Button>
+                </div>
               </CardContent>
             </Card>
           </motion.div>
@@ -1599,6 +1631,17 @@ export default function CreateQuizPage() {
               handleUpdateQuestion({ ...targetQ, imageUrl: dataUrl });
               toast.success(`Attached figure to Question ${idx + 1}`);
             }
+          }}
+        />
+      )}
+
+      {isImportModalOpen && (
+        <QuestionDocImportModal
+          open={isImportModalOpen}
+          onOpenChange={setIsImportModalOpen}
+          onImportQuestions={(newQuestions) => {
+            setQuestions(prev => [...prev, ...newQuestions]);
+            setSavedQuizId(null);
           }}
         />
       )}

@@ -36,8 +36,10 @@ import {
   Radio,
   FileQuestion,
   RefreshCw,
-  Send
+  Send,
+  FileSpreadsheet
 } from 'lucide-react';
+import { QuestionDocImportModal } from '@/components/QuestionDocImportModal';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { quizAPI, foldersAPI, bookmarksAPI, publicQuizAPI } from '@/services/api';
@@ -131,6 +133,9 @@ export default function PublicQuizCreatorPage() {
   // Resulting Generated Public Quiz Link
   const [generatedQuizId, setGeneratedQuizId] = useState<string | null>(null);
   const [generatedShortCode, setGeneratedShortCode] = useState<string | null>(null);
+
+  // Question Import Modal
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
 
   // Fetch initial data
   useEffect(() => {
@@ -646,6 +651,30 @@ export default function PublicQuizCreatorPage() {
                       ))}
                     </SelectContent>
                   </Select>
+                </div>
+              )}
+
+              {sourceMode === 'scratch' && (
+                <div className="p-5 rounded-2xl bg-muted/20 border border-border/50 space-y-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div>
+                      <Label className="text-xs font-black uppercase tracking-wider text-foreground">
+                        Custom Questions ({questions.length} loaded)
+                      </Label>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        Add questions manually, generate with AI, or import directly from Word / Excel / Text files.
+                      </p>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setIsImportModalOpen(true)}
+                      className="h-10 px-4 border-indigo-200 text-indigo-700 bg-indigo-50/70 hover:bg-indigo-100 font-bold text-xs rounded-xl gap-2 shrink-0"
+                    >
+                      <FileSpreadsheet className="w-4 h-4 text-indigo-600" />
+                      <span>Import Word / Excel / Text</span>
+                    </Button>
+                  </div>
                 </div>
               )}
 
@@ -1319,6 +1348,23 @@ export default function PublicQuizCreatorPage() {
             })}
           </div>
         </div>
+      )}
+
+      {isImportModalOpen && (
+        <QuestionDocImportModal
+          open={isImportModalOpen}
+          onOpenChange={setIsImportModalOpen}
+          onImportQuestions={(newQuestions) => {
+            setQuestions(newQuestions.map(q => ({
+              question: q.question,
+              options: q.options || [],
+              answer: q.answer || '',
+              explanation: q.explanation || '',
+              marks: q.marks || 1,
+              type: q.type || 'mcq'
+            })));
+          }}
+        />
       )}
 
     </div>
