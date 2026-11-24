@@ -419,9 +419,15 @@ export default function BookmarksPage() {
         Boolean((window as any).desktopSecurity) || 
         window.location.pathname.endsWith('.html')
       );
+      let codeToUse = quizId;
+      try {
+        const info = await publicQuizAPI.getQuizInfo(quizId);
+        if (info.data?.quiz?.shortCode) codeToUse = info.data.quiz.shortCode;
+      } catch (e) {}
+
       const link = isDesktopOrCap
-        ? `${window.location.origin}/#/quiz/public/${quizId}`
-        : `${window.location.origin}/quiz/public/${quizId}`;
+        ? `${window.location.origin}/#/q/${codeToUse}`
+        : `${window.location.origin}/q/${codeToUse}`;
       await navigator.clipboard.writeText(link);
       toast.success(`🌐 Public Exam Link Copied for "${title}"!`, {
         description: 'Students can open and attend this proctored quiz in any browser without logging in.',

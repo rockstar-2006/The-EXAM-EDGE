@@ -130,6 +130,7 @@ export default function PublicQuizCreatorPage() {
 
   // Resulting Generated Public Quiz Link
   const [generatedQuizId, setGeneratedQuizId] = useState<string | null>(null);
+  const [generatedShortCode, setGeneratedShortCode] = useState<string | null>(null);
 
   // Fetch initial data
   useEffect(() => {
@@ -398,15 +399,22 @@ export default function PublicQuizCreatorPage() {
 
       if (!quizId) throw new Error('Failed to retrieve Quiz ID from server');
 
+      let shortCode = '';
+      try {
+        const infoRes = await publicQuizAPI.getQuizInfo(quizId);
+        shortCode = infoRes.data?.quiz?.shortCode || '';
+      } catch (e) {}
+
       setGeneratedQuizId(quizId);
-      const publicUrl = getPublicLink(quizId);
+      setGeneratedShortCode(shortCode || quizId);
+      const publicUrl = getPublicLink(quizId, shortCode);
 
       await navigator.clipboard.writeText(publicUrl);
       setCopiedId(quizId);
       setTimeout(() => setCopiedId(null), 4000);
 
-      toast.success('🎉 Public Proctored Web Quiz Created & Copied!', {
-        description: 'Students can open this link in any desktop browser without logging in.'
+      toast.success('🎉 Short Public Exam Link Copied!', {
+        description: `Short Link: ${publicUrl}`
       });
 
       // Refresh list
@@ -419,21 +427,23 @@ export default function PublicQuizCreatorPage() {
     }
   };
 
-  const getPublicLink = (id: string) => {
+  const getPublicLink = (id: string, codeOverride?: string) => {
+    const qz = Array.isArray(existingQuizzes) ? existingQuizzes.find((q: any) => q._id === id || q.id === id) : null;
+    const code = codeOverride || qz?.shortCode || id;
     const isDesktopOrCap = typeof window !== 'undefined' && (
       Boolean((window as any).desktopSecurity) || 
       window.location.pathname.endsWith('.html')
     );
     return isDesktopOrCap 
-      ? `${window.location.origin}/#/quiz/public/${id}`
-      : `${window.location.origin}/quiz/public/${id}`;
+      ? `${window.location.origin}/#/q/${code}`
+      : `${window.location.origin}/q/${code}`;
   };
 
-  const handleCopyLink = async (id: string) => {
-    const url = getPublicLink(id);
+  const handleCopyLink = async (id: string, shortCode?: string) => {
+    const url = getPublicLink(id, shortCode);
     await navigator.clipboard.writeText(url);
     setCopiedId(id);
-    toast.success('🌐 Public Exam Link Copied!');
+    toast.success('🌐 Short Exam Link Copied!');
     setTimeout(() => setCopiedId(null), 3000);
   };
 
@@ -1013,13 +1023,13 @@ export default function PublicQuizCreatorPage() {
                   </div>
 
                   <div className="bg-black/40 p-3 rounded-xl border border-white/10 font-mono text-xs break-all select-all text-indigo-200">
-                    {getPublicLink(generatedQuizId)}
+                    {getPublicLink(generatedQuizId, generatedShortCode || undefined)}
                   </div>
 
                   <div className="flex flex-col sm:flex-row gap-2 pt-1">
                     <Button
                       type="button"
-                      onClick={() => handleCopyLink(generatedQuizId)}
+                      onClick={() => handleCopyLink(generatedQuizId, generatedShortCode || undefined)}
                       className="flex-1 h-11 bg-white hover:bg-slate-100 text-indigo-950 font-bold text-xs rounded-xl gap-2 shadow-sm"
                     >
                       {copiedId === generatedQuizId ? (
@@ -1038,7 +1048,7 @@ export default function PublicQuizCreatorPage() {
                     <Button
                       type="button"
                       variant="outline"
-                      onClick={() => window.open(getPublicLink(generatedQuizId), '_blank')}
+                      onClick={() => window.open(getPublicLink(generatedQuizId, generatedShortCode || undefined), '_blank')}
                       className="h-11 px-4 border-white/20 text-white hover:bg-white/10 font-bold text-xs rounded-xl gap-2"
                     >
                       <ExternalLink className="w-4 h-4" />
@@ -1050,7 +1060,7 @@ export default function PublicQuizCreatorPage() {
                     <button
                       type="button"
                       onClick={() => {
-                        const url = getPublicLink(generatedQuizId);
+                        const url = getPublicLink(generatedQuizId, generatedShortCode || undefined);
                         const msg = encodeURIComponent(`Please attend the proctored assessment "${quizTitle}": ${url}`);
                         window.open(`https://wa.me/?text=${msg}`, '_blank');
                       }}
@@ -1227,7 +1237,7 @@ export default function PublicQuizCreatorPage() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {(Array.isArray(publicQuizzesList) ? publicQuizzesList : []).map((quiz) => {
-              const url = getPublicLink(quiz._id);
+              const url = getPublicLink(quiz._id, quiz.shortCode);
               const isCopied = copiedId === quiz._id;
               const qCount = quiz.questions?.length || 0;
 
@@ -1267,7 +1277,7 @@ export default function PublicQuizCreatorPage() {
                     <div className="grid grid-cols-2 gap-2 w-full">
                       <Button
                         type="button"
-                        onClick={() => handleCopyLink(quiz._id)}
+                        onClick={() => handleCopyLink(quiz._id, quiz.shortCode)}
                         className="h-10 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl gap-1.5 shadow-sm"
                       >
                         {isCopied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}

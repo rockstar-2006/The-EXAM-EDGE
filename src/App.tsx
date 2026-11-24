@@ -100,6 +100,8 @@ const App = () => {
                             <Route path="/quiz/share/:token" element={<StudentQuizPage />} />
                             <Route path="/quiz/secure/attempt/:token" element={<StudentQuizPage />} />
                             <Route path="/quiz/public/:quizId" element={<PublicQuizPage />} />
+                            <Route path="/q/:code" element={<PublicQuizPage />} />
+                            <Route path="/quiz/p/:code" element={<PublicQuizPage />} />
 
                             <Route element={<ProtectedRoute role="student" />}>
                                 <Route path="/student/dashboard" element={<StudentDashboard />} />

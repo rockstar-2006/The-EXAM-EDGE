@@ -66,7 +66,8 @@ interface RegistrationConfig {
 }
 
 export default function PublicQuizPage() {
-  const { quizId } = useParams<{ quizId: string }>();
+  const { quizId, code } = useParams<{ quizId?: string; code?: string }>();
+  const targetIdentifier = (code || quizId || '').trim();
   const navigate = useNavigate();
 
   // Phase: 'loading' | 'register' | 'rules' | 'active' | 'completed' | 'blocked' | 'error'
@@ -127,15 +128,15 @@ export default function PublicQuizPage() {
 
   // 1. Initial Load: Fetch Quiz Info & Registration Config
   useEffect(() => {
-    if (!quizId) {
-      setErrorMessage('Invalid assessment link. No quiz ID provided.');
+    if (!targetIdentifier) {
+      setErrorMessage('Invalid assessment link. No quiz ID or code provided.');
       setPhase('error');
       return;
     }
 
     const loadQuiz = async () => {
       try {
-        const res = await publicQuizAPI.getQuizInfo(quizId);
+        const res = await publicQuizAPI.getQuizInfo(targetIdentifier);
         if (res.data?.success) {
           setQuizInfo(res.data.quiz);
           setRegConfig(res.data.registrationConfig || {});
@@ -397,7 +398,8 @@ export default function PublicQuizPage() {
         studentEmail: studentEmail.trim()
       };
 
-      const res = await publicQuizAPI.startAttempt(quizId!, regData);
+      const actualQuizId = quizInfo?.id || quizInfo?._id || targetIdentifier;
+      const res = await publicQuizAPI.startAttempt(actualQuizId, regData);
 
       if (res.data?.success) {
         const receivedQuestions: Question[] = res.data.questions || [];

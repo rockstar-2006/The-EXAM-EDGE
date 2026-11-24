@@ -725,8 +725,8 @@ export default function CreateQuizPage() {
       window.location.pathname.endsWith('.html')
     );
     return isDesktopOrCap 
-      ? `${window.location.origin}/#/quiz/public/${qId}`
-      : `${window.location.origin}/quiz/public/${qId}`;
+      ? `${window.location.origin}/#/q/${qId}`
+      : `${window.location.origin}/q/${qId}`;
   };
 
   const handleCopyPublicLink = async (id?: string) => {
