@@ -4,7 +4,7 @@ import {
   Search, BookOpen, Target,
   FileText, Plus, FolderPlus, MoreVertical,
   CalendarClock, Check, FolderEdit, Download, FileSpreadsheet, FileText as FileTextIcon, File as FileWord,
-  Scissors, Upload, X
+  Scissors, Upload, X, Globe, Copy, ExternalLink, Settings
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType, BorderStyle } from 'docx';
@@ -366,6 +366,127 @@ export default function BookmarksPage() {
     }
   };
 
+  // 🌐 PUBLIC PROCTORED LINK GENERATION FROM BOOKMARKS
+  const handleCreateOrCopyPublicLink = async (folderOrItem: any, type: 'folder' | 'quiz' = 'folder') => {
+    try {
+      let quizId: string | null = null;
+      let title = type === 'folder' ? folderOrItem.name : (folderOrItem.quiz?.title || folderOrItem.title || 'Assessment');
+
+      const allQuizzesRes = await quizAPI.getAll();
+      const existing = (allQuizzesRes.data || []).find((q: any) => q.title?.trim().toLowerCase() === title.trim().toLowerCase());
+
+      if (existing) {
+        quizId = existing._id;
+      } else {
+        if (type === 'folder') {
+          const folderQuestions = bookmarks
+            .filter(b => {
+              const bFolderId = b.folderId && typeof b.folderId === 'object' ? (b.folderId as any)._id : b.folderId;
+              return bFolderId === folderOrItem._id && b.question;
+            })
+            .map(b => b.question);
+
+          if (folderQuestions.length === 0) {
+            toast.error('This collection has no questions to generate a quiz from');
+            return;
+          }
+
+          toast.info(`Creating public assessment from "${title}"...`);
+          const res = await quizAPI.save({
+            title: title,
+            description: `Assessment generated from Bookmarks collection "${title}"`,
+            questions: folderQuestions.map((q: any) => ({ ...q, isSelected: true })),
+            duration: Math.max(10, folderQuestions.length * 2),
+            difficulty: 'medium',
+            questionType: 'mcq',
+            isPublicLinkEnabled: true
+          });
+          quizId = res.data.quizId || res.data.quiz?._id;
+        } else {
+          const qz = folderOrItem.quiz || folderOrItem;
+          const res = await quizAPI.save({
+            ...qz,
+            questions: (qz.questions || []).map((q: any) => ({ ...q, isSelected: true })),
+            isPublicLinkEnabled: true
+          });
+          quizId = res.data.quizId || res.data.quiz?._id;
+        }
+      }
+
+      if (!quizId) throw new Error("Could not initialize quiz link");
+
+      const isDesktopOrCap = typeof window !== 'undefined' && (
+        Boolean((window as any).desktopSecurity) || 
+        window.location.pathname.endsWith('.html')
+      );
+      const link = isDesktopOrCap
+        ? `${window.location.origin}/#/quiz/public/${quizId}`
+        : `${window.location.origin}/quiz/public/${quizId}`;
+      await navigator.clipboard.writeText(link);
+      toast.success(`🌐 Public Exam Link Copied for "${title}"!`, {
+        description: 'Students can open and attend this proctored quiz in any browser without logging in.',
+        action: {
+          label: 'Edit Form',
+          onClick: () => navigate(`/quiz/${quizId}/public-link`)
+        }
+      });
+
+    } catch (err: any) {
+      console.error('Public link error:', err);
+      toast.error(err.message || 'Failed to create public link');
+    }
+  };
+
+  const handleOpenFormStudio = async (folderOrItem: any, type: 'folder' | 'quiz' = 'folder') => {
+    try {
+      let quizId: string | null = null;
+      let title = type === 'folder' ? folderOrItem.name : (folderOrItem.quiz?.title || folderOrItem.title || 'Assessment');
+
+      const allQuizzesRes = await quizAPI.getAll();
+      const existing = (allQuizzesRes.data || []).find((q: any) => q.title?.trim().toLowerCase() === title.trim().toLowerCase());
+
+      if (existing) {
+        quizId = existing._id;
+      } else {
+        if (type === 'folder') {
+          const folderQuestions = bookmarks
+            .filter(b => {
+              const bFolderId = b.folderId && typeof b.folderId === 'object' ? (b.folderId as any)._id : b.folderId;
+              return bFolderId === folderOrItem._id && b.question;
+            })
+            .map(b => b.question);
+
+          if (folderQuestions.length === 0) {
+            toast.error('Add questions to this collection first');
+            return;
+          }
+
+          const res = await quizAPI.save({
+            title: title,
+            questions: folderQuestions.map((q: any) => ({ ...q, isSelected: true })),
+            duration: Math.max(10, folderQuestions.length * 2),
+            isPublicLinkEnabled: true
+          });
+          quizId = res.data.quizId || res.data.quiz?._id;
+        } else {
+          const qz = folderOrItem.quiz || folderOrItem;
+          const res = await quizAPI.save({
+            ...qz,
+            questions: (qz.questions || []).map((q: any) => ({ ...q, isSelected: true })),
+            isPublicLinkEnabled: true
+          });
+          quizId = res.data.quizId || res.data.quiz?._id;
+        }
+      }
+
+      if (quizId) {
+        navigate(`/quiz/${quizId}/public-link`);
+      }
+    } catch (err: any) {
+      toast.error('Failed to open form editor');
+    }
+  };
+
   // --- Sharing ---
 
   const initiateShare = (type: 'question' | 'quiz' | 'folder', item: any) => {
@@ -646,32 +767,63 @@ export default function BookmarksPage() {
             />
           </div>
           {activeFolderId && displayedBookmarks.length > 0 && (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  className="h-12 px-6 gradient-primary font-black uppercase tracking-widest shadow-glow rounded-xl hover:scale-105 transition-transform"
-                >
-                  <Download className="w-5 h-5 mr-2" /> Export All
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56 font-bold bg-card border-border">
-                <DropdownMenuLabel className="text-[10px] uppercase tracking-widest opacity-50">Choose Format</DropdownMenuLabel>
-                <DropdownMenuItem onClick={() => handleDownloadExcel(activeFolderId, activeFolder?.name || 'Collection')}>
-                  <FileSpreadsheet className="w-4 h-4 mr-2 text-emerald-500" /> Excel (.xlsx)
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => handleDownloadWord(activeFolderId, activeFolder?.name || 'Collection')}>
-                  <FileWord className="w-4 h-4 mr-2 text-blue-500" /> Word (.docx)
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => handleDownloadTXT(activeFolderId, activeFolder?.name || 'Collection')}>
-                  <FileTextIcon className="w-4 h-4 mr-2 text-orange-500" /> Text (.txt)
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <div className="flex items-center gap-2 flex-wrap">
+              <Button
+                type="button"
+                onClick={() => handleCreateOrCopyPublicLink(activeFolder, 'folder')}
+                className="h-12 px-5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs uppercase tracking-wider rounded-xl shadow-md gap-2 active:scale-95 transition-all"
+              >
+                <Globe className="w-4 h-4 text-indigo-200" />
+                <span>Copy Public Link</span>
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => handleOpenFormStudio(activeFolder, 'folder')}
+                className="h-12 px-4 border-indigo-200 text-indigo-700 hover:bg-indigo-50 font-bold text-xs uppercase tracking-wider rounded-xl gap-2"
+                title="Customize student registration text boxes & options"
+              >
+                <Settings className="w-4 h-4" />
+                <span className="hidden sm:inline">Form Editor</span>
+              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    className="h-12 px-6 gradient-primary font-black uppercase tracking-widest shadow-glow rounded-xl hover:scale-105 transition-transform"
+                  >
+                    <Download className="w-5 h-5 mr-2" /> Export
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56 font-bold bg-card border-border">
+                  <DropdownMenuLabel className="text-[10px] uppercase tracking-widest opacity-50">Choose Format</DropdownMenuLabel>
+                  <DropdownMenuItem onClick={() => handleDownloadExcel(activeFolderId, activeFolder?.name || 'Collection')}>
+                    <FileSpreadsheet className="w-4 h-4 mr-2 text-emerald-500" /> Excel (.xlsx)
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleDownloadWord(activeFolderId, activeFolder?.name || 'Collection')}>
+                    <FileWord className="w-4 h-4 mr-2 text-blue-500" /> Word (.docx)
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleDownloadTXT(activeFolderId, activeFolder?.name || 'Collection')}>
+                    <FileTextIcon className="w-4 h-4 mr-2 text-orange-500" /> Text (.txt)
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           )}
           {!activeFolderId && (
-            <Button onClick={() => setIsCreatingFolder(true)} className="h-12 px-6 gradient-primary font-black uppercase tracking-widest shadow-glow rounded-xl hover:scale-105 transition-transform">
-              <FolderPlus className="w-5 h-5 mr-2" /> New Collection
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => navigate('/public-quiz-creator')}
+                className="h-12 px-5 border-indigo-200 text-indigo-700 hover:bg-indigo-50 font-bold text-xs uppercase tracking-wider rounded-xl gap-2 shadow-xs"
+              >
+                <Globe className="w-4 h-4 text-indigo-600" />
+                <span>Create Public Quiz</span>
+              </Button>
+              <Button onClick={() => setIsCreatingFolder(true)} className="h-12 px-6 gradient-primary font-black uppercase tracking-widest shadow-glow rounded-xl hover:scale-105 transition-transform">
+                <FolderPlus className="w-5 h-5 mr-2" /> New Collection
+              </Button>
+            </div>
           )}
         </div>
       </div>
@@ -723,10 +875,17 @@ export default function BookmarksPage() {
                           <MoreVertical className="w-4 h-4" />
                         </Button>
                       </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="w-48 font-bold">
+                      <DropdownMenuContent align="end" className="w-52 font-bold">
                         <DropdownMenuLabel className="text-[10px] uppercase tracking-widest opacity-50">Options</DropdownMenuLabel>
+                        <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleCreateOrCopyPublicLink(folder, 'folder'); }} className="text-indigo-600 focus:text-indigo-700 font-bold">
+                          <Globe className="w-4 h-4 mr-2" /> Copy Public Web Link
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleOpenFormStudio(folder, 'folder'); }}>
+                          <Settings className="w-4 h-4 mr-2" /> Form & Settings Studio
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
                         <DropdownMenuItem onClick={(e) => { e.stopPropagation(); initiateShare('folder', folder) }}>
-                          <Share2 className="w-4 h-4 mr-2" /> Share Collection
+                          <Share2 className="w-4 h-4 mr-2" /> Cohort Distribution
                         </DropdownMenuItem>
                         <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleDownloadExcel(folder._id, folder.name) }}>
                           <FileSpreadsheet className="w-4 h-4 mr-2 text-emerald-500" /> Download Excel
@@ -810,6 +969,12 @@ export default function BookmarksPage() {
                           </div>
                         </div>
                         <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <Button size="sm" variant="ghost" title="Copy Public Link" onClick={() => handleCreateOrCopyPublicLink(bookmark, 'quiz')}>
+                            <Globe className="w-4 h-4 text-indigo-600" />
+                          </Button>
+                          <Button size="sm" variant="ghost" title="Edit Form" onClick={() => handleOpenFormStudio(bookmark, 'quiz')}>
+                            <Settings className="w-4 h-4 text-slate-600" />
+                          </Button>
                           <Button size="sm" variant="ghost" onClick={() => initiateShare('quiz', bookmark)}>
                             <Share2 className="w-4 h-4 text-emerald-500" />
                           </Button>

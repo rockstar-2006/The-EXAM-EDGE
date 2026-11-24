@@ -12,7 +12,10 @@ import {
   Globe,
   Mail,
   Workflow,
-  Scissors
+  Scissors,
+  Check,
+  Settings,
+  ExternalLink
 } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -21,12 +24,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { QuestionEditor } from '@/components/QuestionEditor';
 import { PDFVisualSnipModal } from '@/components/PDFVisualSnipModal';
 import { AIChatInterface } from '@/components/AIChatInterface';
 import { generateQuestions } from '@/services/gemini';
 import { extractTextFromPDF, isPDFFile } from '@/services/pdfService';
-import { quizAPI, studentsAPI, bookmarksAPI, foldersAPI, teacherAuthAPI } from '@/services/api';
+import { quizAPI, studentsAPI, bookmarksAPI, foldersAPI, teacherAuthAPI, publicQuizAPI } from '@/services/api';
 import { Question, Quiz, Student } from '@/types';
 import { toast } from 'sonner';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -111,6 +115,25 @@ export default function CreateQuizPage() {
   // PDF Visual Snip & Crop Tool
   const [selectedSnipPdf, setSelectedSnipPdf] = useState<File | null>(null);
   const [isSnipModalOpen, setIsSnipModalOpen] = useState(false);
+
+  // 🌐 Public Open-Web Proctored Quiz State
+  const [shareActiveTab, setShareActiveTab] = useState<'public' | 'cohorts'>('public');
+  const [copiedPublicLink, setCopiedPublicLink] = useState(false);
+  const [isSavingPublicConfig, setIsSavingPublicConfig] = useState(false);
+  const [publicRegistrationConfig, setPublicRegistrationConfig] = useState({
+    requireName: true,
+    nameLabel: 'Full Name',
+    requireRollNo: true,
+    rollNoLabel: 'Roll Number / USN / Reg No',
+    requireAcademicLevel: true,
+    academicLevelLabel: 'Class / Academic Level',
+    requireBranch: false,
+    branchLabel: 'Stream / Department',
+    requireSection: false,
+    sectionLabel: 'Section / Division',
+    requireEmail: false,
+    allowInstantResults: true
+  });
 
   useEffect(() => {
     // Handle edit question from bookmarks
@@ -489,7 +512,9 @@ export default function CreateQuizPage() {
         startTime: isScheduled ? startTime : null,
         endDate: isScheduled ? endDate : null,
         endTime: isScheduled ? endTime : null,
-        timezone: isScheduled ? timezone : 'Asia/Kolkata'
+        timezone: isScheduled ? timezone : 'Asia/Kolkata',
+        isPublicLinkEnabled: true,
+        publicRegistrationConfig: publicRegistrationConfig
       };
 
       let response;
@@ -691,6 +716,61 @@ export default function CreateQuizPage() {
     }
   };
 
+  // 🌐 Public Open-Web Link Handlers
+  const getPublicQuizUrl = (id?: string) => {
+    const qId = id || savedQuizId;
+    if (!qId) return '';
+    const isDesktopOrCap = typeof window !== 'undefined' && (
+      Boolean((window as any).desktopSecurity) || 
+      window.location.pathname.endsWith('.html')
+    );
+    return isDesktopOrCap 
+      ? `${window.location.origin}/#/quiz/public/${qId}`
+      : `${window.location.origin}/quiz/public/${qId}`;
+  };
+
+  const handleCopyPublicLink = async (id?: string) => {
+    let targetId = id || savedQuizId;
+    if (!targetId) {
+      const saved = await handleSaveQuiz();
+      if (!saved) return;
+      targetId = saved.id;
+    }
+    const link = getPublicQuizUrl(targetId);
+    try {
+      await navigator.clipboard.writeText(link);
+      setCopiedPublicLink(true);
+      setTimeout(() => setCopiedPublicLink(false), 3000);
+      toast.success('🌐 Public Exam Link Copied!', {
+        description: 'Share this link anywhere (WhatsApp, Classroom, Teams). Students can register & take the proctored exam in any browser without logging in.'
+      });
+    } catch (err) {
+      toast.info(`Public Link: ${link}`);
+    }
+  };
+
+  const handleSavePublicConfig = async () => {
+    let targetId = savedQuizId;
+    if (!targetId) {
+      const saved = await handleSaveQuiz();
+      if (!saved) return;
+      targetId = saved.id;
+    }
+    setIsSavingPublicConfig(true);
+    try {
+      await publicQuizAPI.updatePublicConfig(targetId, {
+        isPublicLinkEnabled: true,
+        publicRegistrationConfig
+      });
+      toast.success('Registration Form settings saved successfully!');
+    } catch (err: any) {
+      console.error('Save config error:', err);
+      toast.error(err.response?.data?.message || 'Failed to update registration form settings');
+    } finally {
+      setIsSavingPublicConfig(false);
+    }
+  };
+
   const containerVariants = {
     hidden: { opacity: 0 },
     show: {
@@ -712,17 +792,55 @@ export default function CreateQuizPage() {
       className="p-4 md:p-6 lg:p-8 space-y-8 md:space-y-10 max-w-7xl mx-auto"
     >
       {/* Header */}
-      <motion.div variants={itemVariants} className="space-y-3">
-        <div className="flex items-center gap-2 text-primary font-bold uppercase tracking-[0.2em] text-xs">
-          <Sparkles className="w-4 h-4" />
-          Quiz Creator
+      <motion.div variants={itemVariants} className="space-y-4">
+        <div className="space-y-2">
+          <div className="flex items-center gap-2 text-primary font-bold uppercase tracking-[0.2em] text-xs">
+            <Sparkles className="w-4 h-4" />
+            Quiz Creator
+          </div>
+          <h1 className="text-3xl md:text-4xl lg:text-5xl font-black tracking-tighter">
+            Create <span className="bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">New Quiz</span>
+          </h1>
+          <p className="text-muted-foreground text-lg font-medium max-w-3xl">
+            Create quizzes for your classes manually or automatically using AI from your syllabus and textbooks.
+          </p>
         </div>
-        <h1 className="text-3xl md:text-4xl lg:text-5xl font-black tracking-tighter">
-          Create <span className="bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">New Quiz</span>
-        </h1>
-        <p className="text-muted-foreground text-lg font-medium max-w-3xl">
-          Create quizzes for your classes manually or automatically using AI from your syllabus and textbooks.
-        </p>
+
+        {/* 🌐 Quick Helper Banner for Public Links */}
+        <div className="bg-gradient-to-r from-indigo-50 via-purple-50 to-indigo-50 border border-indigo-200/80 rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center shrink-0 shadow-sm">
+              <Globe className="w-5 h-5 text-indigo-100" />
+            </div>
+            <div>
+              <p className="text-xs font-black uppercase text-indigo-950 flex items-center gap-2">
+                <span>Dedicated Public Web Quiz Creator Available</span>
+                <Badge className="bg-indigo-600 text-white text-[9px] font-bold">New Page</Badge>
+              </p>
+              <p className="text-xs text-indigo-800 font-medium mt-0.5">
+                Create open browser exam links from bookmarks or scratch, customize student registration text boxes, and share public links directly.
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 shrink-0 flex-wrap">
+            <Button
+              type="button"
+              onClick={() => navigate('/public-quiz-creator')}
+              className="h-9 px-4 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-sm gap-1.5"
+            >
+              <Globe className="w-3.5 h-3.5" />
+              <span>Public Web Quiz Page</span>
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => navigate('/bookmarks')}
+              className="h-9 px-3.5 border-indigo-200 text-indigo-700 hover:bg-indigo-100/60 font-bold text-xs rounded-xl"
+            >
+              Question Bank
+            </Button>
+          </div>
+        </div>
       </motion.div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -1168,49 +1286,287 @@ export default function CreateQuizPage() {
                       </DialogContent>
                     </Dialog>
 
+                    {/* 🌐 DIRECT 1-CLICK PUBLIC LINK BUTTON */}
+                    <Button
+                      type="button"
+                      onClick={() => handleCopyPublicLink()}
+                      className="bg-indigo-600 hover:bg-indigo-700 text-white h-14 px-7 font-bold uppercase tracking-wider rounded-xl shadow-lg shadow-indigo-600/30 active:scale-95 transition-all text-xs flex items-center gap-2"
+                      title="Generate and copy student public web link immediately"
+                    >
+                      <Globe className="w-4 h-4 text-indigo-200" />
+                      <span>{copiedPublicLink ? '✓ Link Copied!' : 'Copy Public Web Link'}</span>
+                    </Button>
+
+                    {/* ⚙️ DEDICATED FORM STUDIO LINK */}
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={async () => {
+                        let targetId = savedQuizId;
+                        if (!targetId) {
+                          const saved = await handleSaveQuiz();
+                          if (!saved) return;
+                          targetId = saved.id;
+                        }
+                        navigate(`/quiz/${targetId}/public-link`);
+                      }}
+                      className="border-indigo-300 text-indigo-700 bg-white hover:bg-indigo-50 h-14 px-6 font-bold uppercase tracking-wider rounded-xl text-xs flex items-center gap-2 shadow-sm"
+                      title="Open dedicated page to edit student entry form text boxes"
+                    >
+                      <Settings className="w-4 h-4 text-indigo-600" />
+                      <span>Edit Student Entry Form</span>
+                    </Button>
+
                     <Dialog open={shareDialogOpen} onOpenChange={setShareDialogOpen}>
                       <DialogTrigger asChild>
                         <Button variant="secondary" className="bg-black/20 text-white hover:bg-black/30 h-14 px-10 font-bold uppercase tracking-widest backdrop-blur-sm border border-white/10 active:scale-95 transition-all text-sm">
                           <Share2 className="w-5 h-5 mr-3" />
-                          Distribute to Students
+                          Share & Distribution
                         </Button>
                       </DialogTrigger>
-                      <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col p-0 bg-background border-sidebar-border shadow-2xl">
-                        <DialogHeader className="p-8 bg-muted/40 border-b">
-                          <DialogTitle className="text-3xl font-black tracking-tighter uppercase italic flex items-center gap-3 text-foreground">
+                      <DialogContent className="max-w-4xl max-h-[92vh] overflow-hidden flex flex-col p-0 bg-background border-sidebar-border shadow-2xl rounded-3xl">
+                        <DialogHeader className="p-6 sm:p-8 bg-muted/40 border-b">
+                          <DialogTitle className="text-2xl sm:text-3xl font-black tracking-tighter uppercase italic flex items-center gap-3 text-foreground">
                             <Target className="w-7 h-7 text-primary" />
-                            Distribution Registry
+                            Assessment Distribution
                           </DialogTitle>
-                          <DialogDescription className="font-bold text-[10px] mt-2 uppercase tracking-widest text-foreground/80">Identify student cohorts for prioritized assessment distribution.</DialogDescription>
+                          <DialogDescription className="font-bold text-[10px] mt-1.5 uppercase tracking-widest text-foreground/80">
+                            Distribute via open public proctored link or targeted student cohorts.
+                          </DialogDescription>
                         </DialogHeader>
-                        <div className="flex-1 overflow-auto p-4 md:p-8 bg-muted/5">
-                          <div className="bg-white rounded-2xl border border-sidebar-border/60 overflow-hidden shadow-sm">
-                            <StudentTable
-                              students={students}
-                              selectedStudents={selectedStudents}
-                              onSelectionChange={(ids) => setSelectedStudents(ids)}
-                              showCheckboxes={true}
-                            />
-                          </div>
+
+                        <div className="flex-1 overflow-auto p-4 sm:p-6 bg-muted/5">
+                          <Tabs value={shareActiveTab} onValueChange={(val: any) => setShareActiveTab(val)} className="w-full space-y-4">
+                            <TabsList className="grid grid-cols-2 bg-muted p-1 rounded-xl h-12 w-full">
+                              <TabsTrigger value="public" className="font-bold text-xs rounded-lg gap-2">
+                                <Globe className="w-3.5 h-3.5 text-indigo-600" />
+                                <span>Public Web Link (Google Forms Mode)</span>
+                              </TabsTrigger>
+                              <TabsTrigger value="cohorts" className="font-bold text-xs rounded-lg gap-2">
+                                <Smartphone className="w-3.5 h-3.5 text-primary" />
+                                <span>Enrolled Cohorts (Android / Email)</span>
+                              </TabsTrigger>
+                            </TabsList>
+
+                            {/* TAB 1: PUBLIC PROCTORED WEB LINK */}
+                            <TabsContent value="public" className="space-y-6 pt-2">
+                              {/* Shareable Link Banner */}
+                              <div className="p-5 rounded-2xl bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-200/80 shadow-xs space-y-3">
+                                <div>
+                                  <p className="text-xs font-black text-indigo-950 uppercase tracking-wider flex items-center gap-2">
+                                    <Globe className="w-4 h-4 text-indigo-600" />
+                                    Open Proctored Link (No Login Required)
+                                  </p>
+                                  <p className="text-xs text-indigo-700 font-medium mt-1 leading-relaxed">
+                                    Students can open this link on any desktop, laptop, or mobile browser. They will fill out their name, roll number, and class before taking the proctored exam.
+                                  </p>
+                                </div>
+
+                                <div className="flex flex-col sm:flex-row gap-2 pt-1">
+                                  <Input
+                                    readOnly
+                                    value={getPublicQuizUrl() || 'Please save quiz first to generate link'}
+                                    className="h-11 bg-white border-indigo-200 font-mono text-xs font-bold text-slate-800"
+                                  />
+                                  <Button
+                                    type="button"
+                                    onClick={() => handleCopyPublicLink()}
+                                    className="h-11 px-5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs gap-1.5 shrink-0"
+                                  >
+                                    <Copy className="w-3.5 h-3.5" />
+                                    <span>{copiedPublicLink ? 'Copied!' : 'Copy Link'}</span>
+                                  </Button>
+                                  {savedQuizId && (
+                                    <>
+                                      <Button
+                                        type="button"
+                                        variant="outline"
+                                        onClick={() => window.open(getPublicQuizUrl(), '_blank')}
+                                        className="h-11 px-4 border-indigo-200 text-indigo-700 hover:bg-indigo-100/60 font-bold text-xs gap-1.5 shrink-0"
+                                      >
+                                        <ExternalLink className="w-3.5 h-3.5" />
+                                        <span>Test Link</span>
+                                      </Button>
+                                      <Button
+                                        type="button"
+                                        variant="outline"
+                                        onClick={() => {
+                                          setShareDialogOpen(false);
+                                          navigate(`/quiz/${savedQuizId}/public-link`);
+                                        }}
+                                        className="h-11 px-4 border-indigo-200 text-indigo-700 hover:bg-indigo-100/60 font-bold text-xs gap-1.5 shrink-0"
+                                        title="Open full dedicated page to customize form fields & see real-time preview"
+                                      >
+                                        <Settings className="w-3.5 h-3.5" />
+                                        <span>Open Form Studio</span>
+                                      </Button>
+                                    </>
+                                  )}
+                                </div>
+                              </div>
+
+                              {/* Student Registration Form Settings */}
+                              <div className="p-5 rounded-2xl bg-white border border-sidebar-border shadow-xs space-y-4">
+                                <div className="border-b pb-3 flex items-center justify-between">
+                                  <div>
+                                    <h3 className="text-sm font-black text-foreground flex items-center gap-2">
+                                      <Settings className="w-4 h-4 text-primary" />
+                                      Student Entry Form Customizer
+                                    </h3>
+                                    <p className="text-[11px] text-muted-foreground font-medium">
+                                      Configure which details students must enter before the exam starts.
+                                    </p>
+                                  </div>
+                                  <Badge className="bg-primary/10 text-primary border-primary/20 text-[10px] font-bold">
+                                    Form Controls
+                                  </Badge>
+                                </div>
+
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                  {/* Roll No Required */}
+                                  <div className="p-3.5 rounded-xl border border-muted bg-muted/20 space-y-2">
+                                    <div className="flex items-center justify-between">
+                                      <Label className="text-xs font-bold text-foreground">Require Roll No / USN</Label>
+                                      <Switch
+                                        checked={publicRegistrationConfig.requireRollNo}
+                                        onCheckedChange={(checked) => setPublicRegistrationConfig(prev => ({ ...prev, requireRollNo: checked }))}
+                                      />
+                                    </div>
+                                    <Input
+                                      value={publicRegistrationConfig.rollNoLabel}
+                                      onChange={(e) => setPublicRegistrationConfig(prev => ({ ...prev, rollNoLabel: e.target.value }))}
+                                      placeholder="Field Label (e.g. Roll Number / USN)"
+                                      className="h-9 text-xs font-medium"
+                                    />
+                                  </div>
+
+                                  {/* Academic Level Required */}
+                                  <div className="p-3.5 rounded-xl border border-muted bg-muted/20 space-y-2">
+                                    <div className="flex items-center justify-between">
+                                      <Label className="text-xs font-bold text-foreground">Require Academic Level (PUC/School/Degree)</Label>
+                                      <Switch
+                                        checked={publicRegistrationConfig.requireAcademicLevel}
+                                        onCheckedChange={(checked) => setPublicRegistrationConfig(prev => ({ ...prev, requireAcademicLevel: checked }))}
+                                      />
+                                    </div>
+                                    <Input
+                                      value={publicRegistrationConfig.academicLevelLabel}
+                                      onChange={(e) => setPublicRegistrationConfig(prev => ({ ...prev, academicLevelLabel: e.target.value }))}
+                                      placeholder="Field Label (e.g. Class / Year)"
+                                      className="h-9 text-xs font-medium"
+                                    />
+                                  </div>
+
+                                  {/* Branch / Stream Required */}
+                                  <div className="p-3.5 rounded-xl border border-muted bg-muted/20 space-y-2">
+                                    <div className="flex items-center justify-between">
+                                      <Label className="text-xs font-bold text-foreground">Require Stream / Branch</Label>
+                                      <Switch
+                                        checked={publicRegistrationConfig.requireBranch}
+                                        onCheckedChange={(checked) => setPublicRegistrationConfig(prev => ({ ...prev, requireBranch: checked }))}
+                                      />
+                                    </div>
+                                    <Input
+                                      value={publicRegistrationConfig.branchLabel}
+                                      onChange={(e) => setPublicRegistrationConfig(prev => ({ ...prev, branchLabel: e.target.value }))}
+                                      placeholder="Field Label (e.g. Stream / Department)"
+                                      className="h-9 text-xs font-medium"
+                                    />
+                                  </div>
+
+                                  {/* Section Required */}
+                                  <div className="p-3.5 rounded-xl border border-muted bg-muted/20 space-y-2">
+                                    <div className="flex items-center justify-between">
+                                      <Label className="text-xs font-bold text-foreground">Require Section / Division</Label>
+                                      <Switch
+                                        checked={publicRegistrationConfig.requireSection}
+                                        onCheckedChange={(checked) => setPublicRegistrationConfig(prev => ({ ...prev, requireSection: checked }))}
+                                      />
+                                    </div>
+                                    <Input
+                                      value={publicRegistrationConfig.sectionLabel}
+                                      onChange={(e) => setPublicRegistrationConfig(prev => ({ ...prev, sectionLabel: e.target.value }))}
+                                      placeholder="Field Label (e.g. Section)"
+                                      className="h-9 text-xs font-medium"
+                                    />
+                                  </div>
+
+                                  {/* Email Required */}
+                                  <div className="p-3.5 rounded-xl border border-muted bg-muted/20 flex items-center justify-between">
+                                    <div>
+                                      <Label className="text-xs font-bold text-foreground">Require Email Address</Label>
+                                      <p className="text-[10px] text-muted-foreground">Ask student for email before test</p>
+                                    </div>
+                                    <Switch
+                                      checked={publicRegistrationConfig.requireEmail}
+                                      onCheckedChange={(checked) => setPublicRegistrationConfig(prev => ({ ...prev, requireEmail: checked }))}
+                                    />
+                                  </div>
+
+                                  {/* Allow Instant Results */}
+                                  <div className="p-3.5 rounded-xl border border-muted bg-muted/20 flex items-center justify-between">
+                                    <div>
+                                      <Label className="text-xs font-bold text-foreground">Show Instant Scores</Label>
+                                      <p className="text-[10px] text-muted-foreground">Display marks immediately upon submit</p>
+                                    </div>
+                                    <Switch
+                                      checked={publicRegistrationConfig.allowInstantResults}
+                                      onCheckedChange={(checked) => setPublicRegistrationConfig(prev => ({ ...prev, allowInstantResults: checked }))}
+                                    />
+                                  </div>
+                                </div>
+
+                                <div className="pt-2 flex justify-end">
+                                  <Button
+                                    type="button"
+                                    disabled={isSavingPublicConfig}
+                                    onClick={handleSavePublicConfig}
+                                    className="h-10 px-6 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl"
+                                  >
+                                    {isSavingPublicConfig ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-2" /> : <Save className="w-3.5 h-3.5 mr-2" />}
+                                    <span>Save Form Settings</span>
+                                  </Button>
+                                </div>
+                              </div>
+                            </TabsContent>
+
+                            {/* TAB 2: ENROLLED COHORTS */}
+                            <TabsContent value="cohorts" className="space-y-4 pt-2">
+                              <div className="bg-white rounded-2xl border border-sidebar-border/60 overflow-hidden shadow-sm">
+                                <StudentTable
+                                  students={students}
+                                  selectedStudents={selectedStudents}
+                                  onSelectionChange={(ids) => setSelectedStudents(ids)}
+                                  showCheckboxes={true}
+                                />
+                              </div>
+
+                              <div className="pt-2 flex justify-end gap-3 flex-wrap">
+                                <Button
+                                  variant="outline"
+                                  onClick={handleSendWebLinks}
+                                  disabled={isSendingWebLinks || selectedStudents.length === 0}
+                                  className="h-11 px-5 font-bold uppercase tracking-wider border-blue-400 text-blue-600 hover:bg-blue-50 text-xs"
+                                >
+                                  {isSendingWebLinks ? '📧 Sending...' : '📱 Send Email Link to Cohort'}
+                                </Button>
+                                <Button
+                                  onClick={handleShareQuiz}
+                                  disabled={isSharing || selectedStudents.length === 0}
+                                  className="gradient-primary h-11 px-8 font-black uppercase tracking-wider shadow-glow text-xs"
+                                >
+                                  {isSharing ? 'Transmitting...' : (
+                                    <span className="flex items-center gap-1.5">🤖 Deploy to Android <ChevronRight className="w-4 h-4" /></span>
+                                  )}
+                                </Button>
+                              </div>
+                            </TabsContent>
+                          </Tabs>
                         </div>
-                        <div className="p-8 border-t bg-muted/30 flex justify-end gap-3 flex-wrap">
-                          <Button variant="ghost" onClick={() => setShareDialogOpen(false)} className="font-black uppercase text-[10px] tracking-widest px-6 h-12">Cancel Selection</Button>
-                          <Button
-                            variant="outline"
-                            onClick={handleSendWebLinks}
-                            disabled={isSendingWebLinks || selectedStudents.length === 0}
-                            className="h-12 px-6 font-black uppercase tracking-widest border-blue-400 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950 text-[10px]"
-                          >
-                            {isSendingWebLinks ? '📧 Sending...' : '📱 Send iPhone/Web Link'}
-                          </Button>
-                          <Button
-                            onClick={handleShareQuiz}
-                            disabled={isSharing || selectedStudents.length === 0}
-                            className="gradient-primary h-12 px-10 font-black uppercase tracking-widest shadow-glow text-[10px]"
-                          >
-                            {isSharing ? 'Transmitting...' : (
-                              <span className="flex items-center gap-2">🤖 Deploy to Android <ChevronRight className="w-4 h-4" /></span>
-                            )}
+
+                        <div className="p-4 sm:p-6 border-t bg-muted/30 flex justify-end">
+                          <Button variant="ghost" onClick={() => setShareDialogOpen(false)} className="font-bold uppercase text-xs tracking-wider px-6 h-11">
+                            Close
                           </Button>
                         </div>
                       </DialogContent>

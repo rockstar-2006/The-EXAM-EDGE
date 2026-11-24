@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { quizAPI } from '@/services/api';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { FileText, Users, Clock, TrendingUp, ChevronRight, Activity, BarChart3, Database, Trash2, Bookmark } from 'lucide-react';
+import { FileText, Users, Clock, TrendingUp, ChevronRight, Activity, BarChart3, Database, Trash2, Bookmark, Globe, Copy } from 'lucide-react';
 import { toast } from 'sonner';
 import { motion, AnimatePresence, Variants } from 'framer-motion';
 import { Badge } from '@/components/ui/badge';
@@ -134,8 +134,8 @@ export default function ResultsPage() {
               <Card className="shadow-elevated border-sidebar-border/50 bg-card/40 backdrop-blur-md group hover:border-primary/30 transition-all overflow-hidden relative h-full flex flex-col">
                 <div className="absolute top-0 left-0 w-1 h-0 group-hover:h-full bg-primary transition-all duration-300" />
 
-                {/* Actions: Bookmark & Delete */}
-                <div className="absolute top-4 right-4 z-20 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                {/* Actions: Public Link, Bookmark & Delete */}
+                <div className="absolute top-4 right-4 z-20 flex items-center gap-1">
                   <Button
                     variant="ghost"
                     size="icon"
@@ -149,7 +149,7 @@ export default function ResultsPage() {
                         toast.error(err.response?.data?.message || 'Failed to bookmark assessment');
                       }
                     }}
-                    className="h-8 w-8 rounded-lg hover:bg-primary/10 hover:text-primary transition-colors"
+                    className="h-8 w-8 rounded-lg hover:bg-primary/10 hover:text-primary text-slate-400 hover:text-slate-600 transition-colors"
                   >
                     <Bookmark className="h-4 w-4" />
                   </Button>
@@ -158,7 +158,7 @@ export default function ResultsPage() {
                     size="icon"
                     title="Delete assessment"
                     onClick={(e) => handleDeleteQuiz(e, quiz._id)}
-                    className="h-8 w-8 rounded-lg hover:bg-destructive/10 hover:text-destructive transition-colors"
+                    className="h-8 w-8 rounded-lg hover:bg-destructive/10 text-slate-400 hover:text-destructive transition-colors"
                   >
                     <Trash2 className="h-4 w-4" />
                   </Button>
@@ -202,10 +202,29 @@ export default function ResultsPage() {
                     </div>
 
                     <div className="flex items-center justify-between text-[10px] font-black uppercase tracking-widest pt-4 text-slate-500">
-                      <div className="flex items-center gap-1.5">
-                        <Clock className="w-3 h-3" />
-                        {quiz.duration || 30} MINS
-                      </div>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const isDesktopOrCap = typeof window !== 'undefined' && (
+                            Boolean((window as any).desktopSecurity) || 
+                            window.location.pathname.endsWith('.html')
+                          );
+                          const url = isDesktopOrCap 
+                            ? `${window.location.origin}/#/quiz/public/${quiz._id}`
+                            : `${window.location.origin}/quiz/public/${quiz._id}`;
+                          navigator.clipboard.writeText(url);
+                          toast.success(`🌐 Public Link Copied for "${quiz.title}"!`, {
+                            description: 'Students can open and take this proctored quiz in any browser without logging in.'
+                          });
+                        }}
+                        className="h-8 px-2.5 rounded-lg text-indigo-700 bg-indigo-50/80 hover:bg-indigo-100 border-indigo-200 text-[10px] font-bold gap-1 active:scale-95 transition-all shadow-xs"
+                      >
+                        <Globe className="w-3.5 h-3.5 text-indigo-600" />
+                        <span>Copy Public Link</span>
+                      </Button>
+
                       <div className="flex items-center gap-1.5 group-hover:text-primary transition-colors">
                         VIEW RESULTS <ChevronRight className="w-3 h-3" />
                       </div>

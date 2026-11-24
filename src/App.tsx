@@ -2,7 +2,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { HashRouter, BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { HashRouter, BrowserRouter, Routes, Route, Navigate, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { Capacitor } from "@capacitor/core";
 
@@ -13,6 +13,9 @@ import StudentsPage from "./pages/StudentsPage";
 import CreateQuizPage from "./pages/CreateQuizPage";
 import BookmarksPage from "./pages/BookmarksPage";
 import StudentQuizPage from "./pages/StudentQuizPage";
+import PublicQuizPage from "./pages/PublicQuizPage";
+import PublicQuizCreatorPage from "./pages/PublicQuizCreatorPage";
+import PublicLinkStudioPage from "./pages/PublicLinkStudioPage";
 import QuizResultsPage from "./pages/QuizResultsPage";
 import ResultsPage from "./pages/ResultsPage";
 import SettingsPage from "./pages/SettingsPage";
@@ -29,6 +32,18 @@ import UpdateManager from "./components/UpdateManager";
 import { StudentAuthProvider } from "./context/StudentAuthContext";
 
 const queryClient = new QueryClient();
+
+function HashRouteRedirect({ isApp }: { isApp: boolean }) {
+    const navigate = useNavigate();
+    useEffect(() => {
+        if (!isApp && typeof window !== 'undefined' && window.location.hash && window.location.hash.startsWith('#/')) {
+            const targetPath = window.location.hash.slice(1);
+            window.history.replaceState(null, '', targetPath);
+            navigate(targetPath, { replace: true });
+        }
+    }, [navigate, isApp]);
+    return null;
+}
 
 const App = () => {
     const [loading, setLoading] = useState(true);
@@ -55,6 +70,7 @@ const App = () => {
                     <Sonner position="top-center" />
 
                     <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+                        <HashRouteRedirect isApp={isApp} />
                         <Routes>
                             {/* Faculty & Super Admin Routes */}
                             <Route path="/login" element={<LoginPage />} />
@@ -66,8 +82,13 @@ const App = () => {
                                     <Route path="/admin/dashboard" element={<AdminDashboardPage />} />
                                     <Route path="/students" element={<StudentsPage />} />
                                     <Route path="/create-quiz" element={<CreateQuizPage />} />
+                                    <Route path="/create_quiz" element={<Navigate to="/create-quiz" replace />} />
+                                    <Route path="/public-quiz-creator" element={<PublicQuizCreatorPage />} />
+                                    <Route path="/create-public-quiz" element={<Navigate to="/public-quiz-creator" replace />} />
+                                    <Route path="/public-quiz" element={<Navigate to="/public-quiz-creator" replace />} />
                                     <Route path="/results" element={<ResultsPage />} />
                                     <Route path="/quiz/:quizId/results" element={<QuizResultsPage />} />
+                                    <Route path="/quiz/:quizId/public-link" element={<PublicLinkStudioPage />} />
                                     <Route path="/bookmarks" element={<BookmarksPage />} />
                                     <Route path="/settings" element={<SettingsPage type="teacher" />} />
                                 </Route>
@@ -78,6 +99,7 @@ const App = () => {
                             <Route path="/student/reset-password/:token" element={<ResetPasswordPage type="student" />} />
                             <Route path="/quiz/share/:token" element={<StudentQuizPage />} />
                             <Route path="/quiz/secure/attempt/:token" element={<StudentQuizPage />} />
+                            <Route path="/quiz/public/:quizId" element={<PublicQuizPage />} />
 
                             <Route element={<ProtectedRoute role="student" />}>
                                 <Route path="/student/dashboard" element={<StudentDashboard />} />

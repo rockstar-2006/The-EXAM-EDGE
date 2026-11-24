@@ -89,7 +89,7 @@ export const AcademicTextRenderer: React.FC<AcademicTextRendererProps> = ({
 
       if (token.startsWith('**') && token.endsWith('**') && token.length > 4) {
         return (
-          <strong key={key} className="font-extrabold text-slate-900">
+          <strong key={key} className="font-extrabold text-inherit">
             {token.slice(2, -2)}
           </strong>
         );
@@ -97,7 +97,7 @@ export const AcademicTextRenderer: React.FC<AcademicTextRendererProps> = ({
 
       if (token.startsWith('*') && token.endsWith('*') && token.length > 2) {
         return (
-          <em key={key} className="italic text-slate-800">
+          <em key={key} className="italic text-inherit opacity-90">
             {token.slice(1, -1)}
           </em>
         );
@@ -256,8 +256,9 @@ export const AcademicTextRenderer: React.FC<AcademicTextRendererProps> = ({
               className={cn(
                 "leading-relaxed whitespace-pre-wrap break-words",
                 isQuestion
-                  ? "text-slate-900 font-bold text-sm sm:text-base lg:text-lg"
-                  : "text-slate-700 text-xs sm:text-sm font-medium"
+                  ? "font-bold text-sm sm:text-base lg:text-lg"
+                  : "text-xs sm:text-sm font-medium",
+                className
               )}
             >
               {lines.map((line, lIdx) => (

@@ -7,7 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { toast } from 'sonner';
 import {
   Download, ArrowLeft, Loader2, FileSpreadsheet, Search, Users, ChevronUp, ChevronDown, ChevronRight, Activity, Calendar, Clock,
-  Trophy, Target, FileText, Trash2, Award, TrendingUp, RefreshCw, Database, Sparkles, X, Code, ShieldAlert, CheckCircle2
+  Trophy, Target, FileText, Trash2, Award, TrendingUp, RefreshCw, Database, Sparkles, X, Code, ShieldAlert, CheckCircle2, Globe
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { quizAPI } from '@/services/api';
@@ -29,6 +29,9 @@ interface QuizAttempt {
   _id: string;
   studentName: string;
   studentUSN: string;
+  studentRollNo?: string;
+  academicLevel?: string;
+  isPublicAttempt?: boolean;
   studentEmail: string;
   studentBranch: string;
   studentYear: string;
@@ -176,9 +179,11 @@ export default function QuizResultsPage() {
     if (searchTerm) {
       const lowerSearch = searchTerm.toLowerCase();
       result = result.filter(a =>
-        a.studentName.toLowerCase().includes(lowerSearch) ||
-        a.studentUSN.toLowerCase().includes(lowerSearch) ||
-        a.studentEmail.toLowerCase().includes(lowerSearch) ||
+        (a.studentName && a.studentName.toLowerCase().includes(lowerSearch)) ||
+        (a.studentRollNo && a.studentRollNo.toLowerCase().includes(lowerSearch)) ||
+        (a.academicLevel && a.academicLevel.toLowerCase().includes(lowerSearch)) ||
+        (a.studentUSN && a.studentUSN.toLowerCase().includes(lowerSearch)) ||
+        (a.studentEmail && a.studentEmail.toLowerCase().includes(lowerSearch)) ||
         (a.studentSection && a.studentSection.toLowerCase().includes(lowerSearch))
       );
     }
@@ -263,6 +268,26 @@ export default function QuizResultsPage() {
         </div>
 
         <div className="flex flex-wrap gap-3 w-full md:w-auto">
+          <Button
+            onClick={() => {
+              const isDesktopOrCap = typeof window !== 'undefined' && (
+                Boolean((window as any).desktopSecurity) || 
+                window.location.pathname.endsWith('.html')
+              );
+              const url = isDesktopOrCap 
+                ? `${window.location.origin}/#/quiz/public/${quizId}`
+                : `${window.location.origin}/quiz/public/${quizId}`;
+              navigator.clipboard.writeText(url);
+              toast.success('🌐 Public Exam Link Copied!', {
+                description: 'Share this link with your students. Anyone can open it on desktop or browser to take the exam without logging in.'
+              });
+            }}
+            className="h-12 md:h-14 px-5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold uppercase text-[10px] tracking-wider rounded-xl shadow-md gap-2 active:scale-95 transition-all"
+          >
+            <Globe className="w-4 h-4 text-indigo-200" />
+            <span>Copy Public Link</span>
+          </Button>
+
           <Button
             onClick={() => setAutoRefresh(!autoRefresh)}
             variant="outline"
@@ -411,10 +436,26 @@ export default function QuizResultsPage() {
                       <TableRow key={attempt._id} className="group border-b-sidebar-border/20 hover:bg-primary/[0.02]">
                         <TableCell className="pl-8">
                           <div className="flex flex-col">
-                            <span className="font-bold text-sm text-foreground">{attempt.studentName}</span>
-                            <div className="flex items-center gap-2">
-                              <span className="text-[10px] font-black uppercase text-foreground/70">{attempt.studentUSN}</span>
-                              <span className="text-[10px] font-bold text-primary italic lowercase tracking-wider">{attempt.studentBranch}</span>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="font-bold text-sm text-foreground">{attempt.studentName}</span>
+                              {attempt.isPublicAttempt && (
+                                <Badge className="bg-sky-50 text-sky-700 border-sky-200 text-[8px] font-black uppercase">
+                                  🌐 Public Web
+                                </Badge>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-2 flex-wrap mt-0.5">
+                              <span className="text-[10px] font-black uppercase text-foreground/70">
+                                {attempt.studentRollNo || attempt.studentUSN || 'No Roll No'}
+                              </span>
+                              {attempt.academicLevel && (
+                                <Badge variant="outline" className="text-[8px] font-bold text-indigo-700 bg-indigo-50/70 border-indigo-200">
+                                  {attempt.academicLevel}
+                                </Badge>
+                              )}
+                              {attempt.studentBranch && (
+                                <span className="text-[10px] font-bold text-primary italic lowercase tracking-wider">{attempt.studentBranch}</span>
+                              )}
                               {attempt.studentSection && (
                                 <Badge variant="outline" className="text-[8px] font-black uppercase px-1.5 py-0 border-indigo-200 text-indigo-700 bg-indigo-50/50">
                                   SEC {attempt.studentSection}
@@ -495,13 +536,38 @@ export default function QuizResultsPage() {
               <DialogHeader className="p-8 bg-muted/40 border-b relative">
                 <div className="flex justify-between items-start">
                   <div>
-                    <DialogTitle className="text-3xl font-black tracking-tighter uppercase italic text-foreground">{selectedAttempt.studentName}</DialogTitle>
-                    <DialogDescription className="text-[10px] font-black uppercase text-foreground/80 flex items-center gap-2 mt-1">
-                      {selectedAttempt.studentEmail} <span className="opacity-20">•</span> {selectedAttempt.studentUSN} <span className="opacity-20">•</span> <span className="text-primary italic">{selectedAttempt.studentBranch}</span>
+                    <DialogTitle className="text-3xl font-black tracking-tighter uppercase italic text-foreground flex items-center gap-3 flex-wrap">
+                      <span>{selectedAttempt.studentName}</span>
+                      {selectedAttempt.isPublicAttempt && (
+                        <Badge className="bg-sky-50 text-sky-700 border-sky-200 text-[9px] font-black uppercase">
+                          🌐 Public Web Exam
+                        </Badge>
+                      )}
+                    </DialogTitle>
+                    <DialogDescription className="text-[10px] font-black uppercase text-foreground/80 flex items-center gap-2 mt-1 flex-wrap">
+                      <span>ID: {selectedAttempt.studentRollNo || selectedAttempt.studentUSN || 'N/A'}</span>
+                      {selectedAttempt.academicLevel && (
+                        <>
+                          <span className="opacity-20">•</span>
+                          <span className="text-indigo-600 font-bold">{selectedAttempt.academicLevel}</span>
+                        </>
+                      )}
+                      {selectedAttempt.studentBranch && (
+                        <>
+                          <span className="opacity-20">•</span>
+                          <span className="text-primary italic">{selectedAttempt.studentBranch}</span>
+                        </>
+                      )}
                       {selectedAttempt.studentSection && (
                         <>
                           <span className="opacity-20">•</span>
                           <span className="font-bold text-indigo-600">SEC {selectedAttempt.studentSection}</span>
+                        </>
+                      )}
+                      {selectedAttempt.studentEmail && !selectedAttempt.studentEmail.includes('@public.quiz') && (
+                        <>
+                          <span className="opacity-20">•</span>
+                          <span className="lowercase">{selectedAttempt.studentEmail}</span>
                         </>
                       )}
                     </DialogDescription>

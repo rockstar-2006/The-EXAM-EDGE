@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Quiz } from '@/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Users, FileText, Bookmark, TrendingUp, Sparkles, ArrowRight, Clock, ChevronRight } from 'lucide-react';
+import { Users, FileText, Bookmark, TrendingUp, Sparkles, ArrowRight, Clock, ChevronRight, Globe } from 'lucide-react';
 import { studentsAPI, quizAPI, bookmarksAPI } from '@/services/api';
 import { toast } from 'sonner';
 import { motion, Variants } from 'framer-motion';
@@ -229,6 +229,23 @@ export default function DashboardPage() {
                         </span>
                       </div>
                     </div>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      title="Copy Public Proctored Link"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        const url = `${window.location.origin}/#/quiz/public/${quiz._id}`;
+                        navigator.clipboard.writeText(url);
+                        toast.success(`Copied Public Link for "${quiz.title}"!`, {
+                          description: 'Anyone with this link can take the exam in any browser without logging in.'
+                        });
+                      }}
+                      className="h-8 px-2 text-indigo-600 hover:bg-indigo-50 font-bold text-[10px] gap-1 shrink-0"
+                    >
+                      <Globe className="w-3.5 h-3.5 text-indigo-500" />
+                      <span className="hidden sm:inline">Link</span>
+                    </Button>
                   </div>
                 ))
               ) : (

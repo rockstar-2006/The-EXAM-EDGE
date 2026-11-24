@@ -11,6 +11,7 @@ import {
   Settings, 
   Building2, 
   KeyRound,
+  Globe,
   X 
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -39,6 +40,7 @@ export function Sidebar() {
         { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard' },
         { icon: Users, label: 'Students & Classes', path: '/students' },
         { icon: FileText, label: 'Create Quiz', path: '/create-quiz' },
+        { icon: Globe, label: 'Public Web Quiz', path: '/public-quiz-creator' },
         { icon: FileText, label: 'Quiz Results', path: '/results' },
         { icon: Bookmark, label: 'Question Bank', path: '/bookmarks' },
         { icon: Settings, label: 'Settings', path: '/settings' },

@@ -511,3 +511,27 @@ export const adminAPI = {
     return await httpClient.post(`/admin/faculty/${facultyId}/sync-all-bookmarks`);
   },
 };
+
+/* =========================
+   PUBLIC OPEN WEB PROCTORED QUIZ APIs
+========================= */
+export const publicQuizAPI = {
+  getQuizInfo: async (quizId: string) => {
+    return await httpClient.get(`/public-quiz/${quizId}/info`);
+  },
+  startAttempt: async (quizId: string, registrationData: any) => {
+    return await httpClient.post(`/public-quiz/${quizId}/start`, registrationData);
+  },
+  saveProgress: async (attemptId: string, answers: string[]) => {
+    return await httpClient.post('/public-quiz/save-progress', { attemptId, answers });
+  },
+  logViolation: async (attemptId: string, violationType: string, reason: string) => {
+    return await httpClient.post('/public-quiz/log-violation', { attemptId, violationType, reason });
+  },
+  submitQuiz: async (attemptId: string, answers: string[], isAutoSubmit = false, reason = '') => {
+    return await httpClient.post('/public-quiz/submit', { attemptId, answers, isAutoSubmit, reason });
+  },
+  updatePublicConfig: async (quizId: string, data: { isPublicLinkEnabled?: boolean; publicRegistrationConfig?: any }) => {
+    return await httpClient.put(`/quiz/${quizId}/public-config`, data);
+  }
+};
