@@ -1047,11 +1047,10 @@ export default function PublicQuizCreatorPage() {
 
                     <Button
                       type="button"
-                      variant="outline"
                       onClick={() => window.open(getPublicLink(generatedQuizId, generatedShortCode || undefined), '_blank')}
-                      className="h-11 px-4 border-white/20 text-white hover:bg-white/10 font-bold text-xs rounded-xl gap-2"
+                      className="h-11 px-5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs rounded-xl gap-2 shadow-sm border border-indigo-400/30 active:scale-95 transition-all"
                     >
-                      <ExternalLink className="w-4 h-4" />
+                      <ExternalLink className="w-4 h-4 text-white" />
                       <span>Test as Student</span>
                     </Button>
                   </div>
