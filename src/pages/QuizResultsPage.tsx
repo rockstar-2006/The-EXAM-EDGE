@@ -476,23 +476,32 @@ export default function QuizResultsPage() {
                           </span>
                         </TableCell>
                         <TableCell>
-                          <div className="flex flex-col gap-1 items-start max-w-[280px]">
-                            <Badge className={cn(
-                              "text-[9px] font-black uppercase tracking-widest w-fit",
-                              attempt.status === 'blocked' ? "bg-rose-500 shadow-glow shadow-rose-500/20 text-white" :
-                                attempt.status === 'graded' || attempt.status === 'submitted' ? "bg-emerald-500 text-white" : "bg-muted text-muted-foreground"
-                            )}>
-                              {attempt.status === 'blocked' ? 'BLOCKED / RESTRICTED' : attempt.status}
-                            </Badge>
-                            {attempt.status === 'blocked' && (
-                              <div className="bg-rose-50 border border-rose-200/80 rounded-md px-2 py-1 flex items-start gap-1.5 w-full">
-                                <ShieldAlert className="w-3.5 h-3.5 text-rose-600 shrink-0 mt-0.5" />
-                                <span className="text-[10px] font-bold text-rose-700 leading-tight">
-                                  {attempt.violationReason || 'Terminated by lockdown protocol'}
-                                </span>
+                          {(() => {
+                            const isFalseNormalBlock =
+                              attempt.status === 'blocked' &&
+                              typeof attempt.violationReason === 'string' &&
+                              ['student normal submission', 'normal submission'].includes(attempt.violationReason.trim().toLowerCase());
+                            const displayStatus = isFalseNormalBlock ? 'graded' : attempt.status;
+                            return (
+                              <div className="flex flex-col gap-1 items-start max-w-[280px]">
+                                <Badge className={cn(
+                                  "text-[9px] font-black uppercase tracking-widest w-fit",
+                                  displayStatus === 'blocked' ? "bg-rose-500 shadow-glow shadow-rose-500/20 text-white" :
+                                    displayStatus === 'graded' || displayStatus === 'submitted' ? "bg-emerald-500 text-white" : "bg-muted text-muted-foreground"
+                                )}>
+                                  {displayStatus === 'blocked' ? 'BLOCKED / RESTRICTED' : displayStatus}
+                                </Badge>
+                                {displayStatus === 'blocked' && (
+                                  <div className="bg-rose-50 border border-rose-200/80 rounded-md px-2 py-1 flex items-start gap-1.5 w-full">
+                                    <ShieldAlert className="w-3.5 h-3.5 text-rose-600 shrink-0 mt-0.5" />
+                                    <span className="text-[10px] font-bold text-rose-700 leading-tight">
+                                      {attempt.violationReason || 'Terminated by lockdown protocol'}
+                                    </span>
+                                  </div>
+                                )}
                               </div>
-                            )}
-                          </div>
+                            );
+                          })()}
                         </TableCell>
                         <TableCell className="pr-8 text-right">
                           <div className="flex justify-end items-center gap-2">

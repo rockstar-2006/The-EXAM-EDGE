@@ -227,7 +227,7 @@ export default function PublicQuizPage() {
     try {
       if (attemptIdRef.current) {
         const res = await publicQuizAPI.submitQuiz(attemptIdRef.current, answersRef.current, true, reasonText);
-        setSubmissionResult(res.data?.result || null);
+        setSubmissionResult(res.data?.results || res.data?.result || null);
       }
       setPhase('blocked');
     } catch (err: any) {
@@ -442,8 +442,8 @@ export default function PublicQuizPage() {
 
     try {
       if (attemptIdRef.current) {
-        const res = await publicQuizAPI.submitQuiz(attemptIdRef.current, answersRef.current, false, 'Student Normal Submission');
-        setSubmissionResult(res.data?.result || null);
+        const res = await publicQuizAPI.submitQuiz(attemptIdRef.current, answersRef.current, false, '');
+        setSubmissionResult(res.data?.results || res.data?.result || null);
       }
       setPhase('completed');
       toast.success('Assessment submitted successfully!');
