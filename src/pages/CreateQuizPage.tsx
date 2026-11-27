@@ -1161,7 +1161,7 @@ export default function CreateQuizPage() {
                       <h3 className="text-4xl font-black tracking-tighter uppercase italic">Publish Quiz to Students</h3>
                       <p className="text-white/70 font-medium">Set the quiz title and schedule before publishing to your students.</p>
                     </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                       <div className="space-y-3">
                         <Label className="text-[11px] font-black uppercase text-white tracking-widest">Quiz Title</Label>
                         <Input
@@ -1179,6 +1179,54 @@ export default function CreateQuizPage() {
                           placeholder="e.g. Covers Chapters 1 to 3..."
                           className="bg-white text-slate-900 placeholder:text-slate-500 h-12 font-bold focus:bg-white border-2 border-white/90 shadow-md"
                         />
+                      </div>
+                      <div className="space-y-3">
+                        <Label className="text-[11px] font-black uppercase text-white tracking-widest flex items-center justify-between">
+                          <span className="flex items-center gap-1.5"><Clock className="w-3.5 h-3.5" /> Duration (Minutes)</span>
+                          {parseInt(quizDuration) >= 60 && (
+                            <span className="text-[10px] bg-white/20 px-2 py-0.5 rounded-full">
+                              {Math.floor(parseInt(quizDuration) / 60)}h {parseInt(quizDuration) % 60 > 0 ? `${parseInt(quizDuration) % 60}m` : ''}
+                            </span>
+                          )}
+                        </Label>
+                        <Input
+                          type="number"
+                          min="1"
+                          value={quizDuration}
+                          onChange={(e) => {
+                            setQuizDuration(e.target.value);
+                            setSavedQuizId(null);
+                          }}
+                          placeholder="30"
+                          className="bg-white text-slate-900 placeholder:text-slate-500 h-12 font-bold focus:bg-white border-2 border-white/90 shadow-md"
+                        />
+                        <div className="flex flex-wrap gap-1.5 pt-0.5">
+                          {[
+                            { label: '15m', value: '15' },
+                            { label: '30m', value: '30' },
+                            { label: '45m', value: '45' },
+                            { label: '1 hr', value: '60' },
+                            { label: '1.5 hr', value: '90' },
+                            { label: '2 hr', value: '120' }
+                          ].map((preset) => (
+                            <button
+                              key={preset.value}
+                              type="button"
+                              onClick={() => {
+                                setQuizDuration(preset.value);
+                                setSavedQuizId(null);
+                              }}
+                              className={cn(
+                                "px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all border",
+                                quizDuration === preset.value
+                                  ? "bg-white text-primary border-white shadow-sm"
+                                  : "bg-white/15 text-white border-white/30 hover:bg-white/25"
+                              )}
+                            >
+                              {preset.label}
+                            </button>
+                          ))}
+                        </div>
                       </div>
                     </div>
 

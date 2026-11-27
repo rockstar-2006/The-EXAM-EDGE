@@ -531,7 +531,7 @@ export const publicQuizAPI = {
   submitQuiz: async (attemptId: string, answers: string[], isAutoSubmit = false, reason = '') => {
     return await httpClient.post('/public-quiz/submit', { attemptId, answers, isAutoSubmit, reason });
   },
-  updatePublicConfig: async (quizId: string, data: { isPublicLinkEnabled?: boolean; publicRegistrationConfig?: any }) => {
+  updatePublicConfig: async (quizId: string, data: { isPublicLinkEnabled?: boolean; publicRegistrationConfig?: any; duration?: number }) => {
     return await httpClient.put(`/quiz/${quizId}/public-config`, data);
   }
 };

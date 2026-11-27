@@ -42,6 +42,7 @@ export default function PublicLinkStudioPage() {
   const [quiz, setQuiz] = useState<any>(null);
 
   // Form Configuration State
+  const [durationMinutes, setDurationMinutes] = useState('30');
   const [isPublicLinkEnabled, setIsPublicLinkEnabled] = useState(true);
   const [requireName, setRequireName] = useState(true);
   const [nameLabel, setNameLabel] = useState('Full Name');
@@ -89,6 +90,7 @@ export default function PublicLinkStudioPage() {
         const res = await quizAPI.getById(quizId);
         const q = res.data;
         setQuiz(q);
+        setDurationMinutes(String(q.duration || 30));
 
         if (typeof q.isPublicLinkEnabled !== 'undefined') {
           setIsPublicLinkEnabled(q.isPublicLinkEnabled);
@@ -186,10 +188,12 @@ export default function PublicLinkStudioPage() {
 
       await publicQuizAPI.updatePublicConfig(quizId!, {
         isPublicLinkEnabled,
-        publicRegistrationConfig: configPayload
+        publicRegistrationConfig: configPayload,
+        duration: parseInt(durationMinutes) || 30
       });
 
-      toast.success('Student Entry Form & Public Link settings saved successfully!');
+      setQuiz((prev: any) => prev ? { ...prev, duration: parseInt(durationMinutes) || 30 } : prev);
+      toast.success('Student Entry Form, Timer & Public Link settings saved successfully!');
     } catch (err: any) {
       console.error('Save error:', err);
       toast.error(err.response?.data?.message || 'Failed to save settings');
@@ -227,7 +231,7 @@ export default function PublicLinkStudioPage() {
               <Badge className="bg-indigo-50 text-indigo-700 border-indigo-200 text-[10px] font-black uppercase">
                 🌐 Public Web Studio
               </Badge>
-              <span className="text-xs text-muted-foreground font-mono">{quiz?.questions?.length || 0} Questions • {quiz?.duration || 30} Mins</span>
+              <span className="text-xs text-muted-foreground font-mono">{quiz?.questions?.length || 0} Questions • {durationMinutes || 30} Mins</span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-black text-foreground tracking-tight mt-0.5">
               {quiz?.title || 'Assessment'}
@@ -318,6 +322,55 @@ export default function PublicLinkStudioPage() {
             </CardHeader>
 
             <CardContent className="p-6 space-y-6">
+              {/* Quiz Timer / Duration Control */}
+              <div className="p-4 rounded-2xl border border-indigo-200 dark:border-indigo-900 bg-indigo-50/40 dark:bg-indigo-950/20 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Clock className="w-4 h-4 text-indigo-600" />
+                    <span className="text-xs font-black uppercase text-foreground">Quiz Timer / Duration (Minutes)</span>
+                  </div>
+                  {parseInt(durationMinutes) >= 60 && (
+                    <Badge className="bg-indigo-600 text-white text-[10px] font-bold">
+                      {Math.floor(parseInt(durationMinutes) / 60)}h {parseInt(durationMinutes) % 60 > 0 ? `${parseInt(durationMinutes) % 60}m` : ''}
+                    </Badge>
+                  )}
+                </div>
+                <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                  <Input
+                    type="number"
+                    min="1"
+                    value={durationMinutes}
+                    onChange={(e) => setDurationMinutes(e.target.value)}
+                    placeholder="30"
+                    className="h-10 w-full sm:w-32 text-xs font-black bg-white dark:bg-slate-900"
+                  />
+                  <div className="flex flex-wrap gap-1.5">
+                    {[
+                      { label: '15m', value: '15' },
+                      { label: '30m', value: '30' },
+                      { label: '45m', value: '45' },
+                      { label: '1 hr', value: '60' },
+                      { label: '1.5 hr', value: '90' },
+                      { label: '2 hr', value: '120' }
+                    ].map((preset) => (
+                      <button
+                        key={preset.value}
+                        type="button"
+                        onClick={() => setDurationMinutes(preset.value)}
+                        className={cn(
+                          "px-2.5 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all border",
+                          durationMinutes === preset.value
+                            ? "bg-indigo-600 text-white border-indigo-600 shadow-xs"
+                            : "bg-white dark:bg-slate-900 text-muted-foreground border-border hover:bg-muted"
+                        )}
+                      >
+                        {preset.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
               {/* Field 1: Full Name */}
               <div className="p-4 rounded-2xl border border-muted bg-card/60 space-y-3">
                 <div className="flex items-center justify-between">
@@ -595,7 +648,7 @@ export default function PublicLinkStudioPage() {
               </Badge>
               <h3 className="font-black text-lg text-white leading-tight">{quiz?.title}</h3>
               <p className="text-[11px] text-slate-300">
-                {quiz?.numQuestions || quiz?.questions?.length || 0} Questions • {quiz?.duration || 30} Mins Duration
+                {quiz?.numQuestions || quiz?.questions?.length || 0} Questions • {durationMinutes || 30} Mins Duration
               </p>
             </div>
 

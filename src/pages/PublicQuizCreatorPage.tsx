@@ -690,13 +690,45 @@ export default function PublicQuizCreatorPage() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Duration (Minutes)</Label>
+                  <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center justify-between">
+                    <span>Duration (Minutes)</span>
+                    {parseInt(durationMinutes) >= 60 && (
+                      <span className="text-[10px] bg-indigo-100 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300 px-2 py-0.5 rounded-full font-bold">
+                        {Math.floor(parseInt(durationMinutes) / 60)}h {parseInt(durationMinutes) % 60 > 0 ? `${parseInt(durationMinutes) % 60}m` : ''}
+                      </span>
+                    )}
+                  </Label>
                   <Input
                     type="number"
+                    min="1"
                     value={durationMinutes}
                     onChange={(e) => setDurationMinutes(e.target.value)}
                     className="h-12 font-bold text-sm rounded-xl"
                   />
+                  <div className="flex flex-wrap gap-1.5 pt-0.5">
+                    {[
+                      { label: '15m', value: '15' },
+                      { label: '30m', value: '30' },
+                      { label: '45m', value: '45' },
+                      { label: '1 hr', value: '60' },
+                      { label: '1.5 hr', value: '90' },
+                      { label: '2 hr', value: '120' }
+                    ].map((preset) => (
+                      <button
+                        key={preset.value}
+                        type="button"
+                        onClick={() => setDurationMinutes(preset.value)}
+                        className={cn(
+                          "px-2 py-1 rounded-lg text-[10px] font-bold uppercase transition-all border",
+                          durationMinutes === preset.value
+                            ? "bg-indigo-600 text-white border-indigo-600 shadow-xs"
+                            : "bg-muted/40 text-muted-foreground border-border/60 hover:bg-muted"
+                        )}
+                      >
+                        {preset.label}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </div>
             </CardContent>
