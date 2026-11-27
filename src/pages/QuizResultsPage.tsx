@@ -216,10 +216,27 @@ export default function QuizResultsPage() {
     lowestScore: Math.min(...attempts.map((a) => a.totalMarks || 0)),
   } : null;
 
+  const getEffectiveStatus = (attempt: QuizAttempt) => {
+    const isFalseNormalBlock =
+      attempt.status === 'blocked' &&
+      typeof attempt.violationReason === 'string' &&
+      ['student normal submission', 'normal submission'].includes(attempt.violationReason.trim().toLowerCase());
+    return isFalseNormalBlock ? 'graded' : attempt.status;
+  };
+
   const topPerformers = useMemo(() => {
     return [...attempts]
-      .filter(a => a.status === 'submitted' || a.status === 'graded')
-      .sort((a, b) => (b.percentage || 0) - (a.percentage || 0))
+      .filter(a => {
+        const effStatus = getEffectiveStatus(a);
+        return effStatus === 'submitted' || effStatus === 'graded';
+      })
+      .sort((a, b) => {
+        const pctDiff = (b.percentage || 0) - (a.percentage || 0);
+        if (pctDiff !== 0) return pctDiff;
+        const marksDiff = (b.totalMarks || 0) - (a.totalMarks || 0);
+        if (marksDiff !== 0) return marksDiff;
+        return (a.timeSpent || 0) - (b.timeSpent || 0);
+      })
       .slice(0, 5);
   }, [attempts]);
 
@@ -369,7 +386,7 @@ export default function QuizResultsPage() {
                     <div className="space-y-0.5">
                       <p className="font-black text-sm uppercase truncate w-full max-w-[140px]">{student.studentName}</p>
                       <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-tighter">
-                        {student.studentUSN} {student.studentSection ? `• SEC ${student.studentSection}` : ''}
+                        {student.studentRollNo || student.studentUSN} {student.studentSection ? `• SEC ${student.studentSection}` : ''}
                       </p>
                     </div>
                     <div className="mt-2 text-xl font-black italic tracking-tighter text-primary">
@@ -477,11 +494,7 @@ export default function QuizResultsPage() {
                         </TableCell>
                         <TableCell>
                           {(() => {
-                            const isFalseNormalBlock =
-                              attempt.status === 'blocked' &&
-                              typeof attempt.violationReason === 'string' &&
-                              ['student normal submission', 'normal submission'].includes(attempt.violationReason.trim().toLowerCase());
-                            const displayStatus = isFalseNormalBlock ? 'graded' : attempt.status;
+                            const displayStatus = getEffectiveStatus(attempt);
                             return (
                               <div className="flex flex-col gap-1 items-start max-w-[280px]">
                                 <Badge className={cn(
